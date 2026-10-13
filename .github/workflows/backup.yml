@@ -21,6 +21,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "CLOUDFLARE_API_TOKEN 비밀값이 없어 건너뜀"; exit 0; fi
           mkdir -p backup
           DAY=$(TZ=Asia/Seoul date +%F)
           npx wrangler d1 export wortling --remote --output=backup/$DAY.sql
