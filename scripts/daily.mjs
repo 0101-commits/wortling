@@ -85,6 +85,14 @@ try {
         continue;
       }
       const png = Buffer.from(await (await fetch(url)).arrayBuffer());
+      // 실측: 가끔 새까만 그림이 온다(w0010, 편차 0) → 올리지 않고 실패로 표시(카드는 머리글자 칸)
+      const { channels } = await sharp(png).stats();
+      if (channels.every((c) => c.stdev < 4)) {
+        log.failed.push({ id: w.id, error: 'blank_image' });
+        await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        console.log(`그림 ${w.id} ${w.lemma} 단색 → 실패 처리`);
+        continue;
+      }
       const webp = await toWebp(png);
       await api(`/api/admin/image/${w.id}`, { method: 'PUT', raw: webp, headers: { 'content-type': 'image/webp' } });
       credits -= COST_PER_IMAGE;
