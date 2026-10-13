@@ -1,0 +1,70 @@
+// 처음 한 번: O1 레벨·하루 수 → O2 디스코드 확인 → 시작
+import { useState } from 'react'
+import { Button, SegmentedControl, SegmentedControlItem } from '@montage-ui/core'
+import { IconSend } from '@montage-ui/icon'
+import type { Level, Settings } from '../../shared/api.ts'
+import { Stepper, Top } from '../ui.tsx'
+import { useTestNotification } from './Settings.tsx'
+
+export default function Onboarding({ settings, onDone }: { settings: Settings; onDone: (p: Partial<Settings>) => void }) {
+  const [step, setStep] = useState<1 | 2>(1)
+  const [level, setLevel] = useState<Level>(settings.level)
+  const [perDay, setPerDay] = useState(Math.min(8, Math.max(3, settings.new_per_day)))
+  const test = useTestNotification()
+
+  return (
+    <>
+      <Top title={step === 1 ? '시작하기' : '알림 연결'} />
+      <main className="page bare onboard">
+        <div className="step" aria-label={`2단계 중 ${step}단계`}>
+          <i className="on" />
+          <i className={step === 2 ? 'on' : ''} />
+        </div>
+        {step === 1 ? (
+          <>
+            <h1>어디서 시작할까요?</h1>
+            <p className="lead">레벨에 맞는 단어부터 매일 조금씩 드려요. 나중에 설정에서 바꿀 수 있어요.</p>
+            <SegmentedControl size="large" value={level} onValueChange={(v) => setLevel(v as Level)}>
+              <SegmentedControlItem value="B1">B1</SegmentedControlItem>
+              <SegmentedControlItem value="B2">B2</SegmentedControlItem>
+            </SegmentedControl>
+            <div className="box">
+              <div className="kv">
+                <span>하루 새 단어</span>
+                <Stepper label="하루 새 단어" value={perDay} min={3} max={8} onChange={setPerDay} />
+              </div>
+              <div className="kv"><span>범위</span><b>{level === 'B1' ? 'B1 단어만' : 'B1 + B2'}</b></div>
+            </div>
+            <p className="lead">아는 단어는 카드에서 「쉬움」으로 밀면 금방 뒤로 빠져요. 따로 시험은 없어요.</p>
+            <Button fullWidth size="large" onClick={() => setStep(2)}>
+              다음
+            </Button>
+          </>
+        ) : (
+          <>
+            <h1>디스코드로 받을게요</h1>
+            <p className="lead">
+              아침 7:30 에 오늘 카드, 저녁 9시엔 남은 카드가 있을 때만 한 통 보내요. 웹훅 주소는 앱이 아니라 Worker 비밀값
+              (<code>DISCORD_WEBHOOK</code>)에 들어 있어서 여기서 입력하지 않아요.
+            </p>
+            <div className="box">
+              <div className="kv"><span>아침 카드</span><b>07:30</b></div>
+              <div className="kv"><span>저녁 남은 카드</span><b>21:00 · 있을 때만</b></div>
+            </div>
+            <Button variant="outlined" color="assistive" fullWidth size="large" loading={test.busy} leadingContent={<IconSend />} onClick={test.run}>
+              시험 통 보내기
+            </Button>
+            <div className="row2">
+              <Button variant="outlined" color="assistive" size="large" onClick={() => setStep(1)}>
+                이전
+              </Button>
+              <Button fullWidth size="large" onClick={() => onDone({ level, new_per_day: perDay, onboarded: true })}>
+                시작
+              </Button>
+            </div>
+          </>
+        )}
+      </main>
+    </>
+  )
+}

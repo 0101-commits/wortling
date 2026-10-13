@@ -1,0 +1,136 @@
+// 여러 화면이 같이 쓰는 작은 부품
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { animate } from 'motion/react'
+import { Button, IconButton, TopNavigation, TopNavigationButton, useRegionStore } from '@montage-ui/core'
+import { IconBell, IconChevronLeft, IconMinus, IconPlus, IconSetting } from '@montage-ui/icon'
+import type { Pos, Word } from '../shared/api.ts'
+import { imgSrc } from './api.ts'
+import { article } from './format.ts'
+import { goBack, navigate } from './router.ts'
+
+type ToastVariant = 'normal' | 'positive' | 'cautionary' | 'negative'
+/** montage 토스트. useToast 는 매 렌더 새 함수를 돌려줘 effect 의존성에 못 쓴다 → 저장소의 add(고정)로 감싼다 */
+export function useToaster() {
+  const add = useRegionStore((s) => s.add)
+  return useCallback((content: ReactNode, variant: ToastVariant = 'normal') => add({ type: 'toast', content, variant }), [add])
+}
+
+/** 위 막대: 제목 + (뒤로) + (받은편지함 · 설정) */
+export function Top({ title, back, actions = false }: { title: ReactNode; back?: string; actions?: boolean }) {
+  return (
+    <div className="top">
+      <TopNavigation
+        leadingContent={
+          back ? (
+            <TopNavigationButton aria-label="뒤로" onClick={() => goBack(back)}>
+              <IconChevronLeft />
+            </TopNavigationButton>
+          ) : undefined
+        }
+        trailingContent={
+          actions ? (
+            <>
+              <TopNavigationButton aria-label="받은편지함" onClick={() => navigate('/inbox')}>
+                <IconBell />
+              </TopNavigationButton>
+              <TopNavigationButton aria-label="설정" onClick={() => navigate('/settings')}>
+                <IconSetting />
+              </TopNavigationButton>
+            </>
+          ) : undefined
+        }
+      >
+        {title}
+      </TopNavigation>
+    </div>
+  )
+}
+
+export const POS_LABEL: Record<Pos, string> = {
+  noun: '명사', verb: '동사', adj: '형용사', adv: '부사', prep: '전치사',
+  conj: '접속사', pron: '대명사', num: '수사', phrase: '표현', other: '기타',
+}
+
+/** 관사(색) + 단어 */
+export function Lemma({ word, className = '' }: { word: Word; className?: string }) {
+  const a = article(word)
+  return (
+    <span className={'lemma ' + className} lang="de">
+      {a && <span className={'art ' + a}>{a} </span>}
+      {word.lemma}
+    </span>
+  )
+}
+
+/** 그림이 있으면 그림, 없거나 못 받으면 머리글자 칸 */
+export function WordImage({ word, className = '' }: { word: Word; className?: string }) {
+  const [broken, setBroken] = useState(false)
+  if (word.image && !broken)
+    return <img className={'wimg ' + className} src={imgSrc(word.id)} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
+  return (
+    <div className={'wimg letter ' + className} aria-hidden>
+      {word.lemma.replace(/^sich\s+/, '').charAt(0).toUpperCase()}
+    </div>
+  )
+}
+
+/** 예문 속 단어를 굵게 */
+export function Example({ de, lemma }: { de: string; lemma: string }) {
+  const stem = lemma.replace(/^sich\s+/, '')
+  const i = de.toLowerCase().indexOf(stem.toLowerCase())
+  if (i < 0) return <>{de}</>
+  return (
+    <>
+      {de.slice(0, i)}
+      <b>{de.slice(i, i + stem.length)}</b>
+      {de.slice(i + stem.length)}
+    </>
+  )
+}
+
+/** 숫자 − n + (montage 에 숫자 증감 부품이 없어 직접 만든다) */
+export function Stepper(props: { value: number; min: number; max: number; step?: number; onChange: (v: number) => void; label: string }) {
+  const { value, min, max, step = 1, onChange, label } = props
+  return (
+    <div className="stepper" role="group" aria-label={label}>
+      <IconButton variant="outlined" size="small" aria-label={`${label} 줄이기`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))}>
+        <IconMinus />
+      </IconButton>
+      <output className="num" aria-live="polite">{value}</output>
+      <IconButton variant="outlined" size="small" aria-label={`${label} 늘리기`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))}>
+        <IconPlus />
+      </IconButton>
+    </div>
+  )
+}
+
+/** 0 → n 으로 굴러가는 숫자(number-flow 를 흉내 낸 짧은 판) */
+export function CountUp({ value }: { value: number }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const from = useRef(0)
+  useEffect(() => {
+    const c = animate(from.current, value, {
+      duration: 0.8,
+      ease: 'easeOut',
+      onUpdate: (v) => {
+        if (ref.current) ref.current.textContent = Math.round(v).toLocaleString('ko-KR')
+      },
+    })
+    from.current = value
+    return () => c.stop()
+  }, [value])
+  return <span ref={ref} className="num">0</span>
+}
+
+export function ErrorBox({ error, onRetry }: { error: string; onRetry?: () => void }) {
+  return (
+    <div className="empty" role="alert">
+      <p>{error}</p>
+      {onRetry && (
+        <Button variant="outlined" color="assistive" size="small" onClick={onRetry}>
+          다시 시도
+        </Button>
+      )}
+    </div>
+  )
+}

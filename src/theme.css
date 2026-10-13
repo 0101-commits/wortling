@@ -1,0 +1,53 @@
+/* montage-web 브랜드 별칭 9개를 cyan 으로 재선언한다.
+   montage 부품은 var(--semantic-…) 를 읽으므로 이 파일이 global.css 뒤에 오면 버튼·칩·탭이 모두 cyan 이 된다.
+   값: cyan30 #006F82(primary) · cyan20 #004854(heavy) · 사이값 #005F70(strong) · cyan40 #0098B2(inverse) */
+:root {
+  --semantic-foreground-brand-primary: #006F82;
+  --semantic-foreground-brand-primary-rgb: 0, 111, 130;
+  --semantic-foreground-brand-inverse: #0098B2;
+  --semantic-foreground-brand-inverse-rgb: 0, 152, 178;
+  --semantic-surface-brand-primary: #006F82;
+  --semantic-surface-brand-primary-rgb: 0, 111, 130;
+  --semantic-surface-brand-strong: #005F70;
+  --semantic-surface-brand-strong-rgb: 0, 95, 112;
+  --semantic-surface-brand-heavy: #004854;
+  --semantic-surface-brand-heavy-rgb: 0, 72, 84;
+  --semantic-surface-brand-subtle: #006F820D;
+  --semantic-surface-brand-subtle-rgb: 0, 111, 130;
+  --semantic-line-brand-primary: #006F8247;
+  --semantic-line-brand-primary-rgb: 0, 111, 130;
+  --semantic-line-brand-strong: #006F826E;
+  --semantic-line-brand-strong-rgb: 0, 111, 130;
+  --semantic-line-brand-focus: #006F821F;
+  --semantic-line-brand-focus-rgb: 0, 111, 130;
+
+  /* 앱 전용 토큰(기획안 v6.2 목업과 같은 이름) */
+  --bg: #F7F7F8;
+  --bg2: #F4F4F5;
+  --paper: #FFFFFF;
+  --ink: #171719;
+  --ink2: #46474C;
+  --ink3: #878A93;
+  --line: #DBDCDF;
+  --line2: #EAEBEC;
+  --accent: #006F82;
+  --accent-ink: #004854;
+  --accent-bg: #DEFAFF;
+  --accent-mid: #57DFF7;
+  --accent-light: #B5F4FF;
+  --der: #0066FF;
+  --die: #FF4242;
+  --das: #00BF40;
+  --ok: #009632;
+  --ok-bg: #D9FFE6;
+  --warn: #D47800;
+  --warn-bg: #FEF4E6;
+  --bad: #E52222;
+  --bad-bg: #FEECEC;
+  --easy: #006F82;
+  --easy-bg: #DEFAFF;
+  --shadow: 0 4px 16px rgba(23, 23, 25, 0.1), 0 1px 3px rgba(23, 23, 25, 0.06);
+  --r: 16px;
+  --nav-h: 56px;
+  color-scheme: light;
+}

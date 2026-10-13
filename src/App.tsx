@@ -1,0 +1,188 @@
+// 앱 틀: 접속 키 → 설정 불러오기 → 해시 경로별 화면 + 아래 탭
+import { useEffect, useState } from 'react'
+import { BottomNavigation, BottomNavigationItem, Button, Skeleton, TextField } from '@montage-ui/core'
+import { IconBook, IconBookFill, IconCalendar, IconCalendarFill, IconHome, IconHomeFill } from '@montage-ui/icon'
+import type { Settings } from '../shared/api.ts'
+import { ApiError, MOCK, api, errorText, getToken, retryUnsent, setToken, setUnauthorizedHandler } from './api.ts'
+import { navigate, useRoute } from './router.ts'
+import Inbox from './screens/Inbox.tsx'
+import Onboarding from './screens/Onboarding.tsx'
+import SettingsScreen from './screens/Settings.tsx'
+import Stats from './screens/Stats.tsx'
+import Today from './screens/Today.tsx'
+import WordDetail from './screens/WordDetail.tsx'
+import Words from './screens/Words.tsx'
+import { ErrorBox, Top, useToaster } from './ui.tsx'
+
+const TABS = [
+  { value: 'today', label: '오늘', icon: IconHome, on: IconHomeFill },
+  { value: 'words', label: '단어', icon: IconBook, on: IconBookFill },
+  { value: 'stats', label: '기록', icon: IconCalendar, on: IconCalendarFill },
+]
+
+export default function App() {
+  const route = useRoute()
+  const toast = useToaster()
+  const [needKey, setNeedKey] = useState(() => !MOCK && !getToken())
+  const [wrongKey, setWrongKey] = useState(false)
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [bootError, setBootError] = useState<string>()
+  const [boot, setBoot] = useState(0)
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setWrongKey(getToken() !== '')
+      setNeedKey(true)
+    })
+    return () => setUnauthorizedHandler(null)
+  }, [])
+
+  useEffect(() => {
+    if (needKey) return
+    let live = true
+    setBootError(undefined)
+    api.settings().then(
+      (s) => {
+        if (!live) return
+        setSettings(s)
+        retryUnsent().then((n) => n > 0 && toast(`지난번에 못 보낸 채점 ${n}개를 보냈어요`, 'positive'))
+      },
+      (e) => live && !(e instanceof ApiError && e.status === 401) && setBootError(errorText(e)),
+    )
+    return () => {
+      live = false
+    }
+  }, [needKey, boot, toast])
+
+  const page = route.parts[0] ?? 'today'
+  // 처음 온 사람은 시작하기로
+  useEffect(() => {
+    if (settings && !settings.onboarded && page !== 'onboarding') navigate('/onboarding', true)
+  }, [settings, page])
+
+  const save = async (patch: Partial<Settings>) => {
+    const prev = settings
+    setSettings((s) => s && { ...s, ...patch })
+    try {
+      // 서버 응답으로 덮지 않는다: 빠르게 여러 번 누르면 응답 순서가 뒤바뀔 수 있다
+      await api.saveSettings(patch)
+    } catch (e) {
+      setSettings(prev)
+      toast(`저장 못 했어요 · ${errorText(e)}`, 'negative')
+    }
+  }
+
+  if (needKey)
+    return (
+      <div className="app">
+        <KeyEntry
+          wrong={wrongKey}
+          onDone={() => {
+            setNeedKey(false)
+            setBoot((b) => b + 1)
+          }}
+        />
+      </div>
+    )
+
+  if (!settings)
+    return (
+      <div className="app">
+        <Top title="Wortling" />
+        <main className="page">
+          {bootError ? (
+            <ErrorBox error={bootError} onRetry={() => setBoot((b) => b + 1)} />
+          ) : (
+            <Skeleton variant="rectangle" width="100%" height={420} radius={20} />
+          )}
+        </main>
+      </div>
+    )
+
+  let screen
+  switch (page) {
+    case 'onboarding':
+      screen = (
+        <Onboarding
+          settings={settings}
+          onDone={async (p) => {
+            await save(p)
+            navigate('/today', true)
+          }}
+        />
+      )
+      break
+    case 'words':
+      screen = <Words />
+      break
+    case 'word':
+      screen = <WordDetail id={route.parts[1] ?? ''} />
+      break
+    case 'stats':
+      screen = <Stats />
+      break
+    case 'inbox':
+      screen = <Inbox />
+      break
+    case 'settings':
+      screen = <SettingsScreen settings={settings} onChange={save} />
+      break
+    default:
+      screen = <Today />
+  }
+  const tab = page === 'word' ? 'words' : TABS.some((t) => t.value === page) ? page : page === 'onboarding' || page === 'inbox' || page === 'settings' ? '' : 'today'
+
+  return (
+    <div className="app">
+      {screen}
+      {page !== 'onboarding' && (
+        <nav className="tabbar" aria-label="아래 탭">
+          <BottomNavigation value={tab} onValueChange={(v) => '/' + v !== route.path && navigate('/' + v)}>
+            {TABS.map(({ value, label, icon: I, on: On }) => (
+              <BottomNavigationItem key={value} value={value} label={label} icon={tab === value ? <On /> : <I />} />
+            ))}
+          </BottomNavigation>
+        </nav>
+      )}
+    </div>
+  )
+}
+
+/** 401 이거나 키가 없을 때. 주소에 ?k= 를 붙여 열어도 된다. */
+function KeyEntry({ wrong, onDone }: { wrong: boolean; onDone: () => void }) {
+  const [key, setKey] = useState('')
+  return (
+    <>
+      <Top title="접속 키" />
+      <main className="page bare">
+        <h1>Wortling</h1>
+        <p className="lead">
+          혼자 쓰는 앱이라 접속 키가 있어야 열려요. Worker 비밀값 <code>API_TOKEN</code> 을 넣거나, 주소 끝에 <code>#/today?k=키</code> 를 붙여 열어 주세요.
+        </p>
+        <form
+          className="keyform"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!key.trim()) return
+            setToken(key)
+            onDone()
+          }}
+        >
+          {wrong && !key && <p className="small bad">저장된 키가 맞지 않아요. 다시 넣어 주세요.</p>}
+          <TextField
+            status={wrong && !key ? 'negative' : 'normal'}
+            type="password"
+            autoComplete="current-password"
+            placeholder="접속 키"
+            aria-label="접속 키"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+          />
+          <Button type="submit" fullWidth size="large" disabled={!key.trim()}>
+            들어가기
+          </Button>
+        </form>
+      </main>
+    </>
+  )
+}

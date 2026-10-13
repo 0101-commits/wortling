@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wortling",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/img/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "wortling",
+      "database_id": "33f5428a-341d-4aa0-b98b-d4b77ae44f94",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [{ "binding": "IMG", "id": "9a581668b2d8427395dbe4b86186f11f" }],
+  // 알림은 cron 대신 Durable Object 알람(계정 cron 5칸이 다 참) — worker/alarm.ts
+  "triggers": { "crons": [] },
+  "durable_objects": { "bindings": [{ "name": "SCHED", "class_name": "Scheduler" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Scheduler"] }],
+  "vars": { "APP_URL": "https://wortling.e-hcg.workers.dev" },
+  "observability": { "enabled": true }
+}

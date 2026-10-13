@@ -1,0 +1,818 @@
+/* Wortling 화면 문법(기획안 v6.2 목업의 라이트 값). montage 부품 밖의 것만 여기서 그린다.
+   다크 모드 없음: prefers-color-scheme 를 읽지 않고, 바탕은 언제나 흰색. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  background: #fff;
+}
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: 0.0096em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  -webkit-tap-highlight-color: transparent;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1 {
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: -0.023em;
+  font-weight: 700;
+}
+h2 {
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 700;
+}
+h3 {
+  font-size: 15px;
+  font-weight: 700;
+}
+b,
+strong {
+  font-weight: 700;
+}
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--accent-bg);
+  color: var(--accent-ink);
+  padding: 1px 5px;
+  border-radius: 6px;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.small {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink2);
+}
+.muted {
+  color: var(--ink3);
+}
+.center {
+  text-align: center;
+}
+.bad {
+  color: var(--bad);
+}
+.lead {
+  font-size: 15px;
+  color: var(--ink2);
+}
+
+/* ── 틀 ── */
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background: #fff;
+}
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #fff;
+}
+.top h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page {
+  padding: 4px 16px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-width: 0;
+}
+.page > * {
+  min-width: 0;
+}
+.page.bare {
+  padding-bottom: 32px;
+}
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: #fff;
+  border-top: 1px solid var(--line2);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabbar > * {
+  max-width: 480px;
+  margin: 0 auto;
+  background: #fff;
+}
+
+/* ── 관사 색 단어 ── */
+.lemma {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.art {
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.art.der {
+  color: var(--der);
+}
+.art.die {
+  color: var(--die);
+}
+.art.das {
+  color: var(--das);
+}
+
+/* ── 그림 / 머리글자 칸 ── */
+.wimg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+}
+.wimg.letter {
+  display: grid;
+  place-items: center;
+  background: var(--accent-bg);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 64px;
+  line-height: 1;
+}
+
+/* ── 오늘: 덱 ── */
+.tophint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+}
+.undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.undo:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.undo svg {
+  width: 16px;
+  height: 16px;
+}
+.mix {
+  font-size: 12px;
+  color: var(--ink3);
+  white-space: nowrap;
+}
+.counter {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.deck-page {
+  overflow-x: clip; /* 날아가는 카드가 가로 스크롤을 만들지 않게 */
+}
+.stage {
+  --p: 0;
+  position: relative;
+  height: clamp(360px, calc(100dvh - 300px), 560px);
+}
+.dk {
+  position: absolute;
+  inset: 0 0 20px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transform-origin: 50% 100%;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dk.top {
+  cursor: grab;
+  touch-action: none;
+}
+.dk.top:active {
+  cursor: grabbing;
+}
+.dk.top:focus-visible {
+  outline: 3px solid var(--semantic-line-brand-strong);
+  outline-offset: 2px;
+}
+.dk.behind {
+  box-shadow: 0 1px 3px rgba(23, 23, 25, 0.06);
+  border: 1px solid var(--line2);
+  /* 깊이 d 만큼 작고 낮게, 위 카드를 민 만큼(p) 한 칸 올라온다 */
+  transform: translateY(calc((var(--d) - var(--p)) * 10px)) scale(calc(1 - (var(--d) - var(--p)) * var(--step)));
+}
+.dk-ill {
+  position: relative;
+  flex: 0 0 46%;
+  background: #e6e2d6;
+  overflow: hidden;
+}
+.dk-txt {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+  animation: fade 0.18s ease-out;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+.dk-wd {
+  font-size: 30px;
+  line-height: 1.15;
+}
+.dk-wd.sm {
+  font-size: 17px;
+  color: var(--ink2);
+}
+.dk-mn {
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+.dk-en {
+  font-size: 14px;
+  color: var(--ink2);
+}
+.dk-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  font-size: 13px;
+  color: var(--ink3);
+}
+.dk-ex {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink2);
+}
+.dk-ex b {
+  color: var(--ink);
+}
+.dk-ex .ko {
+  display: block;
+  color: var(--ink3);
+  margin-top: 2px;
+}
+.dk-hint {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--ink3);
+  text-align: center;
+}
+.stp {
+  position: absolute;
+  top: 18px;
+  z-index: 2;
+  padding: 4px 12px;
+  border: 3px solid;
+  border-radius: 10px;
+  font-size: 22px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.92);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.stp.good {
+  left: 16px;
+  color: var(--ok);
+  transform: rotate(-12deg);
+}
+.stp.again {
+  right: 16px;
+  color: var(--bad);
+  transform: rotate(12deg);
+}
+.stp.easy {
+  left: 50%;
+  translate: -50% 0;
+  color: var(--easy);
+  transform: rotate(-4deg);
+}
+.stp.hard {
+  top: auto;
+  bottom: 22%;
+  left: 50%;
+  translate: -50% 0;
+  color: var(--warn);
+  transform: rotate(4deg);
+}
+.grade {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.grade button {
+  height: 48px;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font: inherit;
+  display: grid;
+  place-content: center;
+  line-height: 1.15;
+  cursor: pointer;
+}
+.grade button:active {
+  background: var(--bg2);
+}
+.grade b {
+  font-size: 14px;
+}
+.grade small {
+  font-size: 11px;
+  color: var(--ink3);
+  font-variant-numeric: tabular-nums;
+}
+.grade .r1 b {
+  color: var(--bad);
+}
+.grade .r2 b {
+  color: var(--warn);
+}
+.grade .r3 b {
+  color: var(--ok);
+}
+.grade .r4 b {
+  color: var(--easy);
+}
+.keys {
+  display: none;
+  font-size: 12px;
+  color: var(--ink3);
+  text-align: center;
+}
+@media (hover: hover) and (pointer: fine) {
+  .keys {
+    display: block;
+  }
+}
+
+/* 세션 끝 */
+.done {
+  display: grid;
+  gap: 14px;
+  padding-top: 12px;
+}
+.tomorrow {
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+}
+
+/* ── 벤토·상자 ── */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.bento .b {
+  background: var(--bg2);
+  border-radius: 16px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+.bento .v {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: normal;
+}
+.bento .v small {
+  font-size: 13px;
+  color: var(--ink3);
+  font-weight: 600;
+  margin-left: 3px;
+}
+.bento .l {
+  font-size: 13px;
+  color: var(--ink2);
+  margin-top: 2px;
+}
+.bento .wide {
+  grid-column: 1 / -1;
+}
+.box {
+  background: var(--bg2);
+  border-radius: 16px;
+  padding: 2px 16px;
+}
+.box.wh {
+  background: #fff;
+  border: 1px solid var(--line2);
+}
+.box.pad {
+  padding: 14px 16px;
+  display: grid;
+  gap: 12px;
+}
+.kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line2);
+}
+.kv:last-child {
+  border-bottom: 0;
+}
+.kv > :first-child {
+  min-width: 0;
+  color: var(--ink2);
+}
+.kv b {
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.kv .sub {
+  display: block;
+  font-size: 12px;
+  color: var(--ink3);
+}
+.kv.col {
+  flex-wrap: wrap;
+}
+.kv.col > [data-component='segmented-control'],
+.kv.col > div:last-child {
+  flex: 1 1 200px;
+  max-width: 260px;
+}
+.kv .url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-g {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.row-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.row2 {
+  display: flex;
+  gap: 8px;
+}
+.sec-t {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink3);
+  margin: 6px 4px -4px;
+}
+.date {
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  height: 40px;
+  padding: 0 10px;
+  color-scheme: light;
+  min-width: 0;
+}
+
+/* 숫자 − n + */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.stepper output {
+  min-width: 2ch;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+/* ── 빈 화면 ── */
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 32px 8px;
+  color: var(--ink2);
+}
+.empty img {
+  width: 200px;
+  height: 150px;
+  max-width: 100%;
+  object-fit: cover;
+  border-radius: 20px;
+  background: var(--bg2);
+}
+.empty h2 {
+  color: var(--ink);
+}
+
+/* ── 단어 목록 ── */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.list {
+  display: grid;
+}
+.cell {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line2);
+  color: inherit;
+  text-decoration: none;
+}
+.list li:last-child .cell,
+.list > .cell:last-child {
+  border-bottom: 0;
+}
+.cell .th {
+  width: 56px;
+  height: 42px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.cell .th .letter {
+  font-size: 20px;
+}
+.cell .mid {
+  min-width: 0;
+}
+.cell .w {
+  display: block;
+  font-size: 16px;
+  line-height: 1.3;
+}
+.cell .art {
+  font-size: 0.8em;
+}
+.cell .m {
+  font-size: 13px;
+  color: var(--ink2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cell .r {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink3);
+  white-space: nowrap;
+}
+
+/* ── 단어 상세 ── */
+.wcard {
+  border: 1px solid var(--line2);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.wcard .ill {
+  aspect-ratio: 4 / 3;
+  max-height: 280px;
+  width: 100%;
+  background: #e6e2d6;
+}
+.wcard .ill .letter {
+  font-size: 80px;
+}
+.wcard .txt {
+  padding: 16px 18px 18px;
+  display: grid;
+  gap: 8px;
+}
+.wcard .big {
+  font-size: 28px;
+  line-height: 1.15;
+}
+.wcard .mn {
+  font-size: 20px;
+  font-weight: 700;
+}
+.revs .kv {
+  min-height: 44px;
+}
+.rate {
+  font-weight: 700;
+  min-width: 48px;
+}
+.rate.r1 {
+  color: var(--bad) !important;
+}
+.rate.r2 {
+  color: var(--warn) !important;
+}
+.rate.r3 {
+  color: var(--ok) !important;
+}
+.rate.r4 {
+  color: var(--easy) !important;
+}
+.revs .kv .small {
+  flex: 1;
+}
+
+/* ── 기록 ── */
+.heat {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, auto);
+  gap: 4px;
+}
+.heat i,
+.legend i {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: var(--bg2);
+}
+.heat i.pad {
+  visibility: hidden;
+}
+.heat i.l1,
+.legend i.l1 {
+  background: var(--accent-light);
+}
+.heat i.l2,
+.legend i.l2 {
+  background: var(--accent-mid);
+}
+.heat i.l3,
+.legend i.l3 {
+  background: #0098b2;
+}
+.heat i.l4,
+.legend i.l4 {
+  background: var(--accent);
+}
+.legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.legend i {
+  width: 12px;
+  height: 12px;
+}
+.bars {
+  display: grid;
+  gap: 10px;
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 56px;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink2);
+}
+.bar-row b {
+  text-align: right;
+  color: var(--ink);
+}
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg2);
+  overflow: hidden;
+}
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+
+/* ── 받은편지함 ── */
+.inbox {
+  border: 1px solid var(--line2);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+}
+.inbox .im {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--bg2);
+}
+.inbox .tx {
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+.inbox .tt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.inbox .tt b {
+  font-size: 15px;
+  min-width: 0;
+}
+.inbox .bd {
+  font-size: 14px;
+  color: var(--ink2);
+  white-space: pre-line;
+}
+.inbox .go {
+  padding: 0 14px 12px;
+}
+.inbox.failed {
+  border-color: var(--bad-bg);
+}
+
+/* ── 온보딩 · 접속 키 ── */
+.onboard {
+  gap: 14px;
+}
+.step {
+  display: flex;
+  gap: 6px;
+}
+.step i {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+}
+.step i.on {
+  background: var(--accent);
+}
+.keyform {
+  display: grid;
+  gap: 10px;
+}
+.dk-pl {
+  font-size: 15px;
+  color: var(--ink2);
+}

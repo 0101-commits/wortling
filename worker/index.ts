@@ -1,0 +1,436 @@
+// Wortling Worker: 정적 자산(dist) 앞에서 /api/* 와 /img/* 만 받는다 + cron 두 개.
+import type { Env } from './env.ts';
+import type {
+  AdminWordsRequest,
+  Card,
+  InboxItem,
+  Level,
+  ReviewInput,
+  ReviewsRequest,
+  ReviewsResponse,
+  RunwayResponse,
+  Settings,
+  StatsResponse,
+  TodayResponse,
+  WordDetailResponse,
+  WordsResponse,
+} from '../shared/api.ts';
+import { ITEM_SELECT, buildToday, loadSettings, rowToItem } from './deck.ts';
+import { applyRating } from './fsrs.ts';
+import { addDays, kstDay, kstDayStartUtc } from './time.ts';
+import { summarize } from './discord.ts';
+import type { Payload } from './discord.ts';
+import { sendTest } from './notify.ts';
+
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+const bad = (msg: string) => new HttpError(400, msg);
+const json = (data: unknown, status = 200) => Response.json(data, { status });
+
+async function readJson<T>(req: Request): Promise<T> {
+  try {
+    return (await req.json()) as T;
+  } catch {
+    throw bad('invalid_json');
+  }
+}
+const intParam = (v: string | null, def: number) => {
+  const n = Number.parseInt(v ?? '', 10);
+  return Number.isFinite(n) ? n : def;
+};
+const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
+const sqlRows = (r: D1Result) => r.results as Record<string, unknown>[];
+const count = (r: D1Result) => (r.results[0] as { n: number }).n;
+
+interface Ctx {
+  req: Request;
+  env: Env;
+  url: URL;
+  params: string[];
+}
+type Handler = (c: Ctx) => Promise<Response>;
+/** [메서드, 경로 정규식, 처리기, 공개 여부] */
+type Route = [string, RegExp, Handler, boolean?];
+
+// ---------- 처리기 ----------
+
+const health: Handler = async () => json({ ok: true, time: new Date().toISOString() });
+
+const today: Handler = async ({ env }) => {
+  const settings = await loadSettings(env.DB);
+  const t = await buildToday(env.DB, settings, new Date());
+  return json({ ...t, settings } satisfies TodayResponse);
+};
+
+/** 채점 묶음 적용. reviewed_at 순으로 처리하고 한 batch 로 원자적으로 쓴다. 같은 (word_id, reviewed_at, session_id) 는 건너뛴다. */
+const postReviews: Handler = async ({ req, env }) => {
+  const body = await readJson<ReviewsRequest>(req);
+  if (!body || typeof body.session_id !== 'string' || !Array.isArray(body.reviews)) throw bad('bad_request');
+  if (body.reviews.length > 200) throw bad('too_many_reviews');
+  for (const r of body.reviews as ReviewInput[]) {
+    if (typeof r?.word_id !== 'string' || !Number.isInteger(r.rating) || r.rating < 1 || r.rating > 4)
+      throw bad('bad_review');
+    if (Number.isNaN(Date.parse(r.reviewed_at))) throw bad('bad_reviewed_at');
+  }
+  if (body.reviews.length === 0) return json({ applied: 0, cards: [] } satisfies ReviewsResponse);
+  const reviews = [...body.reviews].sort((a, b) => a.reviewed_at.localeCompare(b.reviewed_at));
+  const ids = [...new Set(reviews.map((r) => r.word_id))];
+
+  // 카드 불러오기(바인딩 100개 상한이라 100개씩) + 이미 적힌 채점(멱등)
+  const cards = new Map<string, Card>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const { results } = await env.DB.prepare(
+      `SELECT * FROM cards WHERE word_id IN (${chunk.map(() => '?').join(',')})`,
+    )
+      .bind(...chunk)
+      .all();
+    for (const row of results) cards.set(String(row.word_id), row as unknown as Card);
+  }
+  for (const id of ids) if (!cards.has(id)) throw new HttpError(404, `unknown word_id ${id}`);
+  const first = reviews[0].reviewed_at;
+  const last = reviews[reviews.length - 1].reviewed_at;
+  const { results: existing } = await env.DB.prepare(
+    'SELECT word_id, reviewed_at FROM reviews WHERE reviewed_at BETWEEN ? AND ? AND session_id = ?',
+  )
+    .bind(first, last, body.session_id)
+    .all<{ word_id: string; reviewed_at: string }>();
+  const seen = new Set(existing.map((r) => `${r.word_id}|${r.reviewed_at}`));
+
+  const stmts: D1PreparedStatement[] = [];
+  const touched = new Set<string>();
+  let applied = 0;
+  for (const r of reviews) {
+    const key = `${r.word_id}|${r.reviewed_at}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const prev = cards.get(r.word_id)!;
+    const { nextRow, log } = applyRating(prev, r.rating, new Date(r.reviewed_at));
+    // elapsed_days = 지난 채점 뒤 며칠, scheduled_days = 이번 채점이 정한 다음 간격
+    stmts.push(
+      env.DB.prepare(
+        'INSERT INTO reviews(word_id, rating, reviewed_at, elapsed_days, scheduled_days, session_id, prev_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      ).bind(r.word_id, r.rating, r.reviewed_at, log.elapsed_days, nextRow.scheduled_days, body.session_id, JSON.stringify(prev)),
+    );
+    cards.set(r.word_id, nextRow);
+    touched.add(r.word_id);
+    applied++;
+  }
+  for (const id of touched) {
+    const c = cards.get(id)!;
+    stmts.push(
+      env.DB.prepare(
+        `UPDATE cards SET state = ?, due = ?, stability = ?, difficulty = ?, elapsed_days = ?, scheduled_days = ?,
+         learning_steps = ?, reps = ?, lapses = ?, last_review = ?, introduced_at = ?, suspended = ? WHERE word_id = ?`,
+      ).bind(
+        c.state, c.due, c.stability, c.difficulty, c.elapsed_days, c.scheduled_days,
+        c.learning_steps, c.reps, c.lapses, c.last_review, c.introduced_at, c.suspended, id,
+      ),
+    );
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+  return json({ applied, cards: [...touched].map((id) => cards.get(id)!) } satisfies ReviewsResponse);
+};
+
+/**
+ * 단어 목록. state 뜻: new = 0, learning = 1|3, review = 2(만기 여부 무관), done = 2 이고 안정도 30일 이상.
+ * q 는 lemma / gloss_ko / gloss_en 부분 일치(LIKE, 영문은 대소문자 무시).
+ */
+const words: Handler = async ({ env, url }) => {
+  const q = url.searchParams.get('q')?.trim();
+  const level = url.searchParams.get('level') ?? 'all';
+  const state = url.searchParams.get('state') ?? 'all';
+  const page = Math.max(1, intParam(url.searchParams.get('page'), 1));
+  const size = clamp(intParam(url.searchParams.get('size'), 50), 1, 200);
+  const where: string[] = [];
+  const binds: unknown[] = [];
+  if (q) {
+    const like = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
+    where.push(`(w.lemma LIKE ? ESCAPE '\\' OR w.gloss_ko LIKE ? ESCAPE '\\' OR w.gloss_en LIKE ? ESCAPE '\\')`);
+    binds.push(like, like, like);
+  }
+  if (level === 'B1' || level === 'B2') {
+    where.push('w.level = ?');
+    binds.push(level);
+  }
+  if (state === 'new') where.push('c.state = 0');
+  else if (state === 'learning') where.push('c.state IN (1, 3)');
+  else if (state === 'review') where.push('c.state = 2'); // 오늘 만기 복습도 포함
+  else if (state === 'done') where.push('c.state = 2 AND c.stability >= 30');
+  const from = `FROM words w JOIN cards c ON c.word_id = w.id${where.length ? ' WHERE ' + where.join(' AND ') : ''}`;
+  const [cnt, rows] = await env.DB.batch([
+    env.DB.prepare(`SELECT count(*) AS n ${from}`).bind(...binds),
+    env.DB.prepare(`SELECT ${ITEM_SELECT} ${from} ORDER BY w.seq LIMIT ? OFFSET ?`).bind(...binds, size, (page - 1) * size),
+  ]);
+  return json({ total: count(cnt), page, size, items: sqlRows(rows).map(rowToItem) } satisfies WordsResponse);
+};
+
+const wordDetail: Handler = async ({ env, params: [id] }) => {
+  const [row, revs] = await env.DB.batch([
+    env.DB.prepare(`SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id WHERE w.id = ?`).bind(id),
+    env.DB.prepare(
+      'SELECT id, rating, reviewed_at, scheduled_days FROM reviews WHERE word_id = ? ORDER BY reviewed_at DESC LIMIT 20',
+    ).bind(id),
+  ]);
+  const r = row.results[0];
+  if (!r) throw new HttpError(404, 'not_found');
+  const item = rowToItem(r as Record<string, unknown>);
+  return json({ ...item, reviews: revs.results } as WordDetailResponse);
+};
+
+const stats: Handler = async ({ env }) => {
+  const todayDay = kstDay();
+  // ponytail: 열기 지도와 연속일을 한 질의(최근 400일)로. 400일 넘는 연속은 400 으로 보인다.
+  const windowStart = kstDayStartUtc(addDays(todayDay, -399));
+  const [tw, bl, bs, img, days, dt] = await env.DB.batch([
+    env.DB.prepare('SELECT count(*) AS n FROM words'),
+    env.DB.prepare('SELECT level, count(*) AS n FROM words GROUP BY level'),
+    env.DB.prepare('SELECT state, count(*) AS n FROM cards GROUP BY state'),
+    env.DB.prepare("SELECT count(*) AS n FROM words WHERE image_status = 'ok'"),
+    env.DB.prepare(
+      `SELECT strftime('%Y-%m-%d', reviewed_at, '+9 hours') AS day, count(*) AS n
+       FROM reviews WHERE reviewed_at >= ? AND undone = 0 GROUP BY day ORDER BY day`,
+    ).bind(windowStart),
+    // 내일 하루가 끝날 때까지(= 모레 0시 KST 전) 올 카드
+    env.DB.prepare('SELECT count(*) AS n FROM cards WHERE state IN (1, 2, 3) AND due < ?').bind(
+      kstDayStartUtc(addDays(todayDay, 2)),
+    ),
+  ]);
+  const byLevel = { B1: 0, B2: 0 } as Record<Level, number>;
+  for (const r of bl.results as Array<{ level: Level; n: number }>) if (r.level in byLevel) byLevel[r.level] = r.n;
+  const stateName = ['new', 'learning', 'review', 'relearning'] as const;
+  const byState = { new: 0, learning: 0, review: 0, relearning: 0 };
+  for (const r of bs.results as Array<{ state: number; n: number }>) {
+    const k = stateName[r.state];
+    if (k) byState[k] = r.n;
+  }
+  const dayRows = days.results as Array<{ day: string; n: number }>;
+  const counts = new Map(dayRows.map((r) => [r.day, r.n]));
+  const heat: StatsResponse['heat'] = [];
+  for (let i = 83; i >= 0; i--) {
+    const day = addDays(todayDay, -i);
+    heat.push({ day, count: counts.get(day) ?? 0 });
+  }
+  // 오늘 또는 어제부터 거슬러 올라가며 끊기지 않는 날 수
+  let streak = 0;
+  let cursor = counts.has(todayDay) ? todayDay : addDays(todayDay, -1);
+  while (counts.has(cursor)) {
+    streak++;
+    cursor = addDays(cursor, -1);
+  }
+  return json({
+    total_words: count(tw),
+    by_level: byLevel,
+    by_state: byState,
+    images: count(img),
+    heat,
+    streak_days: streak,
+    due_tomorrow: count(dt),
+  } satisfies StatsResponse);
+};
+
+const inbox: Handler = async ({ env }) => {
+  const { results } = await env.DB.prepare(
+    'SELECT id, kind, day, sent_at, status, payload_json FROM notifications ORDER BY id DESC LIMIT 30',
+  ).all<{ id: number; kind: InboxItem['kind']; day: string; sent_at: string | null; status: InboxItem['status']; payload_json: string }>();
+  const items: InboxItem[] = results.map(({ payload_json, ...r }) => ({
+    ...r,
+    ...summarize(JSON.parse(payload_json) as Payload),
+  }));
+  return json({ items });
+};
+
+const getSettings: Handler = async ({ env }) => json(await loadSettings(env.DB));
+
+const putSettings: Handler = async ({ req, env }) => {
+  const body = await readJson<Partial<Settings>>(req);
+  if (!body || typeof body !== 'object') throw bad('bad_request');
+  const updates: Array<[string, string]> = [];
+  const intIn = (k: 'new_per_day' | 'session_max', lo: number, hi: number) => {
+    if (!(k in body)) return;
+    const v = body[k];
+    if (!Number.isInteger(v) || (v as number) < lo || (v as number) > hi) throw bad(`${k} must be ${lo}..${hi}`);
+    updates.push([k, String(v)]);
+  };
+  intIn('new_per_day', 1, 20);
+  intIn('session_max', 5, 100);
+  if ('level' in body) {
+    if (body.level !== 'B1' && body.level !== 'B2') throw bad('level must be B1|B2');
+    updates.push(['level', body.level]);
+  }
+  if ('swipe_mode' in body) {
+    if (body.swipe_mode !== 2 && body.swipe_mode !== 4) throw bad('swipe_mode must be 2|4');
+    updates.push(['swipe_mode', String(body.swipe_mode)]);
+  }
+  if ('vacation_until' in body) {
+    const v = body.vacation_until;
+    if (typeof v !== 'string' || (v !== '' && Number.isNaN(Date.parse(`${v}T00:00:00Z`)) ) || (v !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(v)))
+      throw bad('vacation_until must be YYYY-MM-DD or empty');
+    updates.push(['vacation_until', v]);
+  }
+  if ('onboarded' in body) {
+    if (typeof body.onboarded !== 'boolean') throw bad('onboarded must be boolean');
+    updates.push(['onboarded', body.onboarded ? '1' : '0']);
+  }
+  if (updates.length === 0) throw bad('nothing_to_update');
+  await env.DB.batch(
+    updates.map(([k, v]) =>
+      env.DB.prepare(
+        "INSERT INTO settings(key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+      ).bind(k, v),
+    ),
+  );
+  return json(await loadSettings(env.DB));
+};
+
+const testNotification: Handler = async ({ env }) => {
+  const r = await sendTest(env);
+  if ('skipped' in r) return json({ ok: false, status: 'skipped', error: r.skipped });
+  return json({ ok: r.ok, status: r.status, error: r.error });
+};
+
+/** 매일 스크립트가 채울 거리: 글이 비는 단어 / 그림이 없는 단어. 공부 중인 카드 먼저, 그다음 seq. */
+const runway: Handler = async ({ env, url }) => {
+  const text = clamp(intParam(url.searchParams.get('text'), 60), 0, 500);
+  const image = clamp(intParam(url.searchParams.get('image'), 13), 0, 500);
+  const order = 'ORDER BY coalesce(c.state, 0) != 0 DESC, w.seq LIMIT ?';
+  const [t, i] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT w.id, w.lemma, w.pos, w.gender, w.level, w.gloss_en FROM words w LEFT JOIN cards c ON c.word_id = w.id
+       WHERE w.gloss_ko IS NULL OR w.example_de IS NULL OR w.scene_en IS NULL ${order}`,
+    ).bind(text),
+    env.DB.prepare(
+      `SELECT w.id, w.lemma, w.pos, w.gender, w.level, w.scene_en FROM words w LEFT JOIN cards c ON c.word_id = w.id
+       WHERE w.image_status = 'none' AND w.scene_en IS NOT NULL ${order}`,
+    ).bind(image),
+  ]);
+  return json({ need_text: t.results, need_image: i.results } as RunwayResponse);
+};
+
+const ADMIN_FIELDS = ['gloss_ko', 'example_de', 'example_ko', 'scene_en', 'gloss_status', 'example_src'] as const;
+
+/** 단어 글 채우기. 준 칸만 바꾼다. gloss_ko 가 오면 gloss_status 기본 generated, example_de 가 오면 example_src 기본 gen. */
+const adminWords: Handler = async ({ req, env }) => {
+  const body = await readJson<AdminWordsRequest>(req);
+  if (!body || !Array.isArray(body.items) || body.items.length > 500) throw bad('bad_request');
+  const stmts: D1PreparedStatement[] = [];
+  for (const it of body.items) {
+    if (typeof it?.id !== 'string') throw bad('bad_item');
+    const sets: string[] = [];
+    const binds: unknown[] = [];
+    const put = (k: string, v: string) => {
+      sets.push(`${k} = ?`);
+      binds.push(v);
+    };
+    for (const k of ADMIN_FIELDS) {
+      const v = it[k];
+      if (v === undefined) continue;
+      if (typeof v !== 'string') throw bad(`${k} must be string`);
+      if (k === 'gloss_status' && !['generated', 'checked', 'mine'].includes(v)) throw bad('bad gloss_status');
+      put(k, v);
+    }
+    if (it.gloss_ko !== undefined && it.gloss_status === undefined) put('gloss_status', 'generated');
+    if (it.example_de !== undefined && it.example_src === undefined) put('example_src', 'gen');
+    if (sets.length === 0) continue;
+    stmts.push(env.DB.prepare(`UPDATE words SET ${sets.join(', ')} WHERE id = ?`).bind(...binds, it.id));
+  }
+  const results = stmts.length ? await env.DB.batch(stmts) : [];
+  return json({ updated: results.reduce((n, r) => n + (r.meta.changes ?? 0), 0) });
+};
+
+const MAX_IMAGE_BYTES = 200 * 1024;
+
+/** 그림 올리기(webp 200KB 이하) 또는 ?status=failed 로 실패 표시 */
+const putImage: Handler = async ({ req, env, url, params: [id] }) => {
+  const word = await env.DB.prepare('SELECT id FROM words WHERE id = ?').bind(id).first();
+  if (!word) throw new HttpError(404, 'not_found');
+  if (url.searchParams.get('status') === 'failed') {
+    await env.DB.prepare("UPDATE words SET image_status = 'failed' WHERE id = ?").bind(id).run();
+    return json({ ok: true, status: 'failed' });
+  }
+  if (!(req.headers.get('content-type') ?? '').startsWith('image/webp')) throw new HttpError(415, 'image/webp only');
+  const bytes = await req.arrayBuffer();
+  if (bytes.byteLength === 0) throw bad('empty_body');
+  if (bytes.byteLength > MAX_IMAGE_BYTES) throw new HttpError(413, 'too_large');
+  const key = `${id}.webp`;
+  await env.IMG.put(key, bytes);
+  await env.DB.prepare("UPDATE words SET image_status = 'ok', image_id = ? WHERE id = ?").bind(key, id).run();
+  return json({ ok: true, status: 'ok', image_id: key });
+};
+
+/** 공개: KV 그림. _default.webp 도 같은 길. */
+const getImage: Handler = async ({ env, params: [name] }) => {
+  // cacheTtl: 같은 그림을 엣지에 1시간 붙잡아 KV 읽기를 줄인다
+  const body = await env.IMG.get(`${name}.webp`, { type: 'stream', cacheTtl: 3600 });
+  if (!body) return new Response('not found', { status: 404 });
+  return new Response(body, {
+    headers: {
+      'content-type': 'image/webp',
+      'cache-control': 'public, max-age=31536000, immutable',
+    },
+  });
+};
+
+// ---------- 길 찾기 ----------
+
+const routes: Route[] = [
+  ['GET', /^\/api\/health$/, health, true],
+  ['GET', /^\/img\/([\w-]+)\.webp$/, getImage, true],
+  ['GET', /^\/api\/today$/, today],
+  ['POST', /^\/api\/reviews$/, postReviews],
+  ['GET', /^\/api\/words$/, words],
+  ['GET', /^\/api\/word\/([\w-]+)$/, wordDetail],
+  ['GET', /^\/api\/stats$/, stats],
+  ['GET', /^\/api\/inbox$/, inbox],
+  ['GET', /^\/api\/settings$/, getSettings],
+  ['PUT', /^\/api\/settings$/, putSettings],
+  ['POST', /^\/api\/test-notification$/, testNotification],
+  ['GET', /^\/api\/admin\/runway$/, runway],
+  ['POST', /^\/api\/admin\/words$/, adminWords],
+  ['PUT', /^\/api\/admin\/image\/([\w-]+)$/, putImage],
+];
+
+function authed(req: Request, env: Env): boolean {
+  return req.headers.get('authorization') === `Bearer ${env.API_TOKEN}`;
+}
+
+export { Scheduler } from './alarm.ts';
+
+/** 알림 시계 하나(이름 고정). 알람이 비어 있으면 다시 채운다 */
+function scheduler(env: Env) {
+  return env.SCHED.get(env.SCHED.idFromName('main'));
+}
+
+export default {
+  async fetch(req, env, ctx) {
+    const url = new URL(req.url);
+    // 앱을 열 때마다 알림 시계가 살아 있는지 확인(비어 있을 때만 예약, 이미 있으면 그대로)
+    if (url.pathname === '/api/today') ctx.waitUntil(scheduler(env).ensure().then(() => undefined));
+    try {
+      if (url.pathname === '/api/admin/schedule' && req.method === 'POST') {
+        if (!authed(req, env)) throw new HttpError(401, 'unauthorized');
+        const t = Number(url.searchParams.get('test_in') ?? 0);
+        return json(t > 0 ? await scheduler(env).testIn(Math.min(t, 600)) : await scheduler(env).ensure());
+      }
+      let pathMatched = false;
+      for (const [method, re, handler, isPublic] of routes) {
+        const m = url.pathname.match(re);
+        if (!m) continue;
+        pathMatched = true;
+        if (req.method !== method) continue;
+        if (!isPublic && !authed(req, env)) throw new HttpError(401, 'unauthorized');
+        return await handler({ req, env, url, params: m.slice(1) });
+      }
+      throw new HttpError(pathMatched ? 405 : 404, pathMatched ? 'method_not_allowed' : 'not_found');
+    } catch (e) {
+      if (e instanceof HttpError) return json({ error: e.message }, e.status);
+      console.error('unhandled', e);
+      return json({ error: 'internal', detail: String(e) }, 500);
+    }
+  },
+} satisfies ExportedHandler<Env>;

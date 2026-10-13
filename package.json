@@ -1,0 +1,41 @@
+{
+  "name": "wortling",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "worker:dev": "wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply wortling --local",
+    "db:migrate:remote": "wrangler d1 migrations apply wortling --remote",
+    "seed:build": "node scripts/seed/build.mjs",
+    "seed:local": "wrangler d1 execute wortling --local --file seed/seed.sql",
+    "seed:remote": "wrangler d1 execute wortling --remote --file seed/seed.sql",
+    "daily": "node scripts/daily.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "typecheck:worker": "tsc -p tsconfig.worker.json",
+    "gate": "node scripts/gates/ui.mjs"
+  },
+  "dependencies": {
+    "@montage-ui/core": "4.0.3",
+    "@montage-ui/icon": "4.0.3",
+    "motion": "^14.1.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "ts-fsrs": "^5.4.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261013.1",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "sharp": "^0.35.5",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.0",
+    "wrangler": "^4.149.0"
+  }
+}
