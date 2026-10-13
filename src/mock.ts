@@ -98,6 +98,8 @@ const cards: Card[] = words.map((w, i) => {
 
 let settings: Settings = { new_per_day: 5, session_max: 30, level: 'B1', vacation_until: '', swipe_mode: 4, onboarded: true }
 
+let webhook: { set: boolean; source: 'secret' | 'app' | null } = { set: false, source: null }
+
 const inbox: InboxItem[] = [
   { id: 3, kind: 'morning', day: ago(0).slice(0, 10), sent_at: ago(0.3), status: 'sent', title: '오늘 카드 5 · 10/13', body: 'die Bewerbung 지원서 · der Umzug 이사 · die Verspätung 연착\ndie Entscheidung 결정 · der Vertrag 계약', image: '/mascot/umzug.webp', link: '#/today' },
   { id: 2, kind: 'evening', day: ago(1).slice(0, 10), sent_at: ago(0.6), status: 'failed', title: '카드 4장 남았어요', body: '약 2분이면 끝나요.', image: null, link: '#/today' },
@@ -189,6 +191,11 @@ export async function mockHandle(method: string, path: string, body?: unknown): 
   }
   if (p === '/api/stats') return stats()
   if (p === '/api/inbox') return { items: inbox }
+  if (p === '/api/webhook' && method === 'GET') return webhook
+  if (p === '/api/webhook' && method === 'PUT') {
+    webhook = { set: true, source: 'app' }
+    return { ok: true, status: 'sent' }
+  }
   if (p === '/api/settings' && method === 'GET') return settings
   if (p === '/api/settings' && method === 'PUT') {
     settings = { ...settings, ...(body as Partial<Settings>) }

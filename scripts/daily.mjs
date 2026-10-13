@@ -5,7 +5,8 @@
 // Worker 관리 API 만 쓴다(wrangler 불필요). 준비물: .env(APP_URL · API_TOKEN), higgsfield 로그인, claude 로그인.
 // 되풀이해도 안전하다 — 이미 채워진 단어·그림은 다시 하지 않는다.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -100,6 +101,27 @@ try {
       console.log(`그림 ${w.id} ${w.lemma} ${(webp.length / 1024).toFixed(1)}KB ${((Date.now() - t0) / 1000).toFixed(0)}초`);
     }
     try { log.credits.after = Number(higgs(['account', 'status', '--json']).credits); } catch { log.credits.after = credits; }
+  }
+
+  // 3) D1 백업 — PC 의 wrangler 로그인으로 내려받아 backup/ 에 30개 보관(공개 저장소엔 올리지 않음)
+  if (!DRY && !process.argv.includes('--no-backup')) {
+    try {
+      const dir = path.join(ROOT, 'backup');
+      mkdirSync(dir, { recursive: true });
+      const sql = path.join(dir, `${log.day}.sql`);
+      execFileSync(process.execPath, [path.join(ROOT, 'node_modules', 'wrangler', 'bin', 'wrangler.js'), 'd1', 'export', 'wortling', '--remote', `--output=${sql}`], {
+        cwd: ROOT, stdio: 'ignore', timeout: 5 * 60 * 1000, windowsHide: true,
+      });
+      writeFileSync(`${sql}.gz`, gzipSync(readFileSync(sql)));
+      unlinkSync(sql);
+      const old = readdirSync(dir).filter((f) => /^\d{4}-\d{2}-\d{2}\.sql\.gz$/.test(f)).sort().slice(0, -30);
+      for (const f of old) unlinkSync(path.join(dir, f));
+      log.backup = `${log.day}.sql.gz`;
+      console.log(`백업 backup/${log.backup}`);
+    } catch (e) {
+      log.backup_error = String(e.message || e).slice(0, 300);
+      notifyError('Wortling 백업 실패', `${log.backup_error}\n→ PC 에서 npx wrangler login 다시`);
+    }
   }
 } catch (e) {
   log.error = String(e.stack || e);

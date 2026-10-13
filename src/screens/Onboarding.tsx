@@ -1,16 +1,14 @@
 // 처음 한 번: O1 레벨·하루 수 → O2 디스코드 확인 → 시작
 import { useState } from 'react'
 import { Button, SegmentedControl, SegmentedControlItem } from '@montage-ui/core'
-import { IconSend } from '@montage-ui/icon'
 import type { Level, Settings } from '../../shared/api.ts'
 import { Stepper, Top } from '../ui.tsx'
-import { useTestNotification } from './Settings.tsx'
+import { DiscordConnect } from './Setup.tsx'
 
 export default function Onboarding({ settings, onDone }: { settings: Settings; onDone: (p: Partial<Settings>) => void }) {
   const [step, setStep] = useState<1 | 2>(1)
   const [level, setLevel] = useState<Level>(settings.level)
   const [perDay, setPerDay] = useState(Math.min(8, Math.max(3, settings.new_per_day)))
-  const test = useTestNotification()
 
   return (
     <>
@@ -43,17 +41,10 @@ export default function Onboarding({ settings, onDone }: { settings: Settings; o
         ) : (
           <>
             <h1>디스코드로 받을게요</h1>
-            <p className="lead">
-              아침 7:30 에 오늘 카드, 저녁 9시엔 남은 카드가 있을 때만 한 통 보내요. 웹훅 주소는 앱이 아니라 Worker 비밀값
-              (<code>DISCORD_WEBHOOK</code>)에 들어 있어서 여기서 입력하지 않아요.
-            </p>
-            <div className="box">
-              <div className="kv"><span>아침 카드</span><b>07:30</b></div>
-              <div className="kv"><span>저녁 남은 카드</span><b>21:00 · 있을 때만</b></div>
+            <p className="lead">아침 7:30 에 오늘 카드, 저녁 9시엔 남은 카드가 있을 때만 한 통 보내요. 나중에 설정에서 넣어도 돼요.</p>
+            <div className="box wh pad">
+              <DiscordConnect />
             </div>
-            <Button variant="outlined" color="assistive" fullWidth size="large" loading={test.busy} leadingContent={<IconSend />} onClick={test.run}>
-              시험 통 보내기
-            </Button>
             <div className="row2">
               <Button variant="outlined" color="assistive" size="large" onClick={() => setStep(1)}>
                 이전

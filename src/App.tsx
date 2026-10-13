@@ -8,6 +8,7 @@ import { navigate, useRoute } from './router.ts'
 import Inbox from './screens/Inbox.tsx'
 import Onboarding from './screens/Onboarding.tsx'
 import SettingsScreen from './screens/Settings.tsx'
+import Setup from './screens/Setup.tsx'
 import Stats from './screens/Stats.tsx'
 import Today from './screens/Today.tsx'
 import WordDetail from './screens/WordDetail.tsx'
@@ -57,7 +58,7 @@ export default function App() {
   const page = route.parts[0] ?? 'today'
   // 처음 온 사람은 시작하기로
   useEffect(() => {
-    if (settings && !settings.onboarded && page !== 'onboarding') navigate('/onboarding', true)
+    if (settings && !settings.onboarded && page !== 'onboarding' && page !== 'setup') navigate('/onboarding', true)
   }, [settings, page])
 
   const save = async (patch: Partial<Settings>) => {
@@ -127,10 +128,13 @@ export default function App() {
     case 'settings':
       screen = <SettingsScreen settings={settings} onChange={save} />
       break
+    case 'setup':
+      screen = <Setup />
+      break
     default:
       screen = <Today />
   }
-  const tab = page === 'word' ? 'words' : TABS.some((t) => t.value === page) ? page : page === 'onboarding' || page === 'inbox' || page === 'settings' ? '' : 'today'
+  const tab = page === 'word' ? 'words' : TABS.some((t) => t.value === page) ? page : ['onboarding', 'inbox', 'settings', 'setup'].includes(page) ? '' : 'today'
 
   return (
     <div className="app">

@@ -816,3 +816,66 @@ code {
   font-size: 15px;
   color: var(--ink2);
 }
+
+/* ── 연결 설정 ── */
+.phone {
+  justify-items: center;
+}
+.phone h2 {
+  justify-self: start;
+}
+.qr {
+  display: block;
+  width: 200px;
+  height: 200px;
+  max-width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line2);
+}
+.hook {
+  display: grid;
+  gap: 12px;
+}
+.hook .row-g {
+  flex-wrap: wrap;
+}
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ink2);
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 4px;
+}
+.steps b {
+  color: var(--accent);
+}
+.linkrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 16px;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+}
+.linkrow .sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink3);
+}
+.linkrow svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--ink3);
+}

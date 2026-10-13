@@ -5,6 +5,13 @@ import { kstDay } from './time.ts';
 import { eveningPayload, minutesFor, morningPayload, send, testPayload } from './discord.ts';
 import type { Payload } from './discord.ts';
 
+/** 웹훅 주소: Worker 비밀값이 있으면 그것, 없으면 설정 화면에서 넣은 값(KV `_webhook`, D1 백업에 안 섞이게 KV 에 둠) */
+export const WEBHOOK_KEY = '_webhook';
+export const WEBHOOK_RE = /^https:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/;
+export async function webhookUrl(env: Env): Promise<string | null> {
+  return env.DISCORD_WEBHOOK || (await env.IMG.get(WEBHOOK_KEY));
+}
+
 export type RunResult =
   | { skipped: string }
   | { ok: boolean; id: number; status: 'sent' | 'failed'; error?: string };
@@ -23,9 +30,8 @@ async function dispatch(env: Env, kind: string, day: string, payload: Payload, n
     if (/UNIQUE/i.test(String(e))) return { skipped: 'dup' };
     throw e;
   }
-  const result = env.DISCORD_WEBHOOK
-    ? await send(env.DISCORD_WEBHOOK, payload)
-    : { ok: false, status: 0, error: 'no_webhook' };
+  const hook = await webhookUrl(env);
+  const result = hook ? await send(hook, payload) : { ok: false, status: 0, error: 'no_webhook' };
   if (result.ok) {
     await env.DB.prepare('UPDATE notifications SET status = ?, sent_at = ?, discord_message_id = ? WHERE id = ?')
       .bind('sent', new Date().toISOString(), result.messageId ?? null, id)

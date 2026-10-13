@@ -1,10 +1,11 @@
 // 설정: 고치면 바로 저장(PUT /api/settings)
 import { useState } from 'react'
 import { Button, SegmentedControl, SegmentedControlItem, Switch } from '@montage-ui/core'
-import { IconSend } from '@montage-ui/icon'
+import { IconChevronRight, IconSend } from '@montage-ui/icon'
 import type { Settings } from '../../shared/api.ts'
 import { MOCK, api, errorText, getToken, setToken } from '../api.ts'
 import { fmtDay, todayKst } from '../format.ts'
+import { linkTo } from '../router.ts'
 import { Stepper, Top, useToaster } from '../ui.tsx'
 
 /** 시험 통 보내기 → 토스트. 온보딩과 같이 쓴다. */
@@ -17,7 +18,7 @@ export function useTestNotification() {
       const r = await api.testNotification()
       if (r.ok) toast('시험 통이 디스코드에 도착했어요', 'positive')
       else if (r.error?.includes('no_webhook'))
-        toast('웹훅이 아직 없어요. Worker 비밀값 DISCORD_WEBHOOK 을 넣어 주세요.', 'cautionary')
+        toast('디스코드 웹후크가 아직 없어요. 연결 설정에서 넣어 주세요.', 'cautionary')
       else toast(`보내기 실패 · ${r.error ?? r.status ?? ''}`, 'negative')
     } catch (e) {
       toast(errorText(e), 'negative')
@@ -39,6 +40,13 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
     <>
       <Top title="설정" back="/today" />
       <main className="page">
+        <a className="box wh linkrow" {...linkTo('/setup')}>
+          <span>
+            연결 설정(폰 · 디스코드)
+            <small className="sub">QR 로 폰에서 열기 · 디스코드 웹후크 넣기</small>
+          </span>
+          <IconChevronRight aria-hidden />
+        </a>
         <h3 className="sec-t">공부</h3>
         <div className="box wh">
           <div className="kv">

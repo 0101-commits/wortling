@@ -127,3 +127,12 @@ test('nextSlot: 아침 22:30Z · 저녁 12:00Z 를 차례로 고른다', async (
   assert.equal(c.kind, 'evening');
   assert.equal(c.at.toISOString(), '2026-10-14T12:00:00.000Z');
 });
+
+test('WEBHOOK_RE: 디스코드 웹훅만 받는다', async () => {
+  const { WEBHOOK_RE } = await import('../worker/notify.ts');
+  assert.ok(WEBHOOK_RE.test('https://discord.com/api/webhooks/123456789/abc_DEF-123'));
+  assert.ok(WEBHOOK_RE.test('https://discordapp.com/api/webhooks/1/x'));
+  assert.ok(!WEBHOOK_RE.test('https://evil.com/api/webhooks/1/x'));
+  assert.ok(!WEBHOOK_RE.test('https://discord.com/api/webhooks/1/x?wait=true'));
+  assert.ok(!WEBHOOK_RE.test('http://discord.com/api/webhooks/1/x'));
+});

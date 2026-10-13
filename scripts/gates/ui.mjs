@@ -15,7 +15,7 @@ const PORT = 4173
 const BASE = `http://localhost:${PORT}/`
 const VITE = join(ROOT, 'node_modules/vite/bin/vite.js')
 
-const ROUTES = ['/onboarding', '/today', '/words', '/word/w004', '/stats', '/inbox', '/settings']
+const ROUTES = ['/onboarding', '/today', '/words', '/word/w004', '/stats', '/inbox', '/settings', '/setup']
 const VIEWPORTS = [
   { name: '390', width: 390, height: 844 },
   { name: '1280', width: 1280, height: 800 },
@@ -101,6 +101,34 @@ try {
         if (!row) table.push((row = { route, vp: vp.name, light: '', dark: '', sw: '' }))
         row[scheme] = problems.length ? 'FAIL' : 'ok'
         row.sw = `${m.sw}/${m.cw}`
+      }
+
+      // 연결 설정: QR 이 그려지고, 웹후크를 붙여 넣고 저장하면 토스트 + 「연결됨」
+      if (vp.name === '390' && scheme === 'light') {
+        errors = []
+        await page.goto(BASE + '#/setup', { waitUntil: 'networkidle' })
+        await page.getByLabel('디스코드 웹후크 주소').fill('https://discord.com/api/webhooks/123/abc-DEF')
+        await page.getByRole('button', { name: '저장하고 시험 통 보내기' }).click()
+        const toasted = await page.getByText('디스코드에 시험 통이 갔어요').waitFor({ timeout: 3000 }).then(() => true, () => false)
+        await sleep(300)
+        const linked = await page.getByText('연결됨', { exact: true }).count()
+        const qr = await page.locator('svg.qr path').count()
+        await page.screenshot({ path: join(SHOTS, 'setup-saved-390.png'), fullPage: true })
+        const wok = toasted && linked === 1 && qr === 1 && errors.length === 0
+        if (!wok) fail(`연결 설정: 토스트 ${toasted} · 연결됨 ${linked} · QR ${qr}${errors.length ? ' · 콘솔 오류 ' + errors.join(' | ') : ''}`)
+        table.push({ route: '웹후크 저장', vp: '390', light: wok ? 'ok' : 'FAIL', dark: '-', sw: toasted ? '토스트 · 연결됨' : '실패' })
+
+        // 온보딩 O2 도 같은 웹후크 부품
+        await page.goto(BASE + '#/onboarding', { waitUntil: 'networkidle' })
+        await page.reload({ waitUntil: 'networkidle' }) // 해시만 바뀌면 문서가 그대로라 목업이 방금 저장한 웹후크를 기억한다
+        await page.getByRole('button', { name: '다음' }).click()
+        await page.getByLabel('디스코드 웹후크 주소').waitFor({ timeout: 3000 }).catch(() => undefined)
+        const o2 = await page.getByLabel('디스코드 웹후크 주소').count()
+        const o2sw = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+        await page.screenshot({ path: join(SHOTS, 'onboarding-o2-390.png'), fullPage: true })
+        const ook = o2 === 1 && o2sw <= 0 && errors.length === 0
+        if (!ook) fail(`온보딩 O2: 웹후크 칸 ${o2} · 넘침 ${o2sw}`)
+        table.push({ route: '온보딩 O2', vp: '390', light: ook ? 'ok' : 'FAIL', dark: '-', sw: o2 ? '웹후크 칸 있음' : '없음' })
       }
 
       // 덱 밀기: 390 · light 에서 오른쪽으로 한 번

@@ -10,4 +10,4 @@ backup/*.tmp
 .omc
 scripts/gates/shots
 dist-mock
-backup/daily
+backup/

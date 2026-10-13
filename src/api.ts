@@ -17,9 +17,12 @@ const UNSENT_KEY = 'wortling.unsent'
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  /** Worker 가 준 {error} 값(예: bad_webhook_url) */
+  code?: string
+  constructor(status: number, message: string, code?: string) {
     super(message)
     this.status = status
+    this.code = code
   }
 }
 
@@ -80,7 +83,7 @@ async function request<T>(method: string, path: string, body?: unknown, keepaliv
   }
   if (!res.ok) {
     const j = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new ApiError(res.status, j?.error ? `서버 오류 ${res.status} · ${j.error}` : `서버 오류 ${res.status}`)
+    throw new ApiError(res.status, j?.error ? `서버 오류 ${res.status} · ${j.error}` : `서버 오류 ${res.status}`, j?.error)
   }
   return res.json() as Promise<T>
 }
@@ -98,6 +101,17 @@ export interface TestNotificationResponse {
   error?: string
 }
 
+/** GET /api/webhook · PUT /api/webhook (주소 자체는 돌려주지 않는다) */
+export interface WebhookStatus {
+  set: boolean
+  source: 'secret' | 'app' | null
+}
+export interface WebhookSaveResponse {
+  ok: boolean
+  status: string // sent · failed · skipped · secret_in_use
+  error?: string
+}
+
 // 채점 전송이 끝나기 전에 오늘 덱을 다시 받으면 방금 채점한 카드가 또 나온다 → 전송을 기다린다
 let inflight: Promise<unknown> = Promise.resolve()
 
@@ -110,6 +124,8 @@ export const api = {
   settings: () => request<Settings>('GET', '/api/settings'),
   saveSettings: (patch: Partial<Settings>) => request<Settings>('PUT', '/api/settings', patch),
   testNotification: () => request<TestNotificationResponse>('POST', '/api/test-notification'),
+  webhook: () => request<WebhookStatus>('GET', '/api/webhook'),
+  saveWebhook: (url: string) => request<WebhookSaveResponse>('PUT', '/api/webhook', { url }),
 }
 
 // ── 채점 전송: 먼저 기기에 적어 두고 보낸 뒤 지운다. 탭이 닫혀도 다음에 열 때 다시 보낸다(서버는 같은 채점을 건너뜀). ──

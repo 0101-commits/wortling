@@ -20,7 +20,7 @@ import { applyRating } from './fsrs.ts';
 import { addDays, kstDay, kstDayStartUtc } from './time.ts';
 import { summarize } from './discord.ts';
 import type { Payload } from './discord.ts';
-import { sendTest } from './notify.ts';
+import { WEBHOOK_KEY, WEBHOOK_RE, sendTest, webhookUrl } from './notify.ts';
 
 class HttpError extends Error {
   status: number;
@@ -294,6 +294,26 @@ const testNotification: Handler = async ({ env }) => {
   return json({ ok: r.ok, status: r.status, error: r.error });
 };
 
+/** 웹훅 상태(주소는 돌려주지 않음) */
+const getWebhook: Handler = async ({ env }) =>
+  json({ set: Boolean(await webhookUrl(env)), source: env.DISCORD_WEBHOOK ? 'secret' : (await env.IMG.get(WEBHOOK_KEY)) ? 'app' : null });
+
+/** 설정 화면에서 붙여 넣은 웹훅 저장 → 바로 시험 통. 실패하면 저장한 것을 되돌린다. */
+const putWebhook: Handler = async ({ req, env }) => {
+  const body = (await req.json().catch(() => null)) as { url?: unknown } | null;
+  const url = typeof body?.url === 'string' ? body.url.trim() : '';
+  if (!WEBHOOK_RE.test(url)) throw bad('bad_webhook_url');
+  const before = await env.IMG.get(WEBHOOK_KEY);
+  await env.IMG.put(WEBHOOK_KEY, url);
+  const r = env.DISCORD_WEBHOOK ? null : await sendTest(env);
+  const ok = r !== null && 'ok' in r && r.ok;
+  if (r !== null && !ok) {
+    if (before) await env.IMG.put(WEBHOOK_KEY, before);
+    else await env.IMG.delete(WEBHOOK_KEY);
+  }
+  return json({ ok, status: r === null ? 'secret_in_use' : 'skipped' in r ? 'skipped' : r.status, error: r && 'error' in r ? r.error : undefined });
+};
+
 /** 매일 스크립트가 채울 거리: 글이 비는 단어 / 그림이 없는 단어. 공부 중인 카드 먼저, 그다음 seq. */
 const runway: Handler = async ({ env, url }) => {
   const text = clamp(intParam(url.searchParams.get('text'), 60), 0, 500);
@@ -390,6 +410,8 @@ const routes: Route[] = [
   ['GET', /^\/api\/settings$/, getSettings],
   ['PUT', /^\/api\/settings$/, putSettings],
   ['POST', /^\/api\/test-notification$/, testNotification],
+  ['GET', /^\/api\/webhook$/, getWebhook],
+  ['PUT', /^\/api\/webhook$/, putWebhook],
   ['GET', /^\/api\/admin\/runway$/, runway],
   ['POST', /^\/api\/admin\/words$/, adminWords],
   ['PUT', /^\/api\/admin\/image\/([\w-]+)$/, putImage],
