@@ -45,9 +45,9 @@ export function rowToItem(r: Record<string, unknown>): DeckItem {
   };
 }
 
-/** 설정 수준에서 새 단어로 꺼낼 수 있는 등급: B1 → B1만, B2 → B1·B2 */
+/** 설정 수준에서 새 단어로 꺼낼 수 있는 등급: B1 → B1만, B2 → B1·B2, C1 → B1·B2·C1 */
 export function levelsFor(level: Level): Level[] {
-  return level === 'B2' ? ['B1', 'B2'] : ['B1'];
+  return level === 'C1' ? ['B1', 'B2', 'C1'] : level === 'B2' ? ['B1', 'B2'] : ['B1'];
 }
 
 /** settings 표(문자열 값) → Settings */
@@ -57,7 +57,7 @@ export async function loadSettings(db: D1Database): Promise<Settings> {
   return {
     new_per_day: Number(m.new_per_day ?? 5),
     session_max: Number(m.session_max ?? 25),
-    level: m.level === 'B2' ? 'B2' : 'B1',
+    level: m.level === 'C1' ? 'C1' : m.level === 'B2' ? 'B2' : 'B1',
     vacation_until: m.vacation_until ?? '',
     swipe_mode: m.swipe_mode === '2' ? 2 : 4,
     onboarded: m.onboarded === '1',

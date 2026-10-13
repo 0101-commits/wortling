@@ -200,7 +200,11 @@ function writeScenesWithClaude(words) {
   const prompt = `You write image scenes for German vocabulary flashcards. Each card shows: the German word, its Korean meaning, one example sentence, and a 3D clay picture. The picture must show THE SAME MOMENT as the example sentence, so the word, the sentence and the picture obviously belong together.
 Rules for each scene (ONE English line, max 35 words and 230 characters, start with "Borti"):
 - Borti (a chubby cream dachshund puppy) plays the speaker or main person of the example sentence. Other people in the sentence become other cute puppies or kittens.
-- The meaning of the word is the visible focus: the action or object that the word names is large and central. For abstract words (adverbs, conjunctions, particles) show the sentence's situation and let Borti's pose and facial expression carry the meaning.
+- The WORD must be recognizable from the picture alone, then the sentence confirms it:
+  · noun → the thing itself, big and central, in its typical use (Kühlschrank: Borti opens a big fridge full of food).
+  · verb → Borti doing the action at its most typical, unmistakable moment (springen: mid-air jump over a puddle).
+  · adjective → exaggerate the quality, add a contrasting opposite if it helps (eng: Borti squeezing through a very narrow gap between two wide ones).
+  · adverb, conjunction, particle, pronoun → the sentence's situation, with Borti's pose and facial expression carrying the meaning.
 - Name the concrete place (kitchen, office, train platform…) and 1–3 concrete props.
 - No text, letters, numbers, signs, logos, screens with writing, or speech bubbles.
 Output ONLY a JSON array [{"id": "...", "scene_en": "..."}] with exactly ${list.length} items in the same order. No prose, no code fence.

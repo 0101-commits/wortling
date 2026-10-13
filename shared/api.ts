@@ -1,6 +1,6 @@
 // Worker ↔ 앱이 함께 쓰는 자료 모양. 키를 바꾸면 양쪽 빌드가 깨진다(G2).
 
-export type Level = 'B1' | 'B2';
+export type Level = 'B1' | 'B2' | 'C1';
 export type Pos = 'noun' | 'verb' | 'adj' | 'adv' | 'prep' | 'conj' | 'pron' | 'num' | 'phrase' | 'other';
 export type Rating = 1 | 2 | 3 | 4; // again hard good easy
 /** ts-fsrs State: 0 New · 1 Learning · 2 Review · 3 Relearning */

@@ -4,7 +4,7 @@ import type { StatsResponse } from '../../shared/api.ts'
 import { api } from '../api.ts'
 import { fmtDay, num } from '../format.ts'
 import { useAsync } from '../hooks.ts'
-import { CountUp, Emoji, ErrorBox, Top } from '../ui.tsx'
+import { CountUp, Emoji, ErrorBox, LEVELS, LevelBadge, Top } from '../ui.tsx'
 
 const STATE_ROWS: Array<[keyof StatsResponse['by_state'], string]> = [
   ['new', '새 단어'],
@@ -40,7 +40,8 @@ export default function Stats() {
 function StatsBody({ d }: { d: StatsResponse }) {
   const todayCount = d.heat.at(-1)?.count ?? 0
   const stateTotal = Object.values(d.by_state).reduce((a, b) => a + b, 0) || 1
-  const levelMax = Math.max(1, d.by_level.B1, d.by_level.B2)
+  const byLevel = (lv: (typeof LEVELS)[number]) => d.by_level[lv] ?? 0 // 서버가 C1 을 아직 안 주면 0
+  const levelMax = Math.max(1, ...LEVELS.map(byLevel))
   return (
     <>
       <div className="bento">
@@ -90,11 +91,11 @@ function StatsBody({ d }: { d: StatsResponse }) {
       <section className="box wh pad">
         <h3>레벨</h3>
         <div className="bars">
-          {(['B1', 'B2'] as const).map((lv) => (
+          {LEVELS.map((lv) => (
             <div className="bar-row" key={lv}>
-              <span>{lv}</span>
-              <div className="bar"><i style={{ width: `${(d.by_level[lv] / levelMax) * 100}%` }} /></div>
-              <b className="num">{num(d.by_level[lv])}</b>
+              <span><LevelBadge level={lv} /></span>
+              <div className={'bar lv-' + lv}><i style={{ width: `${(byLevel(lv) / levelMax) * 100}%` }} /></div>
+              <b className="num">{num(byLevel(lv))}</b>
             </div>
           ))}
         </div>

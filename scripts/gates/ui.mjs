@@ -83,6 +83,7 @@ try {
           for (const el of document.body.querySelectorAll('*')) {
             const r = el.getBoundingClientRect()
             if (r.width === 0 || r.height === 0) continue
+            if (el.parentElement?.closest('[data-hscroll]')) continue // 가로 스크롤 줄 안(줄 자체는 검사한다)
             if (r.width > vw + 0.5 || r.right > vw + 0.5 || r.left < -0.5) {
               wide.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)} ${Math.round(r.left)}..${Math.round(r.right)}`)
             }
@@ -144,6 +145,23 @@ try {
         const ook = o2 === 1 && o2sw <= 0 && errors.length === 0
         if (!ook) fail(`온보딩 O2: 웹후크 칸 ${o2} · 넘침 ${o2sw}`)
         table.push({ route: '온보딩 O2', vp: '390', light: ook ? 'ok' : 'FAIL', dark: '-', sw: o2 ? '웹후크 칸 있음' : '없음' })
+      }
+
+      // 단어 칩 C1: 7개 칩 줄, 누르면 C1 단어만
+      if (vp.name === '390' && scheme === 'light') {
+        errors = []
+        await page.goto(BASE + '#/words', { waitUntil: 'networkidle' })
+        await page.reload({ waitUntil: 'networkidle' })
+        await page.waitForSelector('.list .cell')
+        const chipRow = await page.locator('.chips').evaluate((el) => ({ n: el.children.length, sw: el.scrollWidth, cw: el.clientWidth }))
+        await page.getByRole('button', { name: 'C1', exact: true }).click()
+        await page.waitForFunction(() => document.querySelectorAll('.list [data-level]').length > 0 && [...document.querySelectorAll('.list [data-level]')].every((b) => b.getAttribute('data-level') === 'C1'), null, { timeout: 3000 }).catch(() => undefined)
+        const levels = await page.locator('.list [data-level]').evaluateAll((els) => els.map((e) => e.getAttribute('data-level')))
+        const psw = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+        await page.screenshot({ path: join(SHOTS, 'words-c1-390.png'), fullPage: true })
+        const cok = chipRow.n === 7 && levels.length > 0 && levels.every((l) => l === 'C1') && psw <= 0 && errors.length === 0
+        if (!cok) fail(`단어 칩 C1: 칩 ${chipRow.n} · 결과 레벨 ${levels.join(',')} · 페이지 넘침 ${psw}`)
+        table.push({ route: '단어 칩 C1', vp: '390', light: cok ? 'ok' : 'FAIL', dark: '-', sw: `칩 ${chipRow.n} (${chipRow.sw > chipRow.cw ? '가로 스크롤' : '한 줄에 다 보임'}) · C1 ${levels.length}개` })
       }
 
       // 덱 밀기: 390 · light 에서 오른쪽으로 한 번

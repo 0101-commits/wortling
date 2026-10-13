@@ -155,7 +155,7 @@ const words: Handler = async ({ env, url }) => {
     where.push(`(w.lemma LIKE ? ESCAPE '\\' OR w.gloss_ko LIKE ? ESCAPE '\\' OR w.gloss_en LIKE ? ESCAPE '\\')`);
     binds.push(like, like, like);
   }
-  if (level === 'B1' || level === 'B2') {
+  if (level === 'B1' || level === 'B2' || level === 'C1') {
     where.push('w.level = ?');
     binds.push(level);
   }
@@ -202,7 +202,7 @@ const stats: Handler = async ({ env }) => {
       kstDayStartUtc(addDays(todayDay, 2)),
     ),
   ]);
-  const byLevel = { B1: 0, B2: 0 } as Record<Level, number>;
+  const byLevel = { B1: 0, B2: 0, C1: 0 } as Record<Level, number>;
   for (const r of bl.results as Array<{ level: Level; n: number }>) if (r.level in byLevel) byLevel[r.level] = r.n;
   const stateName = ['new', 'learning', 'review', 'relearning'] as const;
   const byState = { new: 0, learning: 0, review: 0, relearning: 0 };
@@ -261,7 +261,7 @@ const putSettings: Handler = async ({ req, env }) => {
   intIn('new_per_day', 1, 20);
   intIn('session_max', 5, 100);
   if ('level' in body) {
-    if (body.level !== 'B1' && body.level !== 'B2') throw bad('level must be B1|B2');
+    if (body.level !== 'B1' && body.level !== 'B2' && body.level !== 'C1') throw bad('level must be B1|B2|C1');
     updates.push(['level', body.level]);
   }
   if ('swipe_mode' in body) {
@@ -356,6 +356,60 @@ const pushUnsubscribe: Handler = async ({ req, env }) => {
   const kept = subs.filter((s) => s.endpoint !== b.endpoint);
   if (kept.length !== subs.length) await writeSubs(env, kept);
   return json({ ok: true, count: kept.length });
+};
+
+/** 정기 업데이트(scripts/words/update.mjs)용: 이미 있는 단어 열쇠 */
+const adminKeys: Handler = async ({ env }) => {
+  const r = await env.DB.prepare('SELECT id, lemma, pos FROM words').all<{ id: string; lemma: string; pos: string }>();
+  return json({ items: r.results });
+};
+
+const INSERT_COLS = ['lemma', 'pos', 'gender', 'plural', 'ipa', 'level', 'level_src', 'gloss_en', 'gloss_ko', 'gloss_status',
+  'example_de', 'example_ko', 'example_src', 'scene_en', 'freq_rank'] as const;
+const LEVELS = new Set(['B1', 'B2', 'C1']);
+
+/** 새 단어 넣기: id·seq 는 지금 끝 번호에서 이어 매기고 카드(state 0)도 같이 만든다. 같은 (lemma,pos) 는 건너뜀. */
+const adminInsert: Handler = async ({ req, env }) => {
+  const body = (await req.json().catch(() => null)) as { items?: Array<Record<string, unknown>> } | null;
+  const items = Array.isArray(body?.items) ? body!.items : null;
+  if (!items || items.length === 0 || items.length > 500) throw bad('items 1..500');
+  for (const it of items) {
+    if (typeof it.lemma !== 'string' || !it.lemma.trim() || typeof it.pos !== 'string') throw bad('lemma/pos required');
+    if (!LEVELS.has(String(it.level))) throw bad('level must be B1|B2|C1');
+  }
+  const top = await env.DB.prepare(
+    "SELECT max(CAST(substr(id, 2) AS INTEGER)) AS n, max(seq) AS s FROM words",
+  ).first<{ n: number | null; s: number | null }>();
+  let n = top?.n ?? 0;
+  let seq = top?.s ?? 0;
+  const have = new Set(
+    (await env.DB.prepare('SELECT lemma, pos FROM words').all<{ lemma: string; pos: string }>()).results.map((r) => `${r.lemma}|${r.pos}`),
+  );
+  const now = new Date().toISOString();
+  const stmts: D1PreparedStatement[] = [];
+  let first: string | null = null;
+  let last: string | null = null;
+  for (const it of items) {
+    const k = `${it.lemma}|${it.pos}`;
+    if (have.has(k)) continue;
+    have.add(k);
+    n += 1;
+    seq += 1;
+    const id = `w${String(n).padStart(4, '0')}`;
+    first ??= id;
+    last = id;
+    const vals = INSERT_COLS.map((c) => (it[c] === undefined || it[c] === '' ? null : it[c]));
+    const gs = vals[INSERT_COLS.indexOf('gloss_status')] ?? (it.gloss_ko ? 'generated' : 'missing');
+    vals[INSERT_COLS.indexOf('gloss_status')] = gs;
+    stmts.push(
+      env.DB.prepare(
+        `INSERT INTO words(id, seq, image_status, ${INSERT_COLS.join(', ')}) VALUES (?, ?, 'none', ${INSERT_COLS.map(() => '?').join(', ')})`,
+      ).bind(id, seq, ...vals),
+      env.DB.prepare('INSERT INTO cards(word_id, state, due) VALUES (?, 0, ?)').bind(id, now),
+    );
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+  return json({ inserted: stmts.length / 2, first_id: first, last_id: last });
 };
 
 /** 매일 스크립트가 채울 거리: 글이 비는 단어 / 그림이 없는 단어. 공부 중인 카드 먼저, 그다음 seq. */
@@ -462,6 +516,8 @@ const routes: Route[] = [
   ['GET', /^\/api\/admin\/runway$/, runway],
   ['POST', /^\/api\/admin\/words$/, adminWords],
   ['PUT', /^\/api\/admin\/image\/([\w-]+)$/, putImage],
+  ['GET', /^\/api\/admin\/keys$/, adminKeys],
+  ['POST', /^\/api\/admin\/words\/insert$/, adminInsert],
 ];
 
 function authed(req: Request, env: Env): boolean {

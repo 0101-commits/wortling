@@ -6,7 +6,7 @@ import { api, errorText } from '../api.ts'
 import { STATE_LABEL, dueText, num } from '../format.ts'
 import { useDebounced } from '../hooks.ts'
 import { linkTo } from '../router.ts'
-import { Emoji, ErrorBox, Lemma, Top, WordImage } from '../ui.tsx'
+import { Emoji, ErrorBox, LevelBadge, Lemma, Top, WordImage } from '../ui.tsx'
 
 const CHIPS: Array<{ id: string; label: string; q: WordsQuery }> = [
   { id: 'all', label: '전체', q: {} },
@@ -15,6 +15,7 @@ const CHIPS: Array<{ id: string; label: string; q: WordsQuery }> = [
   { id: 'review', label: '복습', q: { state: 'review' } },
   { id: 'B1', label: 'B1', q: { level: 'B1' } },
   { id: 'B2', label: 'B2', q: { level: 'B2' } },
+  { id: 'C1', label: 'C1', q: { level: 'C1' } },
 ]
 const SIZE = 30
 // 상세에 갔다 와도 검색어·칩을 기억한다
@@ -77,7 +78,7 @@ export default function Words() {
           onReset={() => setQ('')}
           aria-label="단어 검색"
         />
-        <div className="chips" role="group" aria-label="거르기">
+        <div className="chips" role="group" aria-label="거르기" data-hscroll>
           {CHIPS.map((c) => (
             <Chip key={c.id} size="small" variant="outlined" active={chip === c.id} aria-pressed={chip === c.id} onClick={() => setChip(c.id)}>
               {c.label}
@@ -122,7 +123,10 @@ export default function Words() {
                       <WordImage word={it.word} />
                     </div>
                     <div className="mid">
-                      <Lemma word={it.word} className="w" />
+                      <div className="wl">
+                        <Lemma word={it.word} className="w" />
+                        <LevelBadge level={it.word.level} />
+                      </div>
                       <div className="m">{it.word.gloss_ko ?? '뜻 준비 중'}</div>
                     </div>
                     <div className="r">

@@ -579,9 +579,21 @@ code {
 
 /* ── 단어 목록 ── */
 .chips {
+  /* 칩 7개: 한 줄 가로 스크롤(페이지는 넘치지 않음) */
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+.chips::-webkit-scrollbar {
+  display: none;
+}
+.chips > * {
+  flex: none;
 }
 .list {
   display: grid;
@@ -619,6 +631,18 @@ code {
 }
 .cell .art {
   font-size: 0.8em;
+}
+.cell .wl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.cell .wl .w {
+  min-width: 0;
+}
+.cell .wl > :last-child {
+  flex: none;
 }
 .cell .m {
   font-size: 13px;
@@ -757,6 +781,12 @@ code {
   height: 100%;
   background: var(--accent);
   border-radius: inherit;
+}
+.bar.lv-B2 i {
+  background: var(--semantic-foreground-accent-violet);
+}
+.bar.lv-C1 i {
+  background: var(--semantic-foreground-accent-pink);
 }
 
 /* ── 받은편지함 ── */

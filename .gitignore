@@ -11,3 +11,4 @@ backup/*.tmp
 scripts/gates/shots
 dist-mock
 backup/
+.data

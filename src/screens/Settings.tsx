@@ -7,7 +7,7 @@ import { MOCK, api, errorText, getToken, setToken, type TestNotificationResponse
 import { fmtDay, todayKst } from '../format.ts'
 import { disablePush, enablePush, pushSupported, pushSync } from '../push.ts'
 import { linkTo } from '../router.ts'
-import { Stepper, Top, useToaster } from '../ui.tsx'
+import { LEVELS, LEVEL_HINT, Stepper, Top, useToaster } from '../ui.tsx'
 
 /** 시험 통 결과를 채널별로: 「디스코드 ○ · 기기 1대 ○」 */
 function channelsText({ discord, push }: Required<Pick<TestNotificationResponse, 'discord' | 'push'>>) {
@@ -68,10 +68,14 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
             <Stepper label="한 번에 볼 카드" value={settings.session_max} min={5} max={100} step={5} onChange={(v) => onChange({ session_max: v })} />
           </div>
           <div className="kv col">
-            <span>레벨</span>
+            <span>
+              레벨
+              <small className="sub">{LEVEL_HINT}</small>
+            </span>
             <SegmentedControl size="small" value={settings.level} onValueChange={(v) => onChange({ level: v as Settings['level'] })}>
-              <SegmentedControlItem value="B1">B1</SegmentedControlItem>
-              <SegmentedControlItem value="B2">B2</SegmentedControlItem>
+              {LEVELS.map((lv) => (
+                <SegmentedControlItem key={lv} value={lv}>{lv}</SegmentedControlItem>
+              ))}
             </SegmentedControl>
           </div>
           <div className="kv col">

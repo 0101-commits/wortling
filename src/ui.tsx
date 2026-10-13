@@ -1,9 +1,9 @@
 // 여러 화면이 같이 쓰는 작은 부품
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { animate } from 'motion/react'
-import { Button, IconButton, TopNavigation, TopNavigationButton, useRegionStore } from '@montage-ui/core'
+import { Button, ContentBadge, IconButton, TopNavigation, TopNavigationButton, useRegionStore, type ThemeColorsToken } from '@montage-ui/core'
 import { IconBell, IconChevronLeft, IconMinus, IconPlus, IconSetting } from '@montage-ui/icon'
-import type { Pos, Word } from '../shared/api.ts'
+import type { Level, Pos, Word } from '../shared/api.ts'
 import { imgSrc } from './api.ts'
 import { article } from './format.ts'
 import { goBack, navigate } from './router.ts'
@@ -62,6 +62,22 @@ export function Top({ title, back, actions = false }: { title: ReactNode; back?:
 export const POS_LABEL: Record<Pos, string> = {
   noun: '명사', verb: '동사', adj: '형용사', adv: '부사', prep: '전치사',
   conj: '접속사', pron: '대명사', num: '수사', phrase: '표현', other: '기타',
+}
+
+export const LEVELS: Level[] = ['B1', 'B2', 'C1']
+export const LEVEL_HINT = '고른 레벨까지의 단어가 B1 → B2 → C1 순서로 나와요'
+// 레벨 칩 색: montage 토큰 안에서 관사(der 파랑·die 빨강·das 초록)·채점 색과 겹치지 않게 cyan → violet → pink
+const LEVEL_COLOR: Record<Level, ThemeColorsToken> = {
+  B1: 'semantic.foreground.brand.primary',
+  B2: 'semantic.foreground.accent.violet',
+  C1: 'semantic.foreground.accent.pink',
+}
+export function LevelBadge({ level }: { level: Level }) {
+  return (
+    <ContentBadge size="xsmall" variant="solid" color="accent" accentColor={LEVEL_COLOR[level] ?? LEVEL_COLOR.B1} data-level={level}>
+      {level}
+    </ContentBadge>
+  )
 }
 
 /** 관사(색) + 단어 */

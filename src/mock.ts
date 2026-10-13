@@ -55,6 +55,11 @@ const SEED: Seed[] = [
   ['Unterlagen', 'noun', 'die', null, '[ˈʊntɐlaːɡn̩]', '서류', 'documents', 'Bitte bringen Sie alle Unterlagen mit.', '서류를 모두 가져오세요.', 'B1'],
   ['beantragen', 'verb', null, null, '[bəˈʔantʁaːɡn̩]', '신청하다', 'to apply for', 'Ich habe ein Visum beantragt.', '비자를 신청했어요.', 'B1'],
   ['Mitteilung', 'noun', 'die', 'Mitteilungen', '[ˈmɪttaɪ̯lʊŋ]', '통지, 알림', 'notice', 'Haben Sie die Mitteilung bekommen?', '통지를 받으셨나요?', 'B1'],
+  ['Gegebenheit', 'noun', 'die', 'Gegebenheiten', '[ɡəˈɡeːbn̩haɪ̯t]', '여건, 사정', 'circumstance', 'Wir müssen uns an die Gegebenheiten anpassen.', '우리는 여건에 맞춰야 해요.', 'C1'],
+  ['Beeinträchtigung', 'noun', 'die', 'Beeinträchtigungen', '[bəˈʔaɪ̯ntʁɛçtɪɡʊŋ]', '지장, 손상', 'impairment', 'Die Bauarbeiten führen zu Beeinträchtigungen im Verkehr.', '공사로 교통에 지장이 생겨요.', 'C1'],
+  ['erheblich', 'adj', null, null, '[ɛɐ̯ˈheːplɪç]', '상당한', 'considerable', 'Die Kosten sind erheblich gestiegen.', '비용이 상당히 올랐어요.', 'C1'],
+  ['Nachweis', 'noun', 'der', 'Nachweise', '[ˈnaːxvaɪ̯s]', '증명(서)', 'proof', 'Bitte legen Sie einen Nachweis vor.', '증명서를 내 주세요.', 'C1'],
+  ['bewältigen', 'verb', null, null, '[bəˈvɛltɪɡn̩]', '해내다, 극복하다', 'to cope with', 'Sie hat die Aufgabe gut bewältigt.', '그녀는 그 일을 잘 해냈어요.', 'C1'],
 ]
 
 const words: Word[] = SEED.map(([lemma, pos, gender, plural, ipa, ko, en, de, deKo, level], i) => ({
@@ -146,8 +151,8 @@ function stats(): StatsResponse {
     heat.push({ day: d.toISOString().slice(0, 10), count })
   }
   return {
-    total_words: 1842,
-    by_level: { B1: 1120, B2: 722 },
+    total_words: 2482,
+    by_level: { B1: 1120, B2: 722, C1: 640 },
     by_state: { new: 1230, learning: 318, review: 276, relearning: 18 },
     images: 412,
     heat,

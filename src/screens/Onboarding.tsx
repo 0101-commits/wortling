@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Button, SegmentedControl, SegmentedControlItem } from '@montage-ui/core'
 import type { Level, Settings } from '../../shared/api.ts'
-import { Emoji, Stepper, Top } from '../ui.tsx'
+import { Emoji, LEVELS, LEVEL_HINT, Stepper, Top } from '../ui.tsx'
 import { DiscordConnect } from './Setup.tsx'
 
 export default function Onboarding({ settings, onDone }: { settings: Settings; onDone: (p: Partial<Settings>) => void }) {
@@ -24,15 +24,17 @@ export default function Onboarding({ settings, onDone }: { settings: Settings; o
             <h1>어디서 시작할까요?</h1>
             <p className="lead">레벨에 맞는 단어부터 매일 조금씩 드려요. 나중에 설정에서 바꿀 수 있어요.</p>
             <SegmentedControl size="large" value={level} onValueChange={(v) => setLevel(v as Level)}>
-              <SegmentedControlItem value="B1">B1</SegmentedControlItem>
-              <SegmentedControlItem value="B2">B2</SegmentedControlItem>
+              {LEVELS.map((lv) => (
+                <SegmentedControlItem key={lv} value={lv}>{lv}</SegmentedControlItem>
+              ))}
             </SegmentedControl>
+            <p className="small">{LEVEL_HINT}</p>
             <div className="box">
               <div className="kv">
                 <span>하루 새 단어</span>
                 <Stepper label="하루 새 단어" value={perDay} min={3} max={8} onChange={setPerDay} />
               </div>
-              <div className="kv"><span>범위</span><b>{level === 'B1' ? 'B1 단어만' : 'B1 + B2'}</b></div>
+              <div className="kv"><span>범위</span><b>{LEVELS.slice(0, LEVELS.indexOf(level) + 1).join(' → ')}</b></div>
             </div>
             <p className="lead">아는 단어는 카드에서 「쉬움」으로 밀면 금방 뒤로 빠져요. 따로 시험은 없어요.</p>
             <Button fullWidth size="large" onClick={() => setStep(2)}>

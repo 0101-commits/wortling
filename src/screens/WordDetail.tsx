@@ -4,7 +4,7 @@ import { api } from '../api.ts'
 import { RATING_LABEL } from '../deck.ts'
 import { STATE_LABEL, dayDiff, fmtDate, fmtDay } from '../format.ts'
 import { useAsync } from '../hooks.ts'
-import { Example, ErrorBox, Lemma, POS_LABEL, Top, WordImage } from '../ui.tsx'
+import { Example, ErrorBox, LevelBadge, Lemma, POS_LABEL, Top, WordImage } from '../ui.tsx'
 
 export default function WordDetail({ id }: { id: string }) {
   const r = useAsync(() => api.word(id), [id])
@@ -32,7 +32,7 @@ export default function WordDetail({ id }: { id: string }) {
                 <div className="mn">{d.word.gloss_ko ?? '뜻 준비 중'}</div>
                 <div className="dk-meta">
                   <ContentBadge size="xsmall" variant="outlined" color="neutral">{POS_LABEL[d.word.pos] ?? d.word.pos}</ContentBadge>
-                  <ContentBadge size="xsmall" variant="solid" color="accent" accentColor="semantic.foreground.brand.primary">{d.word.level}</ContentBadge>
+                  <LevelBadge level={d.word.level} />
                   {d.word.plural && <span lang="de">복수 {d.word.plural}</span>}
                   {d.word.ipa && <span>{d.word.ipa}</span>}
                 </div>
