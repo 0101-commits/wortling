@@ -139,6 +139,11 @@ function WebhookForm({ onSaved }: { onSaved: () => void }) {
   const [busy, setBusy] = useState(false)
 
   const save = async () => {
+    // 실제로 있었던 실수: 서버 초대 링크(discord.gg/…)를 넣음 → 보내기 전에 바로 알려 준다
+    if (/discord\.gg\/|discord\.com\/invite\//i.test(url)) {
+      toast('이건 서버 초대 링크예요. 채널 설정 → 연동 → 웹후크에서 「웹후크 URL 복사」로 받은 https://discord.com/api/webhooks/… 주소가 필요해요.', 'negative')
+      return
+    }
     setBusy(true)
     try {
       const r = await api.saveWebhook(url.trim())
