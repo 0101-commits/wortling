@@ -94,11 +94,14 @@ function qs(q: Record<string, string | number | undefined>) {
   return p.toString()
 }
 
-/** POST /api/test-notification 응답(Worker 가 정한 모양, shared 계약 밖) */
+/** POST /api/test-notification 응답(Worker 가 정한 모양, shared 계약 밖). 채널별 결과는 건너뛴 경우(skipped) 없다 */
 export interface TestNotificationResponse {
   ok: boolean
   status?: number | string
   error?: string
+  discord?: { ok: boolean; error?: string }
+  /** sent = 알림이 간 기기 수, error = no_subscription · no_vapid · 응답 사유 */
+  push?: { ok: boolean; sent: number; failed: number; gone: number; error?: string }
 }
 
 /** GET /api/webhook · PUT /api/webhook (주소 자체는 돌려주지 않는다) */
@@ -126,6 +129,9 @@ export const api = {
   testNotification: () => request<TestNotificationResponse>('POST', '/api/test-notification'),
   webhook: () => request<WebhookStatus>('GET', '/api/webhook'),
   saveWebhook: (url: string) => request<WebhookSaveResponse>('PUT', '/api/webhook', { url }),
+  pushKey: () => request<{ publicKey: string }>('GET', '/api/push/key'),
+  pushSubscribe: (sub: PushSubscriptionJSON) => request<{ ok: boolean; count: number }>('POST', '/api/push/subscribe', sub),
+  pushUnsubscribe: (endpoint: string) => request<{ ok: boolean; count: number }>('DELETE', '/api/push/subscribe', { endpoint }),
 }
 
 // ── 채점 전송: 먼저 기기에 적어 두고 보낸 뒤 지운다. 탭이 닫혀도 다음에 열 때 다시 보낸다(서버는 같은 채점을 건너뜀). ──

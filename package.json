@@ -21,6 +21,7 @@
     "shortcut": "node scripts/make-shortcut.mjs"
   },
   "dependencies": {
+    "@block65/webcrypto-web-push": "2.0.0",
     "@montage-ui/core": "4.0.3",
     "@montage-ui/icon": "4.0.3",
     "motion": "^14.1.0",

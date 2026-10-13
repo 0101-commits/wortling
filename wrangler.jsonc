@@ -22,6 +22,11 @@
   "triggers": { "crons": [] },
   "durable_objects": { "bindings": [{ "name": "SCHED", "class_name": "Scheduler" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Scheduler"] }],
-  "vars": { "APP_URL": "https://wortling.e-hcg.workers.dev" },
+  // 웹 푸시 공개 열쇠·주체. 비밀 열쇠는 `wrangler secret put VAPID_PRIVATE_KEY`(사본은 저장소 밖)
+  "vars": {
+    "APP_URL": "https://wortling.e-hcg.workers.dev",
+    "VAPID_PUBLIC_KEY": "BGL10xy7s7N9fJh5UPj_2zkncHfNNR88TiNdD3kS5wuOKXHKE6T_7KOuxRWiGmCxkWmTpPBGTy_cmUBikIWwRg4",
+    "VAPID_SUBJECT": "https://wortling.e-hcg.workers.dev"
+  },
   "observability": { "enabled": true }
 }

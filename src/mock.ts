@@ -203,7 +203,7 @@ export async function mockHandle(method: string, path: string, body?: unknown): 
   }
   if (p === '/api/test-notification' && method === 'POST') {
     inbox.unshift({ id: inbox.length + 1, kind: 'test', day: iso(now()).slice(0, 10), sent_at: iso(now()), status: 'sent', title: '시험 통', body: 'Wortling 과 디스코드가 연결됐어요.', image: null, link: null })
-    return { ok: true, status: 204 }
+    return { ok: true, status: 'sent', discord: { ok: true }, push: { ok: false, sent: 0, failed: 0, gone: 0, error: 'no_subscription' } }
   }
   throw new Error(`mock: ${method} ${path}`)
 }

@@ -21,6 +21,7 @@ import { addDays, kstDay, kstDayStartUtc } from './time.ts';
 import { summarize } from './discord.ts';
 import type { Payload } from './discord.ts';
 import { WEBHOOK_KEY, WEBHOOK_RE, sendTest, webhookUrl } from './notify.ts';
+import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
 
 class HttpError extends Error {
   status: number;
@@ -291,7 +292,7 @@ const putSettings: Handler = async ({ req, env }) => {
 const testNotification: Handler = async ({ env }) => {
   const r = await sendTest(env);
   if ('skipped' in r) return json({ ok: false, status: 'skipped', error: r.skipped });
-  return json({ ok: r.ok, status: r.status, error: r.error });
+  return json({ ok: r.ok, status: r.status, error: r.error, discord: r.discord, push: r.push });
 };
 
 /** 웹훅 상태(주소는 돌려주지 않음) */
@@ -306,12 +307,55 @@ const putWebhook: Handler = async ({ req, env }) => {
   const before = await env.IMG.get(WEBHOOK_KEY);
   await env.IMG.put(WEBHOOK_KEY, url);
   const r = env.DISCORD_WEBHOOK ? null : await sendTest(env);
-  const ok = r !== null && 'ok' in r && r.ok;
+  // 시험 통은 기기로도 가지만, 웹훅을 남길지는 디스코드 쪽 결과로만 정한다
+  const ok = r !== null && 'discord' in r && r.discord.ok;
   if (r !== null && !ok) {
     if (before) await env.IMG.put(WEBHOOK_KEY, before);
     else await env.IMG.delete(WEBHOOK_KEY);
   }
-  return json({ ok, status: r === null ? 'secret_in_use' : 'skipped' in r ? 'skipped' : r.status, error: r && 'error' in r ? r.error : undefined });
+  return json({
+    ok,
+    status: r === null ? 'secret_in_use' : 'skipped' in r ? 'skipped' : ok ? 'sent' : 'failed',
+    error: r && 'discord' in r ? r.discord.error : undefined,
+  });
+};
+
+// ---------- 웹 푸시 기기 등록(worker/push.ts) ----------
+
+// 구독 열쇠 길이: p256dh = P-256 공개점 65바이트 → 87자, auth = 16바이트 → 22자(base64url)
+const P256DH = /^[\w-]{87}=?$/;
+const AUTH = /^[\w-]{22}(==)?$/;
+const httpsUrl = (s: string) => {
+  try {
+    return new URL(s).protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const pushKey: Handler = async ({ env }) => json({ publicKey: env.VAPID_PUBLIC_KEY });
+
+/** body = PushSubscription.toJSON(). 같은 endpoint 면 덮어쓰고, 10대를 넘으면 오래된 것부터 뺀다 */
+const pushSubscribe: Handler = async ({ req, env }) => {
+  const b = await readJson<{ endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } }>(req);
+  const endpoint = b?.endpoint;
+  const { p256dh, auth } = b?.keys ?? {};
+  if (typeof endpoint !== 'string' || endpoint.length > 1000 || !httpsUrl(endpoint)) throw bad('bad_endpoint');
+  if (typeof p256dh !== 'string' || typeof auth !== 'string' || !P256DH.test(p256dh) || !AUTH.test(auth)) throw bad('bad_keys');
+  const subs = (await readSubs(env)).filter((s) => s.endpoint !== endpoint);
+  subs.push({ endpoint, keys: { p256dh, auth }, added: new Date().toISOString() });
+  const kept = subs.slice(-MAX_SUBS);
+  await writeSubs(env, kept);
+  return json({ ok: true, count: kept.length });
+};
+
+const pushUnsubscribe: Handler = async ({ req, env }) => {
+  const b = await readJson<{ endpoint?: unknown }>(req);
+  if (typeof b?.endpoint !== 'string') throw bad('bad_endpoint');
+  const subs = await readSubs(env);
+  const kept = subs.filter((s) => s.endpoint !== b.endpoint);
+  if (kept.length !== subs.length) await writeSubs(env, kept);
+  return json({ ok: true, count: kept.length });
 };
 
 /** 매일 스크립트가 채울 거리: 글이 비는 단어 / 그림이 없는 단어. 공부 중인 카드 먼저, 그다음 seq. */
@@ -412,6 +456,9 @@ const routes: Route[] = [
   ['POST', /^\/api\/test-notification$/, testNotification],
   ['GET', /^\/api\/webhook$/, getWebhook],
   ['PUT', /^\/api\/webhook$/, putWebhook],
+  ['GET', /^\/api\/push\/key$/, pushKey],
+  ['POST', /^\/api\/push\/subscribe$/, pushSubscribe],
+  ['DELETE', /^\/api\/push\/subscribe$/, pushUnsubscribe],
   ['GET', /^\/api\/admin\/runway$/, runway],
   ['POST', /^\/api\/admin\/words$/, adminWords],
   ['PUT', /^\/api\/admin\/image\/([\w-]+)$/, putImage],

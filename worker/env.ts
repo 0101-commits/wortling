@@ -8,4 +8,8 @@ export interface Env {
   APP_URL: string;
   API_TOKEN: string;
   DISCORD_WEBHOOK?: string;
+  /** 웹 푸시(worker/push.ts): 공개 열쇠·주체는 vars, 비밀 열쇠는 비밀값. 비밀 열쇠가 없으면 푸시는 건너뜀(no_vapid) */
+  VAPID_PUBLIC_KEY: string;
+  VAPID_SUBJECT: string;
+  VAPID_PRIVATE_KEY?: string;
 }
