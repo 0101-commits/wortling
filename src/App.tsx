@@ -161,8 +161,13 @@ function KeyEntry({ wrong, onDone }: { wrong: boolean; onDone: () => void }) {
       <main className="page bare">
         <h1>Wortling</h1>
         <p className="lead">
-          혼자 쓰는 앱이라 접속 키가 있어야 열려요. Worker 비밀값 <code>API_TOKEN</code> 을 넣거나, 주소 끝에 <code>#/today?k=키</code> 를 붙여 열어 주세요.
+          혼자 쓰는 앱이라 열쇠가 있어야 열려요. 키를 외울 필요는 없어요.
         </p>
+        <ul className="lead">
+          <li>PC: 바탕화면의 「Wortling 설정.html」 을 더블클릭하면 바로 들어가요.</li>
+          <li>폰: 그 설정 화면에 나오는 QR 을 폰 카메라로 찍으면 바로 들어가요.</li>
+        </ul>
+        <p className="small">키를 직접 넣으려면 아래 칸에 붙여 넣으세요(PC 의 wortling 폴더 .env 파일, API_TOKEN= 뒤 값).</p>
         <form
           className="keyform"
           onSubmit={(e) => {
