@@ -25,12 +25,22 @@ const DRY = process.argv.includes('--dry');
 const NO_IMAGE = process.argv.includes('--no-image');
 const NO_TEXT = process.argv.includes('--no-text');
 
-// 기획서 6-5 고정 문구(보르티) — 장면 한 줄만 바뀐다
-const PROMPT_BASE =
-  'Cute 3D mascot character render, a chubby round dachshund puppy with a big round head, tiny body, ' +
-  'big glossy round eyes, rosy blush cheeks and a small smile, cream fur with brown floppy ears, soft matte clay material, ' +
-  'smooth studio lighting, Pixar-like softness, pastel mint background with a soft floor shadow, centered composition with ' +
-  'generous margins, premium brand-mascot quality, no text, no letters, no numbers, no logo. Scene: ';
+// 장면이 앞, 보르티 설명이 뒤. 장면을 뒤에 두었더니 마스코트만 크게 나오고 뜻이 안 보였다(2026-10-13 사용자 지적).
+const REDO = (process.argv.find((a) => a.startsWith('--redo=')) || '').slice(7).split(',').filter(Boolean);
+// 실측: 프롬프트가 800자를 넘으면 job 이 사유 없이 failed(835자 3건 실패, 641자 이하 전부 성공) → 780자 상한
+const PROMPT_MAX = 780;
+function imagePrompt(scene) {
+  const tail =
+    ' Main character Borti: cute chubby cream dachshund puppy, big round head, tiny body, big glossy eyes with highlights, rosy cheeks, ' +
+    'brown floppy ears; other animals in the same cute chibi style. Medium-wide shot, the key action and objects large and clear. ' +
+    'Premium mascot quality, soft matte clay, Pixar-like softness, studio lighting, pastel colors, light mint tone. ' +
+    'No text, letters, numbers, logos or speech bubbles.';
+  const head = '3D clay render illustration. Scene: ';
+  let sc = scene.trim();
+  const room = PROMPT_MAX - head.length - tail.length;
+  if (sc.length > room) sc = sc.slice(0, room).replace(/[,;]?\s+\S*$/, '') + '.';
+  return head + sc + tail;
+}
 
 const HIGGS_JS = path.join(npmGlobalRoot(), '@higgsfield', 'cli', 'bin', 'higgsfield.js');
 const CLAUDE_EXE =
@@ -62,19 +72,32 @@ try {
     let credits = Number(status.credits || 0);
     log.credits.before = credits;
     const budget = Math.min(IMAGE_MAX, Math.floor((credits - RESERVE) / COST_PER_IMAGE + 1e-9));
-    const need = budget > 0 ? (await api(`/api/admin/runway?text=0&image=${budget}`)).need_image : [];
-    console.log(`크레딧 ${credits} → 오늘 그림 ${need.length}장(상한 ${budget})`);
+    // --redo=w0001,w0002 : 이미 있는 그림을 새 장면으로 다시 그림(상태 무관). 없으면 그림 없는 단어를 학습 순서대로
+    const ids = REDO.length ? REDO.slice(0, budget) : budget > 0 ? (await api(`/api/admin/runway?text=0&image=${budget}`)).need_image.map((w) => w.id) : [];
+    const need = [];
+    for (const id of ids) need.push((await api(`/api/word/${id}`)).word);
+    // 그리기 직전에 「카드 예문 장면」 으로 장면을 새로 쓴다 → 그림 · 단어 · 예문이 같은 순간을 가리킴
+    const briefs = need.length && !DRY ? writeScenesWithClaude(need) : new Map();
+    if (briefs.size) await api('/api/admin/words', { method: 'POST', body: { items: [...briefs].map(([id, scene_en]) => ({ id, scene_en })) } });
+    console.log(`크레딧 ${credits} → 오늘 그림 ${need.length}장(상한 ${budget}), 새 장면 ${briefs.size}`);
     for (const w of need) {
-      if (!w.scene_en) continue;
-      const prompt = PROMPT_BASE + w.scene_en;
-      if (DRY) { console.log(`[dry] ${w.id} ${w.lemma}: ${w.scene_en}`); continue; }
+      const scene = briefs.get(w.id) || w.scene_en;
+      if (!scene) continue;
+      const prompt = imagePrompt(scene);
+      if (DRY) { console.log(`[dry] ${w.id} ${w.lemma}: ${scene}`); continue; }
       const t0 = Date.now();
       let job;
+      const gen = () => higgs(['generate', 'create', 'z_image', '--aspect_ratio', '4:3', '--prompt', prompt, '--wait', '--wait-timeout', '5m', '--json']);
       try {
-        job = higgs(['generate', 'create', 'z_image', '--aspect_ratio', '4:3', '--prompt', prompt, '--wait', '--wait-timeout', '5m', '--json']);
+        try { job = gen(); } catch (e) {
+          if (/credit|balance|insufficient/i.test(String(e.message))) throw e;
+          console.error(`다시 시도 ${w.id}: ${String(e.message || e).slice(0, 120)}`); // 실측: 가끔 job 이 「failed」로 끝남
+          job = gen();
+        }
       } catch (e) {
         log.failed.push({ id: w.id, error: String(e.message || e).slice(0, 300) });
-        await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        // 다시 그리기(--redo)면 있던 그림을 지킨다. 새 단어만 실패 표시(머리글자 칸)
+        if (!REDO.length) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
         if (/credit|balance|insufficient/i.test(String(e.message))) break;
         continue;
       }
@@ -82,7 +105,7 @@ try {
       const url = j?.result_url || j?.min_result_url;
       if (!url) {
         log.failed.push({ id: w.id, error: 'result_url 없음' });
-        await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        if (!REDO.length) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
         continue;
       }
       const png = Buffer.from(await (await fetch(url)).arrayBuffer());
@@ -90,7 +113,7 @@ try {
       const { channels } = await sharp(png).stats();
       if (channels.every((c) => c.stdev < 4)) {
         log.failed.push({ id: w.id, error: 'blank_image' });
-        await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        if (!REDO.length) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
         console.log(`그림 ${w.id} ${w.lemma} 단색 → 실패 처리`);
         continue;
       }
@@ -169,6 +192,30 @@ Items: ${JSON.stringify(list)}`;
     if (Object.keys(it).length > 1) items.push(it);
   }
   return items;
+}
+
+// ── claude -p 로 그림 장면 쓰기(카드 예문과 같은 순간) ─────────────────────
+function writeScenesWithClaude(words) {
+  const list = words.map((w) => ({ id: w.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, pos: w.pos, meaning_ko: w.gloss_ko, example_de: w.example_de, example_ko: w.example_ko }));
+  const prompt = `You write image scenes for German vocabulary flashcards. Each card shows: the German word, its Korean meaning, one example sentence, and a 3D clay picture. The picture must show THE SAME MOMENT as the example sentence, so the word, the sentence and the picture obviously belong together.
+Rules for each scene (ONE English line, max 35 words and 230 characters, start with "Borti"):
+- Borti (a chubby cream dachshund puppy) plays the speaker or main person of the example sentence. Other people in the sentence become other cute puppies or kittens.
+- The meaning of the word is the visible focus: the action or object that the word names is large and central. For abstract words (adverbs, conjunctions, particles) show the sentence's situation and let Borti's pose and facial expression carry the meaning.
+- Name the concrete place (kitchen, office, train platform…) and 1–3 concrete props.
+- No text, letters, numbers, signs, logos, screens with writing, or speech bubbles.
+Output ONLY a JSON array [{"id": "...", "scene_en": "..."}] with exactly ${list.length} items in the same order. No prose, no code fence.
+Items: ${JSON.stringify(list)}`;
+  const r = spawnSync(CLAUDE_EXE, ['-p', '--output-format', 'json', '--model', 'sonnet', '--max-turns', '1', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}'], {
+    input: prompt, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, timeout: 10 * 60 * 1000, windowsHide: true,
+  });
+  const out = new Map();
+  try {
+    const arr = JSON.parse(String(JSON.parse(r.stdout).result ?? '').trim().replace(/^```(?:json)?\s*|\s*```$/g, ''));
+    for (const o of arr) if (o?.id && typeof o.scene_en === 'string' && /^Borti\b/.test(o.scene_en.trim())) out.set(o.id, o.scene_en.trim().slice(0, 400));
+  } catch (e) {
+    console.error(`장면 쓰기 실패 — 예전 장면으로 그림: ${String(e.message || e).slice(0, 200)}`);
+  }
+  return out;
 }
 
 // ── 힉스필드 CLI ──────────────────────────────────────────────────────────

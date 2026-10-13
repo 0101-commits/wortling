@@ -5,7 +5,7 @@ import { animate, motion, useMotionValue, useMotionValueEvent, useTransform, typ
 import { ContentBadge } from '@montage-ui/core'
 import type { DeckItem, Rating } from '../shared/api.ts'
 import { RATING_LABEL, SWIPE, decideSwipe, intervals } from './deck.ts'
-import { Example, Lemma, POS_LABEL, WordImage } from './ui.tsx'
+import { Emoji, Example, Lemma, POS_LABEL, WordImage } from './ui.tsx'
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
@@ -184,9 +184,9 @@ function CardFace({ item: { word }, back }: { item: DeckItem; back: boolean }) {
       </div>
       {back ? (
         <div className="dk-txt" key="back">
+          <Emoji name="think" size={28} className="dk-think" />
           <Lemma word={word} className="dk-wd sm" />
-          <div className="dk-mn">{word.gloss_ko ?? word.gloss_en ?? '뜻 준비 중'}</div>
-          {word.gloss_ko && word.gloss_en && <div className="dk-en" lang="en">{word.gloss_en}</div>}
+          <div className="dk-mn">{word.gloss_ko ?? '뜻 준비 중'}</div>
           {(word.plural || word.ipa) && (
             <div className="dk-meta">
               {word.plural && <span lang="de">복수 {word.plural}</span>}

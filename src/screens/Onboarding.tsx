@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Button, SegmentedControl, SegmentedControlItem } from '@montage-ui/core'
 import type { Level, Settings } from '../../shared/api.ts'
-import { Stepper, Top } from '../ui.tsx'
+import { Emoji, Stepper, Top } from '../ui.tsx'
 import { DiscordConnect } from './Setup.tsx'
 
 export default function Onboarding({ settings, onDone }: { settings: Settings; onDone: (p: Partial<Settings>) => void }) {
@@ -18,6 +18,7 @@ export default function Onboarding({ settings, onDone }: { settings: Settings; o
           <i className="on" />
           <i className={step === 2 ? 'on' : ''} />
         </div>
+        <Emoji name="hello" size={96} className="hero" />
         {step === 1 ? (
           <>
             <h1>어디서 시작할까요?</h1>

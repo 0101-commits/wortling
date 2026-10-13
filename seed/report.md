@@ -24,7 +24,7 @@ gloss_ko 채워진 단어: B1 1800건 · B2 2220건
 | 영어 뜻(gloss_en) | 1657 (92%) | 2215 (100%) |
 | 한국어 뜻(gloss_ko) | 1800 (100%) | 2220 (100%) |
 | 예문(example_de) | 1800 (100%) | 2220 (100%) |
-| 예문 출처 tatoeba | 315 (18%) | 99 (4%) |
+| 예문 출처 tatoeba | 0 (0%) | 0 (0%) |
 | 그림 장면(scene_en) | 1800 (100%) | 2220 (100%) |
 | 빈도 순위(freq_rank) | 1551 (86%) | 2220 (100%) |
 
@@ -85,28 +85,28 @@ DWDS 대조 순서(파일: DWDS 표제어 목록, 환경변수 DWDS_LEMMA_CSV �
 없음
 
 ## Tatoeba 예문
-짝 2963건(독일어 70자 이하) 중 표제어가 낱말 그대로 들어간 문장을 씀. 적용: B1 315건 · B2 99건 (생성 예문보다 우선)
+짝 2963건(독일어 70자 이하) 중 표제어가 낱말 그대로 들어간 문장을 씀. 적용: B1 0건 · B2 0건 (생성 예문보다 우선)
 
 ## 표본 B1 (앞 10건)
 | id | lemma | pos | gender | plural | ipa | gloss_en | gloss_ko | example_src | freq_rank |
 |---|---|---|---|---|---|---|---|---|---|
-| w0001 | los | adv |  |  | /loːs/ | rid of, free of; off, out, used to indicate leaving motion. | 어서, 출발, (일이) 일어난 | tatoeba:398613 | 98 |
-| w0002 | damit | adv |  |  | /daˈmɪt/ | therefore, as a result | 그것으로, 그것과 함께 | tatoeba:9465337 | 137 |
-| w0003 | nun | adv |  |  | /nuːn/ | now, at this moment; now, then; expressing a logical or temporal consequence | 이제, 지금 | tatoeba:789072 | 147 |
-| w0004 | Gott | noun | der | Götter | /ɡɔt/ | god | 신, 하느님 | tatoeba:2573383 | 157 |
-| w0005 | wieso | adv |  |  | /viˈzoː/ | why | 왜, 어째서 | tatoeba:7310909 | 190 |
-| w0006 | Nacht | noun | die | Nächte | /naxt/ | night; darkness | 밤 | tatoeba:438752 | 198 |
-| w0007 | gar | adv |  |  | /ɡaːr/ | at all; even; even; expressing a climax | 전혀, 심지어 | tatoeba:3253111 | 207 |
+| w0001 | los | adv |  |  | /loːs/ | rid of, free of; off, out, used to indicate leaving motion. | 어서, 출발, (일이) 일어난 | gen | 98 |
+| w0002 | damit | adv |  |  | /daˈmɪt/ | therefore, as a result | 그것으로, 그것과 함께 | gen | 137 |
+| w0003 | nun | adv |  |  | /nuːn/ | now, at this moment; now, then; expressing a logical or temporal consequence | 이제, 지금 | gen | 147 |
+| w0004 | Gott | noun | der | Götter | /ɡɔt/ | god | 신, 하느님 | gen | 157 |
+| w0005 | wieso | adv |  |  | /viˈzoː/ | why | 왜, 어째서 | gen | 190 |
+| w0006 | Nacht | noun | die | Nächte | /naxt/ | night; darkness | 밤 | gen | 198 |
+| w0007 | gar | adv |  |  | /ɡaːr/ | at all; even; even; expressing a climax | 전혀, 심지어 | gen | 207 |
 | w0008 | stimmen | verb |  |  | /ˈʃtɪmən/ | to be right, to be correct, to be proper, to be true; to vote | 맞다, 투표하다 | gen | 225 |
-| w0009 | Fall | noun | der | Fälle | /fal/ | fall, drop (the act of falling or an instance thereof) | 경우, 사건, 추락 | tatoeba:1802401 | 287 |
+| w0009 | Fall | noun | der | Fälle | /fal/ | fall, drop (the act of falling or an instance thereof) | 경우, 사건, 추락 | gen | 287 |
 | w0010 | verschwinden | verb |  |  | /fɛɐ̯ˈʃvɪndn̩/ | to disappear, to vanish, to move out of view; to leave, to go away | 사라지다 | gen | 289 |
 
 ## 표본 B2 (앞 10건)
 | id | lemma | pos | gender | plural | ipa | gloss_en | gloss_ko | example_src | freq_rank |
 |---|---|---|---|---|---|---|---|---|---|
-| w1801 | Mörder | noun | der | Mörder | /ˈmœʁdɐ/ | murderer, assassin, assassinator, killer, slayer (male or of unspecified gender) | 살인자, 살인범 | tatoeba:1172901 | 734 |
+| w1801 | Mörder | noun | der | Mörder | /ˈmœʁdɐ/ | murderer, assassin, assassinator, killer, slayer (male or of unspecified gender) | 살인자, 살인범 | gen | 734 |
 | w1802 | Engel | noun | der | Engel | /ˈɛŋl̩/ | angel | 천사 | gen | 1376 |
-| w1803 | Tausend | noun | das | Tausend | /ˈtaʊ̯zənt/ | thousand (set or unit of one thousand items) | 천, 수천 | tatoeba:3931941 | 2438 |
+| w1803 | Tausend | noun | das | Tausend | /ˈtaʊ̯zənt/ | thousand (set or unit of one thousand items) | 천, 수천 | gen | 2438 |
 | w1804 | Jäger | noun | der | Jäger | /ˈjɛːɡɐ/ | hunter (male or of unspecified sex); fighter | 사냥꾼 | gen | 2758 |
 | w1805 | Block | noun | der | Blöcke | /blɔk/ | bloc | 블록, 덩어리, 메모장 | gen | 3681 |
 | w1806 | Eid | noun | der | Eide | /aɪ̯t/ | oath | 맹세, 선서 | gen | 4624 |

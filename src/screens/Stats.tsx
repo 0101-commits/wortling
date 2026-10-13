@@ -4,7 +4,7 @@ import type { StatsResponse } from '../../shared/api.ts'
 import { api } from '../api.ts'
 import { fmtDay, num } from '../format.ts'
 import { useAsync } from '../hooks.ts'
-import { CountUp, ErrorBox, Top } from '../ui.tsx'
+import { CountUp, Emoji, ErrorBox, Top } from '../ui.tsx'
 
 const STATE_ROWS: Array<[keyof StatsResponse['by_state'], string]> = [
   ['new', '새 단어'],
@@ -52,9 +52,10 @@ function StatsBody({ d }: { d: StatsResponse }) {
           <div className="v"><CountUp value={d.due_tomorrow} /><small>장</small></div>
           <div className="l">내일 예정</div>
         </div>
-        <div className="b">
+        <div className={'b' + (d.streak_days >= 3 ? ' party' : '')}>
           <div className="v"><CountUp value={d.streak_days} /><small>일</small></div>
           <div className="l">연속 일수</div>
+          {d.streak_days >= 3 && <Emoji name="party" size={48} className="b-emoji" />}
         </div>
         <div className="b">
           <div className="v"><CountUp value={d.images} /><small>/ {num(d.total_words)}</small></div>

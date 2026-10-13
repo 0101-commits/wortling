@@ -5,7 +5,7 @@ import { api } from '../api.ts'
 import { fmtDate } from '../format.ts'
 import { useAsync } from '../hooks.ts'
 import { navigate } from '../router.ts'
-import { ErrorBox, Top } from '../ui.tsx'
+import { Emoji, ErrorBox, Top } from '../ui.tsx'
 
 const KIND: Record<InboxItem['kind'], string> = { morning: '아침', evening: '저녁', test: '시험' }
 
@@ -28,7 +28,7 @@ export default function Inbox() {
           [0, 1, 2].map((i) => <Skeleton key={i} variant="rectangle" width="100%" height={110} radius={16} />)
         ) : r.data.items.length === 0 ? (
           <div className="empty">
-            <img src="/mascot/_default.webp" alt="" width={160} height={120} />
+            <Emoji name="mail" size={120} />
             <h2>아직 보낸 통이 없어요</h2>
             <p>아침 07:30 · 저녁 21:00 에 보낸 디스코드 통이 여기에도 남아요.</p>
           </div>

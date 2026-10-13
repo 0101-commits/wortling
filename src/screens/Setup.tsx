@@ -6,13 +6,14 @@ import { IconLink, IconSend } from '@montage-ui/icon'
 import { ApiError, MOCK, api, errorText, getToken, type WebhookSaveResponse } from '../api.ts'
 import { useAsync } from '../hooks.ts'
 import { navigate } from '../router.ts'
-import { Top, useToaster } from '../ui.tsx'
+import { Emoji, Top, useToaster } from '../ui.tsx'
 
 export default function Setup() {
   return (
     <>
       <Top title="연결 설정" back="/settings" />
       <main className="page">
+        <Emoji name="hello" size={96} className="hero" />
         <PhoneCard />
         <section className="box wh pad">
           <h2>디스코드 알림</h2>
@@ -148,7 +149,7 @@ function WebhookForm({ onSaved }: { onSaved: () => void }) {
     try {
       const r = await api.saveWebhook(url.trim())
       if (r.ok) {
-        toast('디스코드에 시험 통이 갔어요', 'positive')
+        toast('디스코드에 시험 통이 갔어요', 'positive', 'mail')
         setUrl('')
         onSaved()
       } else toast(failText(r), 'negative')

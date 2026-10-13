@@ -6,7 +6,7 @@ import { api, errorText } from '../api.ts'
 import { STATE_LABEL, dueText, num } from '../format.ts'
 import { useDebounced } from '../hooks.ts'
 import { linkTo } from '../router.ts'
-import { ErrorBox, Lemma, Top, WordImage } from '../ui.tsx'
+import { Emoji, ErrorBox, Lemma, Top, WordImage } from '../ui.tsx'
 
 const CHIPS: Array<{ id: string; label: string; q: WordsQuery }> = [
   { id: 'all', label: '전체', q: {} },
@@ -103,7 +103,7 @@ export default function Words() {
           </div>
         ) : fresh.items.length === 0 ? (
           <div className="empty">
-            <img src="/mascot/_default.webp" alt="" width={160} height={120} />
+            <Emoji name="study" size={120} />
             <h2>{filtered ? '찾는 단어가 없어요' : '단어가 아직 없어요'}</h2>
             <p>{filtered ? '철자를 바꾸거나 다른 칩을 골라 보세요. 독일어·한국어·영어 뜻 모두 찾아요.' : '단어 시드를 넣으면 여기에 보여요.'}</p>
             {filtered && (
@@ -123,7 +123,7 @@ export default function Words() {
                     </div>
                     <div className="mid">
                       <Lemma word={it.word} className="w" />
-                      <div className="m">{it.word.gloss_ko ?? it.word.gloss_en ?? '뜻 준비 중'}</div>
+                      <div className="m">{it.word.gloss_ko ?? '뜻 준비 중'}</div>
                     </div>
                     <div className="r">
                       <ContentBadge size="xsmall" variant="solid" color={it.card.state === 0 ? 'neutral' : 'accent'} accentColor="semantic.foreground.brand.primary">

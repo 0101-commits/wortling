@@ -9,6 +9,12 @@ import App from './App.tsx'
 
 takeTokenFromUrl()
 
+// 확대·축소 막기(앱처럼). iOS Safari 는 viewport 의 user-scalable=no 를 무시하므로 손가락 두 개 동작을 직접 막는다.
+// 한 손가락 밀기(덱)는 그대로 둔다.
+const stop = (e: Event) => e.preventDefault()
+for (const t of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(t, stop, { passive: false })
+document.addEventListener('touchmove', (e) => e.touches.length > 1 && e.preventDefault(), { passive: false })
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>

@@ -36,7 +36,6 @@ export default function WordDetail({ id }: { id: string }) {
                   {d.word.plural && <span lang="de">복수 {d.word.plural}</span>}
                   {d.word.ipa && <span>{d.word.ipa}</span>}
                 </div>
-                {d.word.gloss_en && <div className="dk-en" lang="en">{d.word.gloss_en}</div>}
                 {d.word.example_de && (
                   <p className="dk-ex">
                     <span lang="de">

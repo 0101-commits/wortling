@@ -9,6 +9,18 @@ html,
 body {
   background: #fff;
 }
+/* 앱처럼: 두 번 탭 확대 · 글자 자동 키움 막기(손가락 두 개 확대는 main.tsx) */
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+/* iOS 는 16px 미만 입력칸에 초점이 가면 화면을 키운다 → 모든 입력칸 16px 이상 */
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}
 body {
   margin: 0;
   color: var(--ink);
@@ -251,6 +263,7 @@ code {
   overflow: hidden;
 }
 .dk-txt {
+  position: relative;
   flex: 1;
   min-height: 0;
   padding: 16px 18px 14px;
@@ -277,10 +290,6 @@ code {
   font-size: 24px;
   line-height: 1.25;
   font-weight: 700;
-}
-.dk-en {
-  font-size: 14px;
-  color: var(--ink2);
 }
 .dk-meta {
   display: flex;
@@ -522,7 +531,7 @@ code {
 }
 .date {
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--ink);
   background: #fff;
   border: 1px solid var(--line);
@@ -878,4 +887,38 @@ code {
   height: 20px;
   flex: none;
   color: var(--ink3);
+}
+
+/* ── 보르티 이모티콘 ── */
+.emoji {
+  display: block;
+  flex: none;
+  border-radius: 50%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.hero {
+  justify-self: center;
+}
+.done .emoji {
+  justify-self: center;
+}
+.dk-think {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+}
+.bento .b.party {
+  position: relative;
+  padding-right: 64px;
+}
+.b-emoji {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  translate: 0 -50%;
+}
+.done > h1,
+.done > .tomorrow {
+  text-align: center;
 }

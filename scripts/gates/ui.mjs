@@ -87,7 +87,20 @@ try {
               wide.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)} ${Math.round(r.left)}..${Math.round(r.right)}`)
             }
           }
-          return { sw: de.scrollWidth, cw: de.clientWidth, wide: wide.slice(0, 5), bg: getComputedStyle(document.body).backgroundColor, htmlBg: getComputedStyle(de).backgroundColor }
+          // iOS 는 16px 미만 입력칸에서 확대한다 · 보르티 그림이 실제로 그려졌는지
+          const smallInputs = [...document.querySelectorAll('input, textarea, select')]
+            .filter((el) => parseFloat(getComputedStyle(el).fontSize) < 16)
+            .map((el) => `${el.tagName.toLowerCase()}[${el.getAttribute('aria-label') ?? el.type}] ${getComputedStyle(el).fontSize}`)
+          const brokenEmoji = [...document.querySelectorAll('img.emoji')].filter((i) => !i.complete || i.naturalWidth === 0).map((i) => i.getAttribute('src'))
+          return {
+            sw: de.scrollWidth,
+            cw: de.clientWidth,
+            wide: wide.slice(0, 5),
+            bg: getComputedStyle(document.body).backgroundColor,
+            smallInputs,
+            brokenEmoji,
+            emoji: document.querySelectorAll('img.emoji').length,
+          }
         })
         const tag = `${route} @${vp.name} ${scheme}`
         const problems = []
@@ -95,12 +108,14 @@ try {
         if (m.wide.length) problems.push('넓은 요소 ' + m.wide.join(' | '))
         if (m.bg !== 'rgb(255, 255, 255)') problems.push('body 바탕 ' + m.bg)
         if (errors.length) problems.push('콘솔 오류 ' + errors.join(' | '))
+        if (m.smallInputs.length) problems.push('16px 미만 입력칸 ' + m.smallInputs.join(' | '))
+        if (m.brokenEmoji.length) problems.push('안 그려진 이모티콘 ' + m.brokenEmoji.join(' | '))
         problems.forEach((p) => fail(`${tag}: ${p}`))
         await page.screenshot({ path: join(SHOTS, `${route.slice(1).replace(/\W+/g, '_')}-${vp.name}-${scheme}.png`), fullPage: true })
         let row = table.find((t) => t.route === route && t.vp === vp.name)
         if (!row) table.push((row = { route, vp: vp.name, light: '', dark: '', sw: '' }))
         row[scheme] = problems.length ? 'FAIL' : 'ok'
-        row.sw = `${m.sw}/${m.cw}`
+        row.sw = `${m.sw}/${m.cw}` + (m.emoji ? ` · 보르티 ${m.emoji}` : '')
       }
 
       // 연결 설정: QR 이 그려지고, 웹후크를 붙여 넣고 저장하면 토스트 + 「연결됨」
@@ -184,13 +199,56 @@ try {
         await sleep(1200)
         const done = await page.getByText('오늘 끝').count()
         const sw = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+        const happy = await page.evaluate(() => [...document.querySelectorAll('img.emoji')].filter((i) => i.complete && i.naturalWidth > 0).length)
         await page.screenshot({ path: join(SHOTS, 'today-done-390.png') })
-        const dok = done === 1 && sw <= 0 && errors.length === 0
-        if (!dok) fail(`덱 끝 화면: 오늘 끝 ${done} · 넘침 ${sw}${errors.length ? ' · 콘솔 오류 ' + errors.join(' | ') : ''}`)
+        const dok = done === 1 && sw <= 0 && happy === 1 && errors.length === 0
+        if (!dok) fail(`덱 끝 화면: 오늘 끝 ${done} · 넘침 ${sw} · 보르티 ${happy}${errors.length ? ' · 콘솔 오류 ' + errors.join(' | ') : ''}`)
         table.push({ route: '덱 끝까지', vp: '390', light: dok ? 'ok' : 'FAIL', dark: '-', sw: done ? '오늘 끝' : '안 끝남' })
       }
       await ctx.close()
     }
+  }
+
+  // 폰 흉내(터치·확대 막기): 손가락 하나로 밀면 채점되고, 화면 배율은 1 그대로
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, locale: 'ko-KR' })
+    const page = await ctx.newPage()
+    const errors = []
+    page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
+    page.on('pageerror', (e) => errors.push(String(e)))
+    await page.goto(BASE + '#/today', { waitUntil: 'networkidle' })
+    const progress = page.getByTestId('progress')
+    await progress.waitFor()
+    const before = (await progress.textContent()).trim()
+    const box = await page.getByTestId('deck-top').boundingBox()
+    const cx = Math.round(box.x + box.width / 2)
+    const cy = Math.round(box.y + box.height / 2)
+    const cdp = await ctx.newCDPSession(page)
+    const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts })
+    await touch('touchStart', [{ x: cx, y: cy }])
+    for (let i = 1; i <= 12; i++) {
+      await touch('touchMove', [{ x: cx + i * 18, y: cy + i }])
+      await sleep(16)
+    }
+    await touch('touchEnd', [])
+    await sleep(700)
+    const after = (await progress.textContent()).trim()
+    // 손가락 두 개로 벌리기 → 배율이 1 이어야 한다
+    await touch('touchStart', [{ x: 150, y: 300, id: 1 }, { x: 240, y: 300, id: 2 }])
+    for (let i = 1; i <= 8; i++) {
+      await touch('touchMove', [{ x: 150 - i * 12, y: 300, id: 1 }, { x: 240 + i * 12, y: 300, id: 2 }])
+      await sleep(16)
+    }
+    await touch('touchEnd', [])
+    await sleep(300)
+    const scale = await page.evaluate(() => window.visualViewport?.scale ?? 1)
+    const viewportMeta = await page.evaluate(() => document.querySelector('meta[name=viewport]')?.getAttribute('content') ?? '')
+    const n = (s) => Number(s.split('/')[0])
+    const ok = n(after) === n(before) + 1 && scale === 1 && /user-scalable=no/.test(viewportMeta) && errors.length === 0
+    if (!ok) fail(`터치 밀기: ${before} → ${after} · 배율 ${scale} · viewport "${viewportMeta}"${errors.length ? ' · 콘솔 오류 ' + errors.join(' | ') : ''}`)
+    table.push({ route: '터치 밀기 · 확대 막기', vp: '390 폰', light: ok ? 'ok' : 'FAIL', dark: '-', sw: `${before} → ${after} · 배율 ${scale}` })
+    await page.screenshot({ path: join(SHOTS, 'today-touch-390.png') })
+    await ctx.close()
   }
 } catch (e) {
   fail('게이트 실행 오류: ' + (e?.stack ?? e))

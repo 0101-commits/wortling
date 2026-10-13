@@ -1,0 +1,15 @@
+{
+  "name": "Wortling",
+  "short_name": "Wortling",
+  "description": "독일어 B1·B2 단어장",
+  "lang": "ko",
+  "display": "standalone",
+  "start_url": "/#/today",
+  "scope": "/",
+  "background_color": "#FFFFFF",
+  "theme_color": "#006F82",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

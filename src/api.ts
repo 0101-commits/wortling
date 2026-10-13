@@ -175,7 +175,10 @@ export async function retryUnsent(): Promise<number> {
 
 // 목업 그림: public/mascot 에 있는 파일만 쓴다(없는 그림 404 = 콘솔 오류)
 const MOCK_IMG: Record<string, string> = { w002: 'umzug', w003: 'verspaetung', w004: 'entscheidung', w005: 'vertrag' }
-export const imgSrc = (id: string) => (MOCK ? `/mascot/${MOCK_IMG[id] ?? '_default'}.webp` : `/img/${id}.webp`)
+/** 그림을 다시 그리면 올린다 → 폰에 남은 예전 그림(캐시 1년) 대신 새 주소로 받는다 */
+export const IMG_VERSION = 2
+export const imgSrc = (id: string) =>
+  (MOCK ? `/mascot/${MOCK_IMG[id] ?? '_default'}.webp` : `/img/${id}.webp`) + `?v=${IMG_VERSION}`
 
 export function errorText(e: unknown): string {
   if (e instanceof Error) return e.message === 'Failed to fetch' ? '서버에 닿지 않아요. 연결을 확인해 주세요.' : e.message

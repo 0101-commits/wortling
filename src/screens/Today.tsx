@@ -9,7 +9,7 @@ import { fmtDay } from '../format.ts'
 import { useAsync } from '../hooks.ts'
 import { navigate } from '../router.ts'
 import { SwipeDeck } from '../SwipeDeck.tsx'
-import { CountUp, ErrorBox, Top, useToaster } from '../ui.tsx'
+import { CountUp, Emoji, ErrorBox, Top, useToaster } from '../ui.tsx'
 
 export default function Today() {
   const today = useAsync(() => api.today(), [])
@@ -87,6 +87,7 @@ function Session({ data }: { data: TodayResponse }) {
     const good = s.pending.filter((p) => p.rating >= 3).length
     return (
       <section className="done">
+        <Emoji name="happy" size={112} />
         <h1>오늘 끝</h1>
         <p className="tomorrow">
           내일 {tomorrow === null ? <span className="num">…</span> : <CountUp value={tomorrow} />}장
@@ -143,7 +144,7 @@ function Rest({ vacation, date }: { vacation: string; date: string }) {
   const away = vacation && vacation >= date
   return (
     <section className="empty">
-      <img src="/mascot/_default.webp" alt="" width={200} height={150} />
+      <Emoji name="sleep" size={160} />
       <h2>오늘은 쉬어도 돼요</h2>
       <p>{away ? `휴가 모드 · ${fmtDay(vacation)}까지 알림을 쉬어요.` : '복습할 카드도 새 단어도 없어요.'}</p>
       <Button variant="outlined" color="assistive" onClick={() => navigate('/words')}>

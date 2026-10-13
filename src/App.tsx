@@ -13,7 +13,7 @@ import Stats from './screens/Stats.tsx'
 import Today from './screens/Today.tsx'
 import WordDetail from './screens/WordDetail.tsx'
 import Words from './screens/Words.tsx'
-import { ErrorBox, Top, useToaster } from './ui.tsx'
+import { Emoji, ErrorBox, Top, useToaster } from './ui.tsx'
 
 const TABS = [
   { value: 'today', label: '오늘', icon: IconHome, on: IconHomeFill },
@@ -159,6 +159,7 @@ function KeyEntry({ wrong, onDone }: { wrong: boolean; onDone: () => void }) {
     <>
       <Top title="접속 키" />
       <main className="page bare">
+        <Emoji name="hello" size={96} className="hero" />
         <h1>Wortling</h1>
         <p className="lead">
           혼자 쓰는 앱이라 열쇠가 있어야 열려요. 키를 외울 필요는 없어요.

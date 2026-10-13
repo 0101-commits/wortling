@@ -8,11 +8,24 @@ import { imgSrc } from './api.ts'
 import { article } from './format.ts'
 import { goBack, navigate } from './router.ts'
 
+/** 보르티 이모티콘(public/emoji/{name}.webp, 256×256). 꾸밈이라 alt 는 비운다. */
+export type EmojiName = 'hello' | 'happy' | 'sleep' | 'party' | 'oops' | 'study' | 'mail' | 'think'
+export function Emoji({ name, size = 96, className = '' }: { name: EmojiName; size?: number; className?: string }) {
+  return <img className={'emoji ' + className} src={`/emoji/${name}.webp`} width={size} height={size} alt="" draggable={false} />
+}
+
 type ToastVariant = 'normal' | 'positive' | 'cautionary' | 'negative'
-/** montage 토스트. useToast 는 매 렌더 새 함수를 돌려줘 effect 의존성에 못 쓴다 → 저장소의 add(고정)로 감싼다 */
+/** montage 토스트. useToast 는 매 렌더 새 함수를 돌려줘 effect 의존성에 못 쓴다 → 저장소의 add(고정)로 감싼다.
+ *  오류 토스트는 당황한 보르티(oops)가 아이콘 자리에 선다. */
 export function useToaster() {
   const add = useRegionStore((s) => s.add)
-  return useCallback((content: ReactNode, variant: ToastVariant = 'normal') => add({ type: 'toast', content, variant }), [add])
+  return useCallback(
+    (content: ReactNode, variant: ToastVariant = 'normal', emoji?: EmojiName) => {
+      const name = emoji ?? (variant === 'negative' ? 'oops' : undefined)
+      add({ type: 'toast', content, variant, icon: name ? <Emoji name={name} size={24} /> : undefined })
+    },
+    [add],
+  )
 }
 
 /** 위 막대: 제목 + (뒤로) + (받은편지함 · 설정) */
@@ -125,6 +138,7 @@ export function CountUp({ value }: { value: number }) {
 export function ErrorBox({ error, onRetry }: { error: string; onRetry?: () => void }) {
   return (
     <div className="empty" role="alert">
+      <Emoji name="oops" size={120} />
       <p>{error}</p>
       {onRetry && (
         <Button variant="outlined" color="assistive" size="small" onClick={onRetry}>

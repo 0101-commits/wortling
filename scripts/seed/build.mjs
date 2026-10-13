@@ -232,7 +232,8 @@ for (const w of [...b1, ...b2]) {
   w.example_ko = c?.example_ko || null;
   w.example_src = w.example_de ? 'gen' : null;
   w.scene_en = c?.scene_en || null;
-  const t = findTatoeba(w.lemma, w.pos);
+  // Tatoeba 덮어쓰기는 기본 끔(2026-10-13): 속담·감탄사(「O mein Gott!」)가 많아 단어 뜻·그림과 이어지지 않음. 켜려면 TATOEBA=1
+  const t = process.env.TATOEBA === '1' && !w.example_de ? findTatoeba(w.lemma, w.pos) : null;
   if (t) { w.example_de = t.de; w.example_ko = t.ko; w.example_src = `tatoeba:${t.de_id}`; }
   const u = `${w.lemma}|${w.pos}`;
   if (seen.has(u)) { dups.push(u); continue; }
