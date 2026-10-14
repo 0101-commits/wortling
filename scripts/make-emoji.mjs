@@ -1,11 +1,12 @@
-// 보르티 이모티콘 8개 + 앱 아이콘을 Higgsfield Z Image 로 만든다(카드 그림과 같은 3D 클레이 그림체).
-// 실행: node scripts/make-emoji.mjs [이름…]   → public/emoji/<이름>.webp(256, 둥근 민트 원) · public/icons/*.png
+// 보르티 이모티콘 8개 + 앱 아이콘을 Higgsfield Z Image 로 만든다(카드 그림과 같은 그림체, scripts/style.mjs).
+// 실행: node scripts/make-emoji.mjs [이름…]   → public/emoji/<이름>.webp(256, 둥근 흰 원) · public/icons/*.png
 // 장당 0.15크레딧. 이름을 주면 그것만 다시 만든다.
 import { mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
+import { STYLE_INTRO, BORTI, STYLE } from './style.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HIGGS_JS = path.join(process.env.APPDATA || '', 'npm', 'node_modules', '@higgsfield', 'cli', 'bin', 'higgsfield.js');
@@ -22,11 +23,7 @@ const POSES = {
 };
 
 const prompt = (pose) =>
-  '3D clay render emoji sticker. Borti, a cute chubby cream dachshund puppy with a big round head, tiny body, ' +
-  `big glossy eyes with highlights, rosy cheeks and brown floppy ears, ${pose}. ` +
-  'Full body, centered, filling most of the frame, simple solid pastel mint background. ' +
-  'Premium mascot quality, soft matte clay, Pixar-like softness, studio lighting, pastel colors. ' +
-  'No text, letters, numbers, logos or speech bubbles.';
+  `${STYLE_INTRO} Emoticon sticker of Borti ${pose}. Full body, centered, filling most of the frame. ${BORTI} ${STYLE}`;
 
 const names = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(POSES);
 mkdirSync(path.join(ROOT, 'public', 'emoji'), { recursive: true });
