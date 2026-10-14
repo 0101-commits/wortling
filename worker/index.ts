@@ -17,10 +17,10 @@ import type {
 } from '../shared/api.ts';
 import { ITEM_SELECT, buildToday, loadSettings, rowToItem } from './deck.ts';
 import { applyRating } from './fsrs.ts';
-import { addDays, kstDay, kstDayStartUtc } from './time.ts';
+import { DAY_START_H, addDays, studyDay, studyDayStartUtc } from './time.ts';
 import { summarize } from './discord.ts';
 import type { Payload } from './discord.ts';
-import { WEBHOOK_KEY, WEBHOOK_RE, sendTest, webhookUrl } from './notify.ts';
+import { LATER_MS, WEBHOOK_KEY, WEBHOOK_RE, laterAllowed, sendTest, webhookUrl } from './notify.ts';
 import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
 
 class HttpError extends Error {
@@ -185,21 +185,22 @@ const wordDetail: Handler = async ({ env, params: [id] }) => {
 };
 
 const stats: Handler = async ({ env }) => {
-  const todayDay = kstDay();
+  const todayDay = studyDay();
   // ponytail: 열기 지도와 연속일을 한 질의(최근 400일)로. 400일 넘는 연속은 400 으로 보인다.
-  const windowStart = kstDayStartUtc(addDays(todayDay, -399));
+  const windowStart = studyDayStartUtc(addDays(todayDay, -399));
   const [tw, bl, bs, img, days, dt] = await env.DB.batch([
     env.DB.prepare('SELECT count(*) AS n FROM words'),
     env.DB.prepare('SELECT level, count(*) AS n FROM words GROUP BY level'),
     env.DB.prepare('SELECT state, count(*) AS n FROM cards GROUP BY state'),
     env.DB.prepare("SELECT count(*) AS n FROM words WHERE image_status = 'ok'"),
     env.DB.prepare(
-      `SELECT strftime('%Y-%m-%d', reviewed_at, '+9 hours') AS day, count(*) AS n
+      // 학습일 = 한국 시각 − 4시간의 날짜 → UTC 에 (9 − 4) 시간 더한 날짜
+      `SELECT strftime('%Y-%m-%d', reviewed_at, '+${9 - DAY_START_H} hours') AS day, count(*) AS n
        FROM reviews WHERE reviewed_at >= ? AND undone = 0 GROUP BY day ORDER BY day`,
     ).bind(windowStart),
-    // 내일 하루가 끝날 때까지(= 모레 0시 KST 전) 올 카드
+    // 내일 학습일이 끝날 때까지(= 모레 04:00 KST 전) 올 카드
     env.DB.prepare('SELECT count(*) AS n FROM cards WHERE state IN (1, 2, 3) AND due < ?').bind(
-      kstDayStartUtc(addDays(todayDay, 2)),
+      studyDayStartUtc(addDays(todayDay, 2)),
     ),
   ]);
   const byLevel = { B1: 0, B2: 0, C1: 0 } as Record<Level, number>;
@@ -237,13 +238,51 @@ const stats: Handler = async ({ env }) => {
 
 const inbox: Handler = async ({ env }) => {
   const { results } = await env.DB.prepare(
-    'SELECT id, kind, day, sent_at, status, payload_json FROM notifications ORDER BY id DESC LIMIT 30',
-  ).all<{ id: number; kind: InboxItem['kind']; day: string; sent_at: string | null; status: InboxItem['status']; payload_json: string }>();
+    'SELECT id, kind, day, sent_at, opened_at, status, payload_json FROM notifications ORDER BY id DESC LIMIT 30',
+  ).all<{
+    id: number;
+    kind: InboxItem['kind'];
+    day: string;
+    sent_at: string | null;
+    opened_at: string | null;
+    status: InboxItem['status'];
+    payload_json: string;
+  }>();
   const items: InboxItem[] = results.map(({ payload_json, ...r }) => ({
     ...r,
     ...summarize(JSON.parse(payload_json) as Payload),
   }));
   return json({ items });
+};
+
+/** 알림을 눌러 앱을 열었다(A4): 링크의 ?n= 을 앱이 보낸다. 처음 한 번만 적는다 */
+const openedNotification: Handler = async ({ env, params: [id] }) => {
+  const r = await env.DB.prepare(
+    'UPDATE notifications SET opened_at = ? WHERE id = ? AND opened_at IS NULL',
+  )
+    .bind(new Date().toISOString(), Number(id))
+    .run();
+  return json({ ok: true, updated: r.meta.changes ?? 0 });
+};
+
+/**
+ * 공개: 폰 알림의 「1시간 뒤」(A2). 서비스 워커는 접속 키가 없어 알림 행의 action_key 로 확인한다.
+ * 그날(학습일) 저녁 통이고, 미룬 통이 아직 없고, 1시간 뒤가 23:30 KST 이전일 때만 받는다.
+ */
+const notifyLater: Handler = async ({ req, env }) => {
+  const b = await readJson<{ id?: unknown; key?: unknown }>(req);
+  if (!Number.isInteger(b?.id) || typeof b?.key !== 'string') throw bad('bad_request');
+  const row = await env.DB.prepare('SELECT kind, day, action_key FROM notifications WHERE id = ?')
+    .bind(b.id)
+    .first<{ kind: string; day: string; action_key: string | null }>();
+  if (!row || !row.action_key || row.action_key !== b.key) throw new HttpError(403, 'forbidden');
+  const now = new Date();
+  if (row.kind !== 'evening' || row.day !== studyDay(now)) return json({ ok: false, error: 'not_tonight' });
+  const dup = await env.DB.prepare("SELECT id FROM notifications WHERE kind = 'evening_later' AND day = ?").bind(row.day).first();
+  if (dup) return json({ ok: false, error: 'already' });
+  if (!laterAllowed(now)) return json({ ok: false, error: 'too_late' });
+  const at = now.getTime() + LATER_MS;
+  return json({ ok: true, ...(await scheduler(env).later(at)) });
 };
 
 const getSettings: Handler = async ({ env }) => json(await loadSettings(env.DB));
@@ -252,7 +291,7 @@ const putSettings: Handler = async ({ req, env }) => {
   const body = await readJson<Partial<Settings>>(req);
   if (!body || typeof body !== 'object') throw bad('bad_request');
   const updates: Array<[string, string]> = [];
-  const intIn = (k: 'new_per_day' | 'session_max', lo: number, hi: number) => {
+  const intIn = (k: 'new_per_day' | 'session_max' | 'evening_min', lo: number, hi: number) => {
     if (!(k in body)) return;
     const v = body[k];
     if (!Number.isInteger(v) || (v as number) < lo || (v as number) > hi) throw bad(`${k} must be ${lo}..${hi}`);
@@ -277,6 +316,16 @@ const putSettings: Handler = async ({ req, env }) => {
   if ('onboarded' in body) {
     if (typeof body.onboarded !== 'boolean') throw bad('onboarded must be boolean');
     updates.push(['onboarded', body.onboarded ? '1' : '0']);
+  }
+  if ('evening_mode' in body) {
+    if (body.evening_mode !== 'none_today' && body.evening_mode !== 'any_left') throw bad('evening_mode must be none_today|any_left');
+    updates.push(['evening_mode', body.evening_mode]);
+  }
+  intIn('evening_min', 1, 30);
+  if ('review_only_day' in body) {
+    const v = body.review_only_day;
+    if (typeof v !== 'string' || (v !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(v))) throw bad('review_only_day must be YYYY-MM-DD or empty');
+    updates.push(['review_only_day', v]);
   }
   if (updates.length === 0) throw bad('nothing_to_update');
   await env.DB.batch(
@@ -505,6 +554,8 @@ const routes: Route[] = [
   ['GET', /^\/api\/word\/([\w-]+)$/, wordDetail],
   ['GET', /^\/api\/stats$/, stats],
   ['GET', /^\/api\/inbox$/, inbox],
+  ['POST', /^\/api\/notifications\/(\d+)\/open$/, openedNotification],
+  ['POST', /^\/api\/notify\/later$/, notifyLater, true],
   ['GET', /^\/api\/settings$/, getSettings],
   ['PUT', /^\/api\/settings$/, putSettings],
   ['POST', /^\/api\/test-notification$/, testNotification],

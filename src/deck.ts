@@ -62,6 +62,12 @@ export function buildSession(today: TodayResponse): DeckItem[] {
   return [...today.due, ...today.fresh].slice(0, today.settings.session_max)
 }
 
+/** 아침 알림 빈칸 문제의 정답 카드를 맨 앞으로(없으면 그대로) */
+export function firstUp(queue: DeckItem[], id: string | null): DeckItem[] {
+  const i = id ? queue.findIndex((it) => it.word.id === id) : -1
+  return i <= 0 ? queue : [queue[i], ...queue.slice(0, i), ...queue.slice(i + 1)]
+}
+
 export function current(s: DeckState): DeckItem | undefined {
   return s.finished ? undefined : s.queue[s.index]
 }

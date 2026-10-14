@@ -4,7 +4,7 @@ import { Button, SegmentedControl, SegmentedControlItem, Switch } from '@montage
 import { IconChevronRight, IconSend } from '@montage-ui/icon'
 import type { Settings } from '../../shared/api.ts'
 import { MOCK, api, errorText, getToken, setToken, type TestNotificationResponse } from '../api.ts'
-import { fmtDay, todayKst } from '../format.ts'
+import { fmtDay, studyDay } from '../format.ts'
 import { disablePush, enablePush, pushSupported, pushSync } from '../push.ts'
 import { linkTo } from '../router.ts'
 import { LEVELS, LEVEL_HINT, Stepper, Top, useToaster } from '../ui.tsx'
@@ -41,10 +41,10 @@ export function useTestNotification() {
 
 export default function SettingsScreen({ settings, onChange }: { settings: Settings; onChange: (p: Partial<Settings>) => void }) {
   const test = useTestNotification()
-  const today = todayKst()
+  const today = studyDay()
   const away = settings.vacation_until !== '' && settings.vacation_until >= today
   const token = getToken()
-  const plusDays = (n: number) => todayKst(new Date(Date.now() + n * 86_400_000))
+  const plusDays = (n: number) => studyDay(new Date(Date.now() + n * 86_400_000))
 
   return (
     <>
@@ -90,7 +90,28 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
         <h3 className="sec-t">알림</h3>
         <div className="box wh">
           <div className="kv"><span>아침 카드</span><b>07:30</b></div>
-          <div className="kv"><span>저녁 남은 카드</span><b>21:00 · 있을 때만</b></div>
+          <div className="kv col">
+            <span>
+              저녁 알림 21:00
+              <small className="sub">
+                {settings.evening_mode === 'none_today'
+                  ? `오늘 한 장도 안 했고 남은 카드가 ${settings.evening_min}장 이상일 때만 · 폰 알림에 「1시간 뒤」`
+                  : `남은 카드가 ${settings.evening_min}장 이상이면 · 폰 알림에 「1시간 뒤」`}
+              </small>
+            </span>
+            <SegmentedControl
+              size="small"
+              value={settings.evening_mode}
+              onValueChange={(v) => onChange({ evening_mode: v === 'any_left' ? 'any_left' : 'none_today' })}
+            >
+              <SegmentedControlItem value="none_today">오늘 0장일 때만</SegmentedControlItem>
+              <SegmentedControlItem value="any_left">남은 카드 있으면</SegmentedControlItem>
+            </SegmentedControl>
+          </div>
+          <div className="kv">
+            <span>저녁 알림 최소 남은 카드</span>
+            <Stepper label="저녁 알림 최소 남은 카드" value={settings.evening_min} min={1} max={30} onChange={(v) => onChange({ evening_min: v })} />
+          </div>
           <div className="kv">
             <span>
               휴가 모드

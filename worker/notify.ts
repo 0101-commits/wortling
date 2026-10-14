@@ -1,9 +1,11 @@
 // 아침·저녁·시험 알림 실행. notifications 행을 먼저 남기고(같은 날 두 번 금지, G5) 보낸다.
 import type { Env } from './env.ts';
+import type { DeckItem, Settings } from '../shared/api.ts';
+import { clozeOf } from '../shared/cloze.ts';
 import { buildToday, loadSettings } from './deck.ts';
-import { kstDay } from './time.ts';
+import { studyDay, studyDayStartUtc } from './time.ts';
 import { eveningPayload, minutesFor, morningPayload, send, summarize, testPayload } from './discord.ts';
-import type { Payload } from './discord.ts';
+import type { Cloze, Payload } from './discord.ts';
 import { pushAll, pushMessage } from './push.ts';
 import type { PushResult } from './push.ts';
 
@@ -26,27 +28,35 @@ export type RunResult =
       push: PushResult;
     };
 
-/** 행 넣기 → 디스코드·푸시를 서로 독립으로 보내기 → 결과 적기. 하나라도 가면 sent. UNIQUE(kind, day) 에 걸리면 dup. */
-async function dispatch(env: Env, kind: string, day: string, payload: Payload, now: Date): Promise<RunResult> {
+/** 알림마다 만드는 무작위 열쇠(서비스 워커의 「1시간 뒤」용) */
+const newKey = () => crypto.randomUUID().replace(/-/g, '');
+
+/**
+ * 행 넣기 → (알림 번호를 넣어) 글 만들기 → 디스코드·푸시를 서로 독립으로 보내기 → 결과 적기.
+ * 하나라도 가면 sent. UNIQUE(kind, day) 에 걸리면 dup.
+ */
+async function dispatch(env: Env, kind: string, day: string, build: (n: number) => Payload, now: Date): Promise<RunResult> {
   let id: number;
+  const key = newKey();
   try {
     const row = await env.DB.prepare(
-      "INSERT INTO notifications(kind, day, scheduled_at, status, payload_json) VALUES (?, ?, ?, 'queued', ?) RETURNING id",
+      "INSERT INTO notifications(kind, day, scheduled_at, status, payload_json, action_key) VALUES (?, ?, ?, 'queued', '{}', ?) RETURNING id",
     )
-      .bind(kind, day, now.toISOString(), JSON.stringify(payload))
+      .bind(kind, day, now.toISOString(), key)
       .first<{ id: number }>();
     id = row!.id;
   } catch (e) {
     if (/UNIQUE/i.test(String(e))) return { skipped: 'dup' };
     throw e;
   }
+  const payload = build(id);
   const hook = await webhookUrl(env);
   const fail = (e: unknown): PushResult => ({ ok: false, sent: 0, failed: 0, gone: 0, error: String(e) });
   const [d, push] = await Promise.all([
     hook ? send(hook, payload) : null,
     // 푸시 글 만들기도 이 안에서 — 거기서 던져도 디스코드는 나간다
     Promise.resolve()
-      .then(() => pushAll(env, pushMessage(summarize(payload), kind, env.APP_URL)))
+      .then(() => pushAll(env, pushMessage(summarize(payload), kind, env.APP_URL, { nid: id, key })))
       .catch(fail),
   ]);
   const discord = d?.ok ? { ok: true } : { ok: false, error: d ? `${d.status} ${d.error ?? ''}`.trim() : 'no_webhook' };
@@ -59,43 +69,91 @@ async function dispatch(env: Env, kind: string, day: string, payload: Payload, n
       : [!discord.ok && !unset(discord.error) && `discord: ${discord.error}`, !push.ok && !unset(push.error) && `push: ${push.error}`]
           .filter(Boolean)
           .join('; ') || undefined;
-  await env.DB.prepare('UPDATE notifications SET status = ?, sent_at = ?, discord_message_id = ?, error = ? WHERE id = ?')
-    .bind(ok ? 'sent' : 'failed', ok ? new Date().toISOString() : null, d?.messageId ?? null, error ?? null, id)
+  await env.DB.prepare(
+    'UPDATE notifications SET status = ?, sent_at = ?, discord_message_id = ?, error = ?, payload_json = ? WHERE id = ?',
+  )
+    .bind(ok ? 'sent' : 'failed', ok ? new Date().toISOString() : null, d?.messageId ?? null, error ?? null, JSON.stringify(payload), id)
     .run();
   return { ok, id, status: ok ? 'sent' : 'failed', error, discord, push };
 }
 
+/** 아침 빈칸 문제 고르기(A1): 덱 순서(복습 먼저)대로, 예문에 그 단어가 보이고 빈칸 뒤 정답 글자가 남지 않는 첫 카드. 110자 넘는 예문은 건너뜀 */
+export function pickCloze(items: DeckItem[]): Cloze | null {
+  for (const { word } of items) {
+    const de = word.example_de;
+    if (!de || de.length > 110) continue;
+    const line = clozeOf(de, word.lemma);
+    if (!line) continue;
+    const base = word.lemma.replace(/^sich\s+/i, '').toLowerCase();
+    if (line.toLowerCase().includes(base)) continue; // 같은 낱말이 두 번 나오면 정답이 새어 나감(G11)
+    return { id: word.id, line, hint: word.gloss_ko };
+  }
+  return null;
+}
+
 export async function runMorning(env: Env, now: Date = new Date()): Promise<RunResult> {
-  const day = kstDay(now);
+  const day = studyDay(now);
   const settings = await loadSettings(env.DB);
   if (settings.vacation_until && settings.vacation_until >= day) return { skipped: 'vacation' };
   const today = await buildToday(env.DB, settings, now);
   const items = [...today.due, ...today.fresh];
   if (items.length === 0) return { skipped: 'empty' };
-  const withImage = items.find((i) => i.word.image);
+  const cloze = pickCloze(items);
+  // 그림: 빈칸 단어의 그림이 있으면 그것(그림이 힌트), 없으면 덱에서 그림 있는 첫 장
+  const withImage = items.find((i) => i.word.image && i.word.id === cloze?.id) ?? items.find((i) => i.word.image);
   const imageUrl = withImage ? `${env.APP_URL}/img/${withImage.word.id}.webp` : null;
-  const payload = morningPayload({ day, items, total: items.length, appUrl: env.APP_URL, imageUrl });
-  return dispatch(env, 'morning', day, payload, now);
+  return dispatch(env, 'morning', day, (n) => morningPayload({ day, items, total: items.length, appUrl: env.APP_URL, imageUrl, cloze, n }), now);
 }
 
-export async function runEvening(env: Env, now: Date = new Date()): Promise<RunResult> {
-  const day = kstDay(now);
+/** 저녁 알림 조건(A2). null = 보냄, 문자열 = 건너뛴 이유 */
+export function eveningSkip(p: {
+  remaining: number;
+  reviewedToday: number;
+  morningSent: boolean;
+  mode: Settings['evening_mode'];
+  min: number;
+}): string | null {
+  if (p.remaining < Math.max(1, p.min)) return 'none_due';
+  if (p.mode === 'none_today' && p.reviewedToday > 0) return 'studied_today';
+  if (!p.morningSent) return 'morning_not_sent';
+  return null;
+}
+
+/** kind = evening(21:00) · evening_later(「1시간 뒤」로 미룬 것, 보내기 직전에 조건을 다시 본다) */
+export async function runEvening(env: Env, now: Date = new Date(), kind: 'evening' | 'evening_later' = 'evening'): Promise<RunResult> {
+  const day = studyDay(now);
   const settings = await loadSettings(env.DB);
   if (settings.vacation_until && settings.vacation_until >= day) return { skipped: 'vacation' };
-  const [rem, morning] = await env.DB.batch([
+  const [rem, reviewed, morning] = await env.DB.batch([
     env.DB.prepare('SELECT count(*) AS n FROM cards WHERE state IN (1, 2, 3) AND suspended = 0 AND due <= ?').bind(
       now.toISOString(),
     ),
+    env.DB.prepare('SELECT count(*) AS n FROM reviews WHERE reviewed_at >= ? AND undone = 0').bind(studyDayStartUtc(day)),
     env.DB.prepare("SELECT status FROM notifications WHERE kind = 'morning' AND day = ?").bind(day),
   ]);
   const remaining = (rem.results[0] as { n: number }).n;
-  if (remaining < 1) return { skipped: 'none_due' };
-  if ((morning.results[0] as { status: string } | undefined)?.status !== 'sent') return { skipped: 'morning_not_sent' };
-  const payload = eveningPayload({ remaining, minutes: minutesFor(remaining), appUrl: env.APP_URL });
-  return dispatch(env, 'evening', day, payload, now);
+  const skip = eveningSkip({
+    remaining,
+    reviewedToday: (reviewed.results[0] as { n: number }).n,
+    morningSent: (morning.results[0] as { status: string } | undefined)?.status === 'sent',
+    mode: settings.evening_mode,
+    min: settings.evening_min,
+  });
+  if (skip) return { skipped: skip };
+  return dispatch(env, kind, day, (n) => eveningPayload({ remaining, minutes: minutesFor(remaining), appUrl: env.APP_URL, n }), now);
+}
+
+/** 「1시간 뒤」 를 받을 수 있는지: 그날(학습일) 저녁 통이고, 미룬 통이 아직 없고, 1시간 뒤가 23:30 KST 를 넘지 않을 때 */
+export const LATER_MS = 3_600_000;
+export const LATER_LAST_KST = '23:30';
+export function laterAllowed(now: Date): boolean {
+  const at = new Date(now.getTime() + LATER_MS);
+  const kst = new Date(at.getTime() + 9 * 3_600_000).toISOString().slice(11, 16);
+  // 같은 학습일 안(04:00 넘어가면 다음 날)이고 23:30 이하
+  return studyDay(at) === studyDay(now) && kst >= '04:00' && kst <= LATER_LAST_KST;
 }
 
 /** 연결 시험. day 에 전체 시각을 넣어 몇 번이고 보낼 수 있게 한다. */
 export async function sendTest(env: Env, now: Date = new Date()): Promise<RunResult> {
-  return dispatch(env, 'test', now.toISOString(), testPayload(), now);
+  return dispatch(env, 'test', now.toISOString(), () => testPayload(), now);
 }

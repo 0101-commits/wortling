@@ -7,12 +7,12 @@ import { useAsync } from '../hooks.ts'
 import { navigate } from '../router.ts'
 import { Emoji, ErrorBox, Top } from '../ui.tsx'
 
-const KIND: Record<InboxItem['kind'], string> = { morning: '아침', evening: '저녁', test: '시험' }
+const KIND: Record<InboxItem['kind'], string> = { morning: '아침', evening: '저녁', evening_later: '저녁 · 1시간 뒤', test: '시험' }
 
-/** 앱 주소(#/…)면 앱 안에서, 아니면 새 창으로 */
+/** 앱 주소(#/…)면 앱 안에서, 아니면 새 창으로. 받은편지함에서 연 것은 알림 열림이 아니므로 n 을 뗀다 */
 function open(link: string) {
   const u = new URL(link, location.href)
-  if (u.origin === location.origin && u.hash.startsWith('#/')) navigate(u.hash.slice(1))
+  if (u.origin === location.origin && u.hash.startsWith('#/')) navigate(u.hash.slice(1).replace(/([?&])n=\d+&?/, '$1').replace(/[?&]$/, ''))
   else window.open(u.href, '_blank', 'noopener')
 }
 
@@ -47,6 +47,11 @@ export default function Inbox() {
                   <time className="small muted" dateTime={it.sent_at ?? it.day}>
                     {KIND[it.kind]} · {it.sent_at ? fmtDate(it.sent_at) : it.day}
                   </time>
+                  {it.kind !== 'test' && it.status === 'sent' && (
+                    <ContentBadge size="xsmall" variant="outlined" color={it.opened_at ? 'accent' : 'neutral'} className="opened">
+                      {it.opened_at ? `열어 봄 ${fmtDate(it.opened_at).split(' ')[1]}` : '안 열림'}
+                    </ContentBadge>
+                  )}
                 </div>
                 {it.link && (
                   <div className="go">

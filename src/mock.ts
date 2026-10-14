@@ -101,14 +101,24 @@ const cards: Card[] = words.map((w, i) => {
   return base
 })
 
-let settings: Settings = { new_per_day: 5, session_max: 30, level: 'B1', vacation_until: '', swipe_mode: 4, onboarded: true }
+let settings: Settings = {
+  new_per_day: 5,
+  session_max: 30,
+  level: 'B1',
+  vacation_until: '',
+  swipe_mode: 4,
+  onboarded: true,
+  evening_mode: 'none_today',
+  evening_min: 1,
+  review_only_day: '',
+}
 
 let webhook: { set: boolean; source: 'secret' | 'app' | null } = { set: false, source: null }
 
 const inbox: InboxItem[] = [
-  { id: 3, kind: 'morning', day: ago(0).slice(0, 10), sent_at: ago(0.3), status: 'sent', title: '오늘 카드 5 · 10/13', body: 'die Bewerbung 지원서 · der Umzug 이사 · die Verspätung 연착\ndie Entscheidung 결정 · der Vertrag 계약', image: '/mascot/umzug.webp', link: '#/today' },
-  { id: 2, kind: 'evening', day: ago(1).slice(0, 10), sent_at: ago(0.6), status: 'failed', title: '카드 4장 남았어요', body: '약 2분이면 끝나요.', image: null, link: '#/today' },
-  { id: 1, kind: 'morning', day: ago(1).slice(0, 10), sent_at: ago(1.3), status: 'sent', title: '오늘 카드 5 · 10/12', body: 'die Umwelt 환경 · die Gewohnheit 습관 · das Gebäude 건물\ndie Erfahrung 경험 · verschieben 미루다', image: null, link: '#/today' },
+  { id: 3, kind: 'morning', day: ago(0).slice(0, 10), sent_at: ago(0.3), opened_at: ago(0.29), status: 'sent', title: '오늘 카드 5 · 10/13', body: 'Der ＿＿＿ nach Hamburg war anstrengend. (이사)\n답은 첫 카드에서 · 나머지 4장', image: '/mascot/umzug.webp', link: '#/today?first=w002&n=3' },
+  { id: 2, kind: 'evening', day: ago(1).slice(0, 10), sent_at: ago(0.6), opened_at: null, status: 'failed', title: '카드 4장 남았어요', body: '약 2분이면 끝나요.', image: null, link: '#/today?n=2' },
+  { id: 1, kind: 'morning', day: ago(1).slice(0, 10), sent_at: ago(1.3), opened_at: null, status: 'sent', title: '오늘 카드 5 · 10/12', body: 'die Umwelt · die Gewohnheit · das Gebäude\ndie Erfahrung · verschieben', image: null, link: '#/today?n=1' },
 ]
 
 const reviewsLog: Record<string, Array<{ id: number; rating: Rating; reviewed_at: string; scheduled_days: number }>> = {
@@ -165,7 +175,8 @@ function today(): TodayResponse {
   const t = Date.now()
   const due = words.map(item).filter((it) => it.card.state > 0 && new Date(it.card.due).getTime() <= t)
   const fresh = words.map(item).filter((it) => it.card.state === 0).slice(0, settings.new_per_day)
-  return { date: new Date(t + 9 * 3_600_000).toISOString().slice(0, 10), due, fresh, new_done_today: 0, reviewed_today: 3, settings }
+  const date = new Date(t + 5 * 3_600_000).toISOString().slice(0, 10) // 학습일(04시 경계)
+  return { date, due, fresh: settings.review_only_day === date ? [] : fresh, new_done_today: 0, reviewed_today: 3, settings }
 }
 
 function applyReviews(body: ReviewsRequest) {
@@ -196,6 +207,11 @@ export async function mockHandle(method: string, path: string, body?: unknown): 
   }
   if (p === '/api/stats') return stats()
   if (p === '/api/inbox') return { items: inbox }
+  if (/^\/api\/notifications\/\d+\/open$/.test(p) && method === 'POST') {
+    const it = inbox.find((x) => x.id === Number(p.split('/')[3]))
+    if (it && !it.opened_at) it.opened_at = iso(now())
+    return { ok: true }
+  }
   if (p === '/api/webhook' && method === 'GET') return webhook
   if (p === '/api/webhook' && method === 'PUT') {
     webhook = { set: true, source: 'app' }
@@ -207,7 +223,7 @@ export async function mockHandle(method: string, path: string, body?: unknown): 
     return settings
   }
   if (p === '/api/test-notification' && method === 'POST') {
-    inbox.unshift({ id: inbox.length + 1, kind: 'test', day: iso(now()).slice(0, 10), sent_at: iso(now()), status: 'sent', title: '시험 통', body: 'Wortling 과 디스코드가 연결됐어요.', image: null, link: null })
+    inbox.unshift({ id: inbox.length + 1, kind: 'test', day: iso(now()).slice(0, 10), sent_at: iso(now()), opened_at: null, status: 'sent', title: '시험 통', body: 'Wortling 과 디스코드가 연결됐어요.', image: null, link: null })
     return { ok: true, status: 'sent', discord: { ok: true }, push: { ok: false, sent: 0, failed: 0, gone: 0, error: 'no_subscription' } }
   }
   throw new Error(`mock: ${method} ${path}`)

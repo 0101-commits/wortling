@@ -51,6 +51,12 @@ export interface Settings {
   vacation_until: string;
   swipe_mode: 2 | 4;
   onboarded: boolean;
+  /** 저녁 알림 조건: none_today = 오늘(학습일) 한 장도 안 했을 때만 · any_left = 남은 카드가 있으면 */
+  evening_mode: 'none_today' | 'any_left';
+  /** 저녁 알림을 보낼 남은 카드 최소 수 */
+  evening_min: number;
+  /** 이 학습일(YYYY-MM-DD)은 복습만 — 새 카드 0. 다음 학습일엔 저절로 꺼진 셈 */
+  review_only_day: string;
 }
 
 /** GET /api/today */
@@ -113,9 +119,11 @@ export interface StatsResponse {
 /** GET /api/inbox */
 export interface InboxItem {
   id: number;
-  kind: 'morning' | 'evening' | 'test';
+  kind: 'morning' | 'evening' | 'evening_later' | 'test';
   day: string;
   sent_at: string | null;
+  /** 알림을 눌러 앱을 연 시각(웹 푸시 누름 · 디스코드 링크 ?n=) */
+  opened_at: string | null;
   status: 'queued' | 'sent' | 'failed';
   title: string;
   body: string;

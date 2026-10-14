@@ -7,6 +7,7 @@ import type { Level, Pos, Word } from '../shared/api.ts'
 import { imgSrc } from './api.ts'
 import { article } from './format.ts'
 import { goBack, navigate } from './router.ts'
+import { findWord } from '../shared/cloze.ts'
 
 /** 보르티 이모티콘(public/emoji/{name}.webp, 256×256). 꾸밈이라 alt 는 비운다. */
 export type EmojiName = 'hello' | 'happy' | 'sleep' | 'party' | 'oops' | 'study' | 'mail' | 'think'
@@ -103,16 +104,15 @@ export function WordImage({ word, className = '' }: { word: Word; className?: st
   )
 }
 
-/** 예문 속 단어를 굵게 */
+/** 예문 속 단어를 굵게 — 아침 알림 빈칸과 같은 찾기 규칙(shared/cloze.ts) */
 export function Example({ de, lemma }: { de: string; lemma: string }) {
-  const stem = lemma.replace(/^sich\s+/, '')
-  const i = de.toLowerCase().indexOf(stem.toLowerCase())
-  if (i < 0) return <>{de}</>
+  const at = findWord(de, lemma)
+  if (!at) return <>{de}</>
   return (
     <>
-      {de.slice(0, i)}
-      <b>{de.slice(i, i + stem.length)}</b>
-      {de.slice(i + stem.length)}
+      {de.slice(0, at[0])}
+      <b>{de.slice(at[0], at[1])}</b>
+      {de.slice(at[1])}
     </>
   )
 }

@@ -18,6 +18,11 @@ export type PushMsg = {
   image: string | null;
   url: string;
   tag: string;
+  /** 알림 아래 누름 버튼(안드로이드·PC 크롬). later = 1시간 뒤 다시(A2) */
+  actions?: Array<{ action: 'open' | 'later'; title: string }>;
+  /** notifications.id 와 그 행의 action_key — 서비스 워커가 「1시간 뒤」를 보낼 때 쓴다(접속 키가 없어서) */
+  nid?: number;
+  key?: string;
 };
 export interface PushResult {
   ok: boolean;
@@ -47,9 +52,13 @@ export function pushMessage(
   s: { title: string; body: string; image: string | null; link: string | null },
   kind: string,
   appUrl: string,
+  row?: { nid: number; key: string },
 ): PushMsg {
   const body = s.body.length > 300 ? s.body.slice(0, 299) + '…' : s.body;
-  return { title: s.title, body, image: s.image, url: s.link ?? `${appUrl}/#/today`, tag: kind };
+  const msg: PushMsg = { title: s.title, body, image: s.image, url: s.link ?? `${appUrl}/#/today`, tag: kind };
+  // 저녁 알림만 「1시간 뒤」(하루 한 번 — 미룬 알림 evening_later 에는 안 붙임)
+  if (kind === 'evening' && row) Object.assign(msg, { actions: [{ action: 'open', title: '지금 하기' }, { action: 'later', title: '1시간 뒤' }], ...row });
+  return msg;
 }
 
 /** 모든 기기로 보내기. 404·410 기기는 목록에서 지운다. 하나라도 가면 ok. */

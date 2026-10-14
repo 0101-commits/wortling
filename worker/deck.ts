@@ -1,6 +1,6 @@
 // 오늘 카드 고르기. GET /api/today 와 아침 알림(cron)이 같은 함수를 쓴다.
 import type { CardState, DeckItem, Level, Pos, Settings } from '../shared/api.ts';
-import { kstDay, kstDayStartUtc } from './time.ts';
+import { studyDay, studyDayStartUtc } from './time.ts';
 
 /** words w JOIN cards c 에서 DeckItem 을 만들 때 고르는 열(열 이름이 겹치지 않게 w.id / c.word_id) */
 export const ITEM_SELECT = `w.id, w.lemma, w.pos, w.gender, w.plural, w.ipa, w.level, w.gloss_en, w.gloss_ko,
@@ -61,6 +61,9 @@ export async function loadSettings(db: D1Database): Promise<Settings> {
     vacation_until: m.vacation_until ?? '',
     swipe_mode: m.swipe_mode === '2' ? 2 : 4,
     onboarded: m.onboarded === '1',
+    evening_mode: m.evening_mode === 'any_left' ? 'any_left' : 'none_today',
+    evening_min: Math.max(1, Number(m.evening_min ?? 1) || 1),
+    review_only_day: m.review_only_day ?? '',
   };
 }
 
@@ -73,12 +76,12 @@ export interface Today {
 }
 
 /**
- * 오늘 복습(due) + 새 단어(fresh) 묶음.
+ * 오늘 복습(due) + 새 단어(fresh) 묶음. 「오늘」은 학습일(새벽 4시 경계, time.ts studyDay).
  * 색인: cards_state_due(복습·새 카드), words_seq(새 단어 순서), reviews_time·cards_introduced(오늘 수).
  */
 export async function buildToday(db: D1Database, settings: Settings, now: Date = new Date()): Promise<Today> {
-  const date = kstDay(now);
-  const dayStart = kstDayStartUtc(date);
+  const date = studyDay(now);
+  const dayStart = studyDayStartUtc(date);
   const levels = levelsFor(settings.level);
   const [newDone, reviewed, due, fresh] = await db.batch([
     db.prepare('SELECT count(*) AS n FROM cards WHERE introduced_at >= ?').bind(dayStart),
@@ -101,7 +104,8 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
   ]);
   const new_done_today = (newDone.results[0] as { n: number }).n;
   const reviewed_today = (reviewed.results[0] as { n: number }).n;
-  const freshLimit = Math.max(0, settings.new_per_day - new_done_today);
+  // 오늘은 복습만(B6)이면 새 카드 0
+  const freshLimit = settings.review_only_day === date ? 0 : Math.max(0, settings.new_per_day - new_done_today);
   return {
     date,
     due: due.results.map((r) => rowToItem(r as Record<string, unknown>)),

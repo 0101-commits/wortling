@@ -124,6 +124,8 @@ export const api = {
   word: (id: string) => request<WordDetailResponse>('GET', `/api/word/${encodeURIComponent(id)}`),
   stats: () => inflight.then(() => request<StatsResponse>('GET', '/api/stats')),
   inbox: () => request<InboxResponse>('GET', '/api/inbox'),
+  /** 알림 링크(?n=)로 열었을 때 한 번(A4) */
+  markOpened: (n: number) => request<{ ok: boolean }>('POST', `/api/notifications/${n}/open`),
   settings: () => request<Settings>('GET', '/api/settings'),
   saveSettings: (patch: Partial<Settings>) => request<Settings>('PUT', '/api/settings', patch),
   testNotification: () => request<TestNotificationResponse>('POST', '/api/test-notification'),

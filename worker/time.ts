@@ -11,6 +11,19 @@ export function kstDayStartUtc(day: string): string {
   return new Date(`${day}T00:00:00+09:00`).toISOString();
 }
 
+/** 학습일은 새벽 4시에 바뀐다(밤 0~4시 채점은 전날 몫) — 하루 몫·오늘 채점·쉰 날·저녁 조건이 쓴다 */
+export const DAY_START_H = 4;
+
+/** 주어진 시각이 몇 일 학습일인지 'YYYY-MM-DD' (한국 시간 04:00 경계) */
+export function studyDay(date: Date = new Date()): string {
+  return kstDay(new Date(date.getTime() - DAY_START_H * 3_600_000));
+}
+
+/** 학습일 시작(그날 04:00 KST)을 UTC ISO 로 ('2026-10-13' → '2026-10-12T19:00:00.000Z') */
+export function studyDayStartUtc(day: string): string {
+  return new Date(`${day}T0${DAY_START_H}:00:00+09:00`).toISOString();
+}
+
 /** 날짜에 n일 더하기(음수 가능) */
 export function addDays(day: string, n: number): string {
   const [y, m, d] = day.split('-').map(Number);
@@ -40,4 +53,9 @@ export function nextSlot(now: Date): { kind: SlotKind; at: Date } {
     }
   }
   return best!;
+}
+
+/** 다음 알람: 다음 칸과 「1시간 뒤」로 미룬 시각 중 이른 것(worker/alarm.ts) */
+export function nextAlarm(slotAt: number, laterAt: number | undefined): number {
+  return laterAt !== undefined && laterAt < slotAt ? laterAt : slotAt;
 }

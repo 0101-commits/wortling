@@ -4,7 +4,7 @@ import { Button, Skeleton } from '@montage-ui/core'
 import { IconFlipBackward } from '@montage-ui/icon'
 import type { TodayResponse } from '../../shared/api.ts'
 import { api, errorText, sendReviews } from '../api.ts'
-import { buildSession, deckReducer, initDeck } from '../deck.ts'
+import { buildSession, deckReducer, firstUp, initDeck } from '../deck.ts'
 import { fmtDay } from '../format.ts'
 import { useAsync } from '../hooks.ts'
 import { navigate } from '../router.ts'
@@ -13,12 +13,14 @@ import { CountUp, Emoji, ErrorBox, Top, useToaster } from '../ui.tsx'
 
 export default function Today() {
   const today = useAsync(() => api.today(), [])
+  // 아침 알림 빈칸 문제의 정답 카드(?first=w0002)를 덱 맨 앞으로(A1). 처음 연 순간의 값만 쓴다
+  const [first] = useState(readFirst)
   return (
     <>
       <Top title="오늘" actions />
       <main className="page deck-page">
         {today.data ? (
-          <Session key={today.data.date} data={today.data} />
+          <Session key={today.data.date} data={today.data} first={first} />
         ) : today.error ? (
           <ErrorBox error={today.error} onRetry={today.reload} />
         ) : (
@@ -32,9 +34,14 @@ export default function Today() {
   )
 }
 
-function Session({ data }: { data: TodayResponse }) {
+/** 주소의 ?first= (첫 렌더에서 한 번 읽음) */
+function readFirst(): string | null {
+  return new URLSearchParams(location.hash.split('?')[1] ?? '').get('first')
+}
+
+function Session({ data, first }: { data: TodayResponse; first: string | null }) {
   const toast = useToaster()
-  const [s, dispatch] = useReducer(deckReducer, data, (d) => initDeck(buildSession(d)))
+  const [s, dispatch] = useReducer(deckReducer, data, (d) => initDeck(firstUp(buildSession(d), first)))
   const [sid] = useState(() => Date.now().toString(36) + Math.random().toString(36).slice(2, 8))
   const [tomorrow, setTomorrow] = useState<number | null>(null)
   const [mix] = useState(() => {

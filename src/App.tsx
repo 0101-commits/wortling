@@ -61,6 +61,16 @@ export default function App() {
     if (settings && !settings.onboarded && page !== 'onboarding' && page !== 'setup') navigate('/onboarding', true)
   }, [settings, page])
 
+  // 알림 링크(…?n=알림번호)로 열었으면 열림을 한 번 적고(A4) 주소에서 n 을 지운다
+  const openedN = route.query.get('n')
+  useEffect(() => {
+    if (!settings || !openedN || !/^\d+$/.test(openedN)) return
+    api.markOpened(Number(openedN)).catch(() => undefined)
+    const q = new URLSearchParams(route.query)
+    q.delete('n')
+    navigate(route.path + (q.toString() ? '?' + q.toString() : ''), true)
+  }, [settings, openedN, route.path, route.query])
+
   const save = async (patch: Partial<Settings>) => {
     const prev = settings
     setSettings((s) => s && { ...s, ...patch })

@@ -95,7 +95,7 @@ test('dispatch: 디스코드 실패 + 푸시 성공 → sent, 410 기기는 목�
   assert.match(r.error, /^discord: 500/);
   assert.doesNotMatch(r.error, /push:/);
   assert.deepEqual(JSON.parse(env.IMG.m.get(PUSH_KEY)).map((s) => s.endpoint), ['https://push.example/a']);
-  const [status, sentAt, , error, id] = env.DB.updates[0];
+  const [status, sentAt, , error, , id] = env.DB.updates[0];
   assert.equal(status, 'sent');
   assert.ok(sentAt);
   assert.equal(error, r.error);

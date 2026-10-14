@@ -12,14 +12,15 @@ export function articleClass(w: Word): string {
   return a === 'der' || a === 'die' || a === 'das' ? a : ''
 }
 
-/** YYYY-MM-DD (KST 기준 오늘) */
-export function todayKst(now = new Date()): string {
-  return new Date(now.getTime() + 9 * 3_600_000).toISOString().slice(0, 10)
+/** 학습일 YYYY-MM-DD — 한국 시간 새벽 4시에 바뀐다(worker/time.ts studyDay 와 같은 규칙) */
+export function studyDay(now = new Date()): string {
+  return new Date(now.getTime() + (9 - 4) * 3_600_000).toISOString().slice(0, 10)
 }
 
+/** iso 시각의 학습일 − 오늘 학습일(일) */
 export function dayDiff(iso: string, now = new Date()): number {
-  const a = new Date(todayKst(now) + 'T00:00:00+09:00').getTime()
-  const b = new Date(todayKst(new Date(iso)) + 'T00:00:00+09:00').getTime()
+  const a = Date.parse(studyDay(now) + 'T00:00:00Z')
+  const b = Date.parse(studyDay(new Date(iso)) + 'T00:00:00Z')
   return Math.round((b - a) / 86_400_000)
 }
 

@@ -84,10 +84,11 @@ test('morningPayload: 40개 이하, 버튼 주소, 금지어 없음, 5단어 2�
   assert.ok(!/연속|정답률|외운/.test(s));
   const { title, body, image, link } = summarize(p);
   assert.equal(title, '오늘 카드 23 · 10/13');
-  assert.equal(body, 'der Hund 개 · die Katze 고양이\ndas Haus 집 · gehen 가다\nschön 예쁜');
+  assert.equal(body, 'der Hund · die Katze · das Haus\ngehen · schön');
   assert.equal(image, 'https://wortling.example/img/w0001.webp');
   assert.equal(link, 'https://wortling.example/#/today');
   assert.ok(!s.includes('extra'), '6번째 단어는 빠진다');
+  assert.ok(!s.includes('고양이'), '빈칸을 못 만든 날에도 뜻은 안 보인다(A1)');
 
   const noImg = morningPayload({ day: '2026-10-13', items, total: 3, appUrl: 'https://x', imageUrl: null });
   assert.equal(countComponents(noImg), 5);

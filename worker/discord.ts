@@ -58,22 +58,57 @@ export function wordLine(item: DeckItem): string {
   return `${w.gender ? w.gender + ' ' : ''}${w.lemma} ${w.gloss_ko ?? w.gloss_en ?? ''}`.trim();
 }
 
+/** 'der Hund' 꼴(뜻 없이) — 빈칸 문제를 못 만든 날의 아침 알림. 뜻까지 보이면 떠올릴 거리가 없다 */
+export function lemmaLine(item: DeckItem): string {
+  const w = item.word;
+  return `${w.gender ? w.gender + ' ' : ''}${w.lemma}`;
+}
+
+/** 아침 알림 빈칸 문제(A1). line 에 정답 낱말은 없다(G11, notify.ts pickCloze 가 거른다) */
+export interface Cloze {
+  id: string;
+  line: string;
+  hint: string | null;
+}
+
+/** 앱 주소 + 오늘 화면(첫 카드·알림 번호 붙임) */
+export function todayLink(appUrl: string, q: { first?: string; n?: number } = {}): string {
+  const p = new URLSearchParams();
+  if (q.first) p.set('first', q.first);
+  if (q.n) p.set('n', String(q.n));
+  const qs = p.toString();
+  return `${appUrl}/#/today${qs ? '?' + qs : ''}`;
+}
+
 export function morningPayload(p: {
   day: string;
   items: DeckItem[];
   total: number;
   appUrl: string;
   imageUrl: string | null;
+  cloze?: Cloze | null;
+  /** notifications.id — 링크에 붙여 앱이 열림을 적는다(A4) */
+  n?: number;
 }): Payload {
-  const words = p.items.slice(0, 5).map(wordLine);
-  const lines: string[] = [];
-  for (let i = 0; i < words.length; i += 2) lines.push(words.slice(i, i + 2).join(' · '));
-  const content = [`**오늘 카드 ${p.total} · ${monthDay(p.day)}**`, ...lines].join('\n');
+  const head = `**오늘 카드 ${p.total} · ${monthDay(p.day)}**`;
+  let content: string;
+  let button: string;
+  if (p.cloze) {
+    const rest = p.total > 1 ? `답은 첫 카드에서 · 나머지 ${p.total - 1}장` : '답은 카드에서';
+    content = [head, `${p.cloze.line}${p.cloze.hint ? ` (${p.cloze.hint})` : ''}`, rest].join('\n');
+    button = '답 보고 시작';
+  } else {
+    const words = p.items.slice(0, 5).map(lemmaLine);
+    const lines: string[] = [];
+    for (let i = 0; i < words.length; i += 3) lines.push(words.slice(i, i + 3).join(' · '));
+    content = [head, ...lines].join('\n');
+    button = `카드 ${p.total}장 시작`;
+  }
   return wrap([
     ...(p.imageUrl ? [gallery(p.imageUrl)] : []),
     text(content),
     separator(),
-    linkButton(`카드 ${p.total}장 시작`, `${p.appUrl}/#/today`),
+    linkButton(button, todayLink(p.appUrl, { first: p.cloze?.id, n: p.n })),
   ]);
 }
 
@@ -82,11 +117,11 @@ export function minutesFor(remaining: number): number {
   return Math.max(1, Math.ceil((remaining * 6) / 60));
 }
 
-export function eveningPayload(p: { remaining: number; minutes: number; appUrl: string }): Payload {
+export function eveningPayload(p: { remaining: number; minutes: number; appUrl: string; n?: number }): Payload {
   return wrap([
     text(`**카드 ${p.remaining}장 남았어요**\n약 ${p.minutes}분이면 끝나요. 내일로 넘기면 복습이 쌓여요.`),
     separator(),
-    linkButton('이어서', `${p.appUrl}/#/today`),
+    linkButton('이어서', todayLink(p.appUrl, { n: p.n })),
   ]);
 }
 
