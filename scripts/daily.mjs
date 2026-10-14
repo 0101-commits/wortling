@@ -11,6 +11,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
+import { STYLE_INTRO, BORTI, STYLE } from './style.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 loadEnv(path.join(ROOT, '.env'));
@@ -29,13 +30,11 @@ const NO_TEXT = process.argv.includes('--no-text');
 const REDO = (process.argv.find((a) => a.startsWith('--redo=')) || '').slice(7).split(',').filter(Boolean);
 // 실측: 프롬프트가 800자를 넘으면 job 이 사유 없이 failed(835자 3건 실패, 641자 이하 전부 성공) → 780자 상한
 const PROMPT_MAX = 780;
+// 그림체를 바꾼 뒤 예전 그림 id 목록(PC 에만, git 제외). 그림 없는 새 단어보다 먼저 다시 그리고, 다 그리면 빈다
+const RESTYLE_FILE = path.join(ROOT, '.data', 'restyle.json');
 function imagePrompt(scene) {
-  const tail =
-    ' Main character Borti: cute chubby cream dachshund puppy, big round head, tiny body, big glossy eyes with highlights, rosy cheeks, ' +
-    'brown floppy ears; other animals in the same cute chibi style. Medium-wide shot, the key action and objects large and clear. ' +
-    'Premium mascot quality, soft matte clay, Pixar-like softness, studio lighting, pastel colors, light mint tone. ' +
-    'No text, letters, numbers, logos or speech bubbles.';
-  const head = '3D clay render illustration. Scene: ';
+  const tail = ` ${BORTI} Other animals in the same style. Key action and objects large and clear. ${STYLE}`;
+  const head = `${STYLE_INTRO} Scene: `;
   let sc = scene.trim();
   const room = PROMPT_MAX - head.length - tail.length;
   if (sc.length > room) sc = sc.slice(0, room).replace(/[,;]?\s+\S*$/, '') + '.';
@@ -72,8 +71,12 @@ try {
     let credits = Number(status.credits || 0);
     log.credits.before = credits;
     const budget = Math.min(IMAGE_MAX, Math.floor((credits - RESERVE) / COST_PER_IMAGE + 1e-9));
-    // --redo=w0001,w0002 : 이미 있는 그림을 새 장면으로 다시 그림(상태 무관). 없으면 그림 없는 단어를 학습 순서대로
-    const ids = REDO.length ? REDO.slice(0, budget) : budget > 0 ? (await api(`/api/admin/runway?text=0&image=${budget}`)).need_image.map((w) => w.id) : [];
+    // --redo=w0001,w0002 : 이미 있는 그림을 새 장면으로 다시 그림(상태 무관). 없으면 예전 그림체 목록 → 그림 없는 단어를 학습 순서대로
+    const restyle = existsSync(RESTYLE_FILE) ? JSON.parse(readFileSync(RESTYLE_FILE, 'utf8')) : [];
+    const redo = new Set(REDO.length ? REDO : restyle);
+    const ids = [...redo].slice(0, budget);
+    if (!REDO.length && budget > ids.length) ids.push(...(await api(`/api/admin/runway?text=0&image=${budget - ids.length}`)).need_image.map((w) => w.id));
+    if (DRY) console.log(`[dry] 그릴 차례(다시 그리기 ${ids.filter((id) => redo.has(id)).length}): ${ids.join(',')}`);
     const need = [];
     for (const id of ids) need.push((await api(`/api/word/${id}`)).word);
     // 그리기 직전에 「카드 예문 장면」 으로 장면을 새로 쓴다 → 그림 · 단어 · 예문이 같은 순간을 가리킴
@@ -97,7 +100,7 @@ try {
       } catch (e) {
         log.failed.push({ id: w.id, error: String(e.message || e).slice(0, 300) });
         // 다시 그리기(--redo)면 있던 그림을 지킨다. 새 단어만 실패 표시(머리글자 칸)
-        if (!REDO.length) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
         if (/credit|balance|insufficient/i.test(String(e.message))) break;
         continue;
       }
@@ -105,7 +108,7 @@ try {
       const url = j?.result_url || j?.min_result_url;
       if (!url) {
         log.failed.push({ id: w.id, error: 'result_url 없음' });
-        if (!REDO.length) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
         continue;
       }
       const png = Buffer.from(await (await fetch(url)).arrayBuffer());
@@ -113,12 +116,16 @@ try {
       const { channels } = await sharp(png).stats();
       if (channels.every((c) => c.stdev < 4)) {
         log.failed.push({ id: w.id, error: 'blank_image' });
-        if (!REDO.length) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
         console.log(`그림 ${w.id} ${w.lemma} 단색 → 실패 처리`);
         continue;
       }
       const webp = await toWebp(png);
       await api(`/api/admin/image/${w.id}`, { method: 'PUT', raw: webp, headers: { 'content-type': 'image/webp' } });
+      if (restyle.includes(w.id)) {
+        restyle.splice(restyle.indexOf(w.id), 1);
+        writeFileSync(RESTYLE_FILE, JSON.stringify(restyle));
+      }
       credits -= COST_PER_IMAGE;
       log.images.push({ id: w.id, lemma: w.lemma, kb: +(webp.length / 1024).toFixed(1), sec: +((Date.now() - t0) / 1000).toFixed(1) });
       console.log(`그림 ${w.id} ${w.lemma} ${(webp.length / 1024).toFixed(1)}KB ${((Date.now() - t0) / 1000).toFixed(0)}초`);
@@ -197,7 +204,7 @@ Items: ${JSON.stringify(list)}`;
 // ── claude -p 로 그림 장면 쓰기(카드 예문과 같은 순간) ─────────────────────
 function writeScenesWithClaude(words) {
   const list = words.map((w) => ({ id: w.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, pos: w.pos, meaning_ko: w.gloss_ko, example_de: w.example_de, example_ko: w.example_ko }));
-  const prompt = `You write image scenes for German vocabulary flashcards. Each card shows: the German word, its Korean meaning, one example sentence, and a 3D clay picture. The picture must show THE SAME MOMENT as the example sentence, so the word, the sentence and the picture obviously belong together.
+  const prompt = `You write image scenes for German vocabulary flashcards. Each card shows: the German word, its Korean meaning, one example sentence, and a simple doodle picture. The picture must show THE SAME MOMENT as the example sentence, so the word, the sentence and the picture obviously belong together.
 Rules for each scene (ONE English line, max 35 words and 230 characters, start with "Borti"):
 - Borti (a chubby cream dachshund puppy) plays the speaker or main person of the example sentence. Other people in the sentence become other cute puppies or kittens.
 - The WORD must be recognizable from the picture alone, then the sentence confirms it:

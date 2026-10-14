@@ -175,8 +175,9 @@ export async function retryUnsent(): Promise<number> {
 
 // 목업 그림: public/mascot 에 있는 파일만 쓴다(없는 그림 404 = 콘솔 오류)
 const MOCK_IMG: Record<string, string> = { w002: 'umzug', w003: 'verspaetung', w004: 'entscheidung', w005: 'vertrag' }
-/** 그림을 다시 그리면 올린다 → 폰에 남은 예전 그림(캐시 1년) 대신 새 주소로 받는다 */
-export const IMG_VERSION = 2
+/** 그림을 다시 그리면 올린다 → 폰에 남은 예전 그림 대신 새 주소로 받는다.
+ *  3 부터는 서버 캐시가 하루라 매일 조금씩 다시 그려도 올릴 필요 없음(2 까지 받은 그림은 1년 캐시라 한 번 올림) */
+export const IMG_VERSION = 3
 export const imgSrc = (id: string) =>
   (MOCK ? `/mascot/${MOCK_IMG[id] ?? '_default'}.webp` : `/img/${id}.webp`) + `?v=${IMG_VERSION}`
 

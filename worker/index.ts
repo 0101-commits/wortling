@@ -489,7 +489,8 @@ const getImage: Handler = async ({ env, params: [name] }) => {
   return new Response(body, {
     headers: {
       'content-type': 'image/webp',
-      'cache-control': 'public, max-age=31536000, immutable',
+      // 하루만: 그림은 같은 주소에서 다시 그려진다(그림체 바꾸기 · --redo). 1년 immutable 이면 폰에 예전 그림이 남음
+      'cache-control': 'public, max-age=86400',
     },
   });
 };
