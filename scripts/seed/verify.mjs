@@ -22,8 +22,8 @@ const out = [
   `SELECT gloss_status, count(*) FROM words GROUP BY 1 → ${JSON.stringify(query('SELECT gloss_status, count(*) n FROM words GROUP BY 1'))}`,
   `카드 없는 단어 → ${JSON.stringify(query('SELECT count(*) n FROM words w LEFT JOIN cards c ON c.word_id=w.id WHERE c.word_id IS NULL'))}`,
   '표본:',
-  // 표본: 첫 줄·넷째 줄·B1 끝·B2 처음·맨 끝 (단어 수가 바뀌어도 경계를 따라간다)
-  ...query("SELECT id,level,lemma,pos,gender,plural,ipa,gloss_en,gloss_ko,example_de,example_src,freq_rank FROM words WHERE seq IN (1,4,(SELECT max(seq) FROM words WHERE level='B1'),(SELECT min(seq) FROM words WHERE level='B2'),(SELECT max(seq) FROM words)) ORDER BY seq").map((r) => JSON.stringify(r)),
+  // 표본: 첫 줄·넷째 줄·B1 끝·B2 처음·C1 처음·맨 끝 (단어 수가 바뀌어도 경계를 따라간다)
+  ...query("SELECT id,level,lemma,pos,gender,plural,ipa,gloss_en,gloss_ko,example_de,example_src,freq_rank FROM words WHERE seq IN (1,4,(SELECT max(seq) FROM words WHERE level='B1'),(SELECT min(seq) FROM words WHERE level='B2'),(SELECT min(seq) FROM words WHERE level='C1'),(SELECT max(seq) FROM words)) ORDER BY seq").map((r) => JSON.stringify(r)),
   `id·seq 어긋남 → ${JSON.stringify(query("SELECT count(*) n FROM words WHERE id <> 'w' || substr('0000' || seq, -4)"))}`,
   '```',
 ];

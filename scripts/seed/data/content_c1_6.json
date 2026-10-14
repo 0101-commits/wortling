@@ -1,0 +1,4446 @@
+[
+ {
+  "key": "Egoist|noun",
+  "keep": true,
+  "gloss_ko": "이기주의자",
+  "example_de": "Er ist ein Egoist und denkt nur an seine Karriere.",
+  "example_ko": "그는 이기주의자라서 자기 경력만 생각해요.",
+  "scene_en": "Borti hugs a giant pile of treats all to himself, turning his back on other puppies looking on sadly."
+ },
+ {
+  "key": "Echse|noun",
+  "keep": true,
+  "gloss_ko": "도마뱀",
+  "example_de": "Auf dem warmen Stein sonnte sich eine kleine Echse.",
+  "example_ko": "따뜻한 돌 위에서 작은 도마뱀이 햇볕을 쬐었어요.",
+  "scene_en": "Borti crouches nose-to-nose with a big green lizard basking on a sunny rock."
+ },
+ {
+  "key": "demolieren|verb",
+  "keep": true,
+  "gloss_ko": "때려 부수다, 파손하다",
+  "example_de": "Randalierer haben nach dem Spiel mehrere Autos demoliert.",
+  "example_ko": "폭도들이 경기 후 차 여러 대를 부쉈어요.",
+  "scene_en": "Borti stands shocked beside a toy car with smashed windows and dented doors, pieces scattered everywhere."
+ },
+ {
+  "key": "wegsehen|verb",
+  "keep": true,
+  "gloss_ko": "외면하다, 눈을 돌리다",
+  "example_de": "Bei Mobbing am Arbeitsplatz dürfen wir nicht wegsehen.",
+  "example_ko": "직장 내 괴롭힘을 외면해서는 안 돼요.",
+  "scene_en": "Borti turns his head sharply away, eyes squeezed shut, ignoring a puppy crying nearby."
+ },
+ {
+  "key": "Stammgast|noun",
+  "keep": true,
+  "gloss_ko": "단골손님",
+  "example_de": "Als Stammgast bekommt er seinen Kaffee ohne Bestellung.",
+  "example_ko": "단골이라서 그는 주문 없이도 커피를 받아요.",
+  "scene_en": "Borti sits on his usual café stool as a smiling barista slides over his favorite cup unasked."
+ },
+ {
+  "key": "Misshandlung|noun",
+  "keep": true,
+  "gloss_ko": "학대, 가혹 행위",
+  "example_de": "Die Organisation dokumentiert Fälle von Misshandlung in Heimen.",
+  "example_ko": "그 단체는 시설 내 학대 사례를 기록해요.",
+  "scene_en": "Borti gently shelters a frightened, thin kitten under his long ear, looking protective and sad."
+ },
+ {
+  "key": "konsultieren|verb",
+  "keep": true,
+  "gloss_ko": "상담하다, 자문을 구하다",
+  "example_de": "Vor der Entscheidung sollten Sie einen Anwalt konsultieren.",
+  "example_ko": "결정 전에 변호사와 상담하는 게 좋아요.",
+  "scene_en": "Borti sits across a desk from a wise owl in glasses, listening carefully and nodding."
+ },
+ {
+  "key": "verwerfen|verb",
+  "keep": true,
+  "gloss_ko": "기각하다, 폐기하다",
+  "example_de": "Der Vorstand hat den Plan nach langer Diskussion verworfen.",
+  "example_ko": "이사회는 긴 논의 끝에 그 계획을 폐기했어요.",
+  "scene_en": "Borti crumples a big blueprint and tosses it into an overflowing wastebasket."
+ },
+ {
+  "key": "observieren|verb",
+  "keep": true,
+  "gloss_ko": "감시하다, 관찰하다",
+  "example_de": "Die Polizei observiert den Verdächtigen seit Wochen.",
+  "example_ko": "경찰은 몇 주째 용의자를 감시하고 있어요.",
+  "scene_en": "Borti in a trench coat peers through binoculars from behind a bush at a suspicious cat."
+ },
+ {
+  "key": "rosig|adj",
+  "keep": true,
+  "gloss_ko": "장밋빛의, 밝은",
+  "example_de": "Die wirtschaftlichen Aussichten sind alles andere als rosig.",
+  "example_ko": "경제 전망은 전혀 밝지 않아요.",
+  "scene_en": "Borti gazes dreamily at a horizon glowing rosy pink, pink clouds and pink light everywhere."
+ },
+ {
+  "key": "einmarschieren|verb",
+  "keep": true,
+  "gloss_ko": "진군하다, 침공하다",
+  "example_de": "Die Truppen marschierten nachts in das Nachbarland ein.",
+  "example_ko": "군대가 밤에 이웃 나라로 진군했어요.",
+  "scene_en": "Borti leads a long line of toy soldiers marching across a border of painted stones."
+ },
+ {
+  "key": "Geschlechtskrankheit|noun",
+  "keep": true,
+  "gloss_ko": "성병",
+  "example_de": "Ärzte warnen vor einer Zunahme von Geschlechtskrankheiten.",
+  "example_ko": "의사들은 성병 증가를 경고하고 있어요.",
+  "scene_en": "Borti in a doctor's coat holds up a microscope slide, looking serious in a clean clinic."
+ },
+ {
+  "key": "wöchentlich|adj",
+  "keep": true,
+  "gloss_ko": "매주의, 주간의",
+  "example_de": "Das Team trifft sich wöchentlich zu einer kurzen Besprechung.",
+  "example_ko": "팀은 매주 짧은 회의를 해요.",
+  "scene_en": "Borti stands by a blank wall calendar where every seventh square holds the same bone sticker."
+ },
+ {
+  "key": "Kapitän|noun",
+  "keep": true,
+  "gloss_ko": "선장, 주장",
+  "example_de": "Der Kapitän verließ als Letzter das sinkende Schiff.",
+  "example_ko": "선장은 침몰하는 배에서 마지막으로 떠났어요.",
+  "scene_en": "Borti in a captain's hat grips a big wooden ship's wheel on a wind-swept deck."
+ },
+ {
+  "key": "heidnisch|adj",
+  "keep": true,
+  "gloss_ko": "이교도의, 이교의",
+  "example_de": "Viele Bräuche zu Ostern haben heidnische Ursprünge.",
+  "example_ko": "많은 부활절 풍습은 이교에서 유래했어요.",
+  "scene_en": "Borti sits within an ancient stone circle under the full moon, a bonfire glowing beside him."
+ },
+ {
+  "key": "Identifikation|noun",
+  "keep": true,
+  "gloss_ko": "신원 확인, 동일시",
+  "example_de": "Die Identifikation des Opfers dauerte mehrere Tage.",
+  "example_ko": "피해자의 신원 확인에 며칠이 걸렸어요.",
+  "scene_en": "Borti holds his paw to a glowing fingerprint scanner as a green light flashes."
+ },
+ {
+  "key": "Unwetter|noun",
+  "keep": true,
+  "gloss_ko": "악천후, 폭풍우",
+  "example_de": "Das Unwetter hat in Bayern schwere Schäden angerichtet.",
+  "example_ko": "폭풍우가 바이에른에 큰 피해를 줬어요.",
+  "scene_en": "Borti clutches a lamppost as lightning, hail and fierce wind sweep down the street."
+ },
+ {
+  "key": "Fürstin|noun",
+  "keep": true,
+  "gloss_ko": "여군주, 공작부인",
+  "example_de": "Die Fürstin eröffnete das Fest im Schlossgarten.",
+  "example_ko": "공작부인이 성 정원에서 축제를 열었어요.",
+  "scene_en": "Borti bows before a regal lady dachshund in a jeweled tiara and velvet cape."
+ },
+ {
+  "key": "Ethik|noun",
+  "keep": true,
+  "gloss_ko": "윤리, 윤리학",
+  "example_de": "Der Einsatz von KI wirft viele Fragen der Ethik auf.",
+  "example_ko": "AI 활용은 많은 윤리적 질문을 던져요.",
+  "scene_en": "Borti sits thoughtfully before a balance scale holding a small robot on one side and a heart on the other."
+ },
+ {
+  "key": "Biker|noun",
+  "keep": true,
+  "gloss_ko": "오토바이족, 라이더",
+  "example_de": "Am Wochenende treffen sich hier Hunderte Biker.",
+  "example_ko": "주말이면 이곳에 라이더 수백 명이 모여요.",
+  "scene_en": "Borti in a leather vest and goggles rides a shiny chrome motorcycle down an open road."
+ },
+ {
+  "key": "Gardine|noun",
+  "keep": true,
+  "gloss_ko": "커튼",
+  "example_de": "Sie zog die Gardinen zu, weil die Sonne blendete.",
+  "example_ko": "햇빛이 눈부셔서 그녀는 커튼을 쳤어요.",
+  "scene_en": "Borti tugs lacy white curtains closed across a sunny window with his teeth."
+ },
+ {
+  "key": "Fluggesellschaft|noun",
+  "keep": true,
+  "gloss_ko": "항공사",
+  "example_de": "Die Fluggesellschaft streicht im Winter viele Verbindungen.",
+  "example_ko": "그 항공사는 겨울에 많은 노선을 없애요.",
+  "scene_en": "Borti in a pilot uniform stands proudly before a row of airplanes painted in matching colors."
+ },
+ {
+  "key": "Chefarzt|noun",
+  "keep": true,
+  "gloss_ko": "과장 의사, 주임 의사",
+  "example_de": "Der Chefarzt erklärte den Angehörigen die Operation.",
+  "example_ko": "과장님이 가족들에게 수술을 설명했어요.",
+  "scene_en": "Borti in a long white coat leads a group of young doctors down a hospital corridor."
+ },
+ {
+  "key": "unvorhersehbar|adj",
+  "keep": true,
+  "gloss_ko": "예측할 수 없는",
+  "example_de": "Die Folgen des Klimawandels sind teilweise unvorhersehbar.",
+  "example_ko": "기후 변화의 결과는 일부 예측할 수 없어요.",
+  "scene_en": "Borti stares puzzled into a crystal ball swirling with thick fog."
+ },
+ {
+  "key": "verbleiben|verb",
+  "keep": true,
+  "gloss_ko": "남다, 머무르다",
+  "example_de": "Bis zur Klärung verbleibt das Geld auf dem Konto.",
+  "example_ko": "해결될 때까지 돈은 계좌에 남아 있어요.",
+  "scene_en": "Borti stays seated alone on a bench while everyone else walks away with luggage."
+ },
+ {
+  "key": "erdrücken|verb",
+  "keep": true,
+  "gloss_ko": "짓누르다, 압도하다",
+  "example_de": "Die Last der Schulden drohte die Familie zu erdrücken.",
+  "example_ko": "빚의 무게가 가족을 짓누를 듯했어요.",
+  "scene_en": "Borti strains flat under an enormous stack of heavy boxes pressing down on his back."
+ },
+ {
+  "key": "verdreifachen|verb",
+  "keep": true,
+  "gloss_ko": "세 배로 늘리다",
+  "example_de": "Das Start-up hat seinen Umsatz im letzten Jahr verdreifacht.",
+  "example_ko": "그 스타트업은 작년 매출을 세 배로 늘렸어요.",
+  "scene_en": "Borti gasps as one dog biscuit on his plate magically splits into three identical biscuits."
+ },
+ {
+  "key": "Marktplatz|noun",
+  "keep": true,
+  "gloss_ko": "시장 광장",
+  "example_de": "Auf dem Marktplatz gibt es jeden Samstag einen Bauernmarkt.",
+  "example_ko": "광장에서는 토요일마다 농산물 시장이 열려요.",
+  "scene_en": "Borti trots through a bustling old town square full of fruit stalls around a stone fountain."
+ },
+ {
+  "key": "Einstieg|noun",
+  "keep": true,
+  "gloss_ko": "입문, 진입, 탑승",
+  "example_de": "Das Praktikum war für sie der Einstieg in die Branche.",
+  "example_ko": "인턴십은 그녀가 업계에 들어서는 시작이었어요.",
+  "scene_en": "Borti steps up through the open door of a train, one paw on the first step."
+ },
+ {
+  "key": "Trumpf|noun",
+  "keep": true,
+  "gloss_ko": "으뜸패, 강점",
+  "example_de": "Ihre Erfahrung im Ausland ist ihr größter Trumpf.",
+  "example_ko": "해외 경험이 그녀의 가장 큰 강점이에요.",
+  "scene_en": "Borti slaps a glowing blank golden playing card onto the table with a triumphant grin."
+ },
+ {
+  "key": "Überarbeitung|noun",
+  "keep": true,
+  "gloss_ko": "수정, 개정, 과로",
+  "example_de": "Der Entwurf geht zur Überarbeitung zurück an die Abteilung.",
+  "example_ko": "초안은 수정을 위해 부서로 돌아가요.",
+  "scene_en": "Borti with a red pencil marks corrections all over a stack of papers covered in squiggly lines."
+ },
+ {
+  "key": "schleunigst|adv",
+  "keep": true,
+  "gloss_ko": "서둘러, 최대한 빨리",
+  "example_de": "Wir müssen das Problem schleunigst lösen.",
+  "example_ko": "우리는 이 문제를 최대한 빨리 해결해야 해요.",
+  "scene_en": "Borti dashes at full speed, ears flying straight back, leaving a big dust cloud behind."
+ },
+ {
+  "key": "Patrone|noun",
+  "keep": true,
+  "gloss_ko": "카트리지, 탄약통",
+  "example_de": "Die Patrone im Drucker ist schon wieder leer.",
+  "example_ko": "프린터 카트리지가 또 비었어요.",
+  "scene_en": "Borti pulls an empty ink cartridge out of an open office printer, frowning."
+ },
+ {
+  "key": "smart|adj",
+  "keep": true,
+  "gloss_ko": "똑똑한, 세련된",
+  "example_de": "Das ist eine smarte Lösung für ein altes Problem.",
+  "example_ko": "그건 오래된 문제에 대한 똑똑한 해결책이에요.",
+  "scene_en": "Borti in round glasses and a sharp bow tie taps a sleek tablet with a confident wink."
+ },
+ {
+  "key": "aufschlussreich|adj",
+  "keep": true,
+  "gloss_ko": "유익한, 시사점이 많은",
+  "example_de": "Die Studie liefert aufschlussreiche Daten zum Konsum.",
+  "example_ko": "그 연구는 소비에 관한 유익한 자료를 줘요.",
+  "scene_en": "Borti reads a thick report, eyes wide, as a bright lightbulb glows above his head."
+ },
+ {
+  "key": "Drogenhändler|noun",
+  "keep": true,
+  "gloss_ko": "마약상",
+  "example_de": "Der Drogenhändler wurde am Bahnhof festgenommen.",
+  "example_ko": "마약상이 기차역에서 체포됐어요.",
+  "scene_en": "Borti as a police dog sniffs a shady figure's bulging suitcase at a train station."
+ },
+ {
+  "key": "Vergiftung|noun",
+  "keep": true,
+  "gloss_ko": "중독, 독살",
+  "example_de": "Nach dem Essen kamen drei Gäste mit Vergiftung ins Krankenhaus.",
+  "example_ko": "식사 후 손님 셋이 중독으로 입원했어요.",
+  "scene_en": "Borti lies queasy and green-faced beside a suspicious spotted mushroom, holding his tummy."
+ },
+ {
+  "key": "Klassenkamerad|noun",
+  "keep": true,
+  "gloss_ko": "반 친구, 급우",
+  "example_de": "Nach zwanzig Jahren traf sie ihre Klassenkameraden wieder.",
+  "example_ko": "20년 만에 그녀는 반 친구들을 다시 만났어요.",
+  "scene_en": "Borti sits at a school desk beside puppy classmates, sharing a pencil and giggling."
+ },
+ {
+  "key": "Jüngling|noun",
+  "keep": true,
+  "gloss_ko": "청년, 젊은이",
+  "example_de": "Aus dem schüchternen Jüngling wurde ein selbstbewusster Mann.",
+  "example_ko": "수줍던 청년이 자신감 있는 남자가 됐어요.",
+  "scene_en": "Borti looks up at a lanky, gangly teenage dachshund with fuzzy whiskers and a shy smile."
+ },
+ {
+  "key": "kontaminieren|verb",
+  "keep": true,
+  "gloss_ko": "오염시키다",
+  "example_de": "Das Grundwasser wurde durch Chemikalien kontaminiert.",
+  "example_ko": "지하수가 화학 물질로 오염됐어요.",
+  "scene_en": "Borti watches in alarm as green sludge oozes from a barrel into a clear stream."
+ },
+ {
+  "key": "sterilisieren|verb",
+  "keep": true,
+  "gloss_ko": "살균하다, 불임 수술하다",
+  "example_de": "Im Labor werden alle Instrumente vor Gebrauch sterilisiert.",
+  "example_ko": "실험실에서는 모든 도구를 사용 전에 살균해요.",
+  "scene_en": "Borti in a lab coat places shiny metal instruments into a steaming sterilizer box."
+ },
+ {
+  "key": "Impfung|noun",
+  "keep": true,
+  "gloss_ko": "예방 접종",
+  "example_de": "Für die Reise nach Ghana ist eine Impfung vorgeschrieben.",
+  "example_ko": "가나 여행에는 예방 접종이 필수예요.",
+  "scene_en": "Borti bravely holds out his paw as a nurse gives him a small shot, a bandage ready."
+ },
+ {
+  "key": "stornieren|verb",
+  "keep": true,
+  "gloss_ko": "취소하다",
+  "example_de": "Ich musste den Flug wegen Krankheit stornieren.",
+  "example_ko": "병 때문에 비행기 표를 취소해야 했어요.",
+  "scene_en": "Borti tears a plane ticket in half with a sad face beside his packed suitcase."
+ },
+ {
+  "key": "dominant|adj",
+  "keep": true,
+  "gloss_ko": "지배적인, 우세한",
+  "example_de": "Der Konzern hat eine dominante Stellung auf dem Markt.",
+  "example_ko": "그 대기업은 시장에서 지배적인 위치에 있어요.",
+  "scene_en": "Borti stands tall atop a hill, chest puffed out, while other puppies sit below looking up."
+ },
+ {
+  "key": "langjährig|adj",
+  "keep": true,
+  "gloss_ko": "다년간의, 오랜",
+  "example_de": "Sie ist eine langjährige Mitarbeiterin unserer Firma.",
+  "example_ko": "그녀는 우리 회사의 오랜 직원이에요.",
+  "scene_en": "Borti with a grey muzzle receives a gold watch from coworkers at a long-service party."
+ },
+ {
+  "key": "Marketing|noun",
+  "keep": true,
+  "gloss_ko": "마케팅",
+  "example_de": "Sie arbeitet im Marketing eines großen Sportartikelherstellers.",
+  "example_ko": "그녀는 대형 스포츠용품 회사 마케팅팀에서 일해요.",
+  "scene_en": "Borti presents colorful charts and a shiny new product to a crowd of excited puppies."
+ },
+ {
+  "key": "Rückruf|noun",
+  "keep": true,
+  "gloss_ko": "회신 전화, 리콜",
+  "example_de": "Der Hersteller startet einen Rückruf wegen defekter Bremsen.",
+  "example_ko": "제조사가 브레이크 결함으로 리콜을 시작해요.",
+  "scene_en": "Borti pushes a toy car with a wobbly wheel back to a mechanic at a service counter."
+ },
+ {
+  "key": "unecht|adj",
+  "keep": true,
+  "gloss_ko": "가짜의, 인조의",
+  "example_de": "Der Schmuck sah teuer aus, war aber unecht.",
+  "example_ko": "보석은 비싸 보였지만 가짜였어요.",
+  "scene_en": "Borti bites a shiny gold coin and soft chocolate oozes out of it."
+ },
+ {
+  "key": "verladen|verb",
+  "keep": true,
+  "gloss_ko": "싣다, 적재하다",
+  "example_de": "Die Container werden im Hamburger Hafen auf Schiffe verladen.",
+  "example_ko": "컨테이너는 함부르크 항에서 배에 실려요.",
+  "scene_en": "Borti operates a crane lowering colorful shipping containers onto a cargo ship."
+ },
+ {
+  "key": "Psychiaterin|noun",
+  "keep": true,
+  "gloss_ko": "정신과 의사(여)",
+  "example_de": "Die Psychiaterin hat ihm eine Therapie empfohlen.",
+  "example_ko": "정신과 의사가 그에게 치료를 권했어요.",
+  "scene_en": "Borti lies on a couch while a calm lady dachshund in glasses takes notes beside him."
+ },
+ {
+  "key": "Infrastruktur|noun",
+  "keep": true,
+  "gloss_ko": "기반 시설, 인프라",
+  "example_de": "Die Regierung will Milliarden in die Infrastruktur investieren.",
+  "example_ko": "정부는 기반 시설에 수십억을 투자하려 해요.",
+  "scene_en": "Borti in a hard hat overlooks a city of bridges, railways, power lines and roads."
+ },
+ {
+  "key": "pseudonym|adj",
+  "keep": true,
+  "gloss_ko": "가명의, 익명 처리된",
+  "example_de": "Die Patientendaten werden nur pseudonym ausgewertet.",
+  "example_ko": "환자 정보는 익명 처리된 상태로만 분석돼요.",
+  "scene_en": "Borti in a fake mustache and dark glasses writes at a desk, hiding his face behind a hat."
+ },
+ {
+  "key": "Harem|noun",
+  "keep": true,
+  "gloss_ko": "하렘",
+  "example_de": "Der Sultan lebte mit seinem Harem im Palast.",
+  "example_ko": "술탄은 궁전에서 하렘과 함께 살았어요.",
+  "scene_en": "Borti peeks into an ornate palace chamber full of silk cushions, lanterns and flowing curtains."
+ },
+ {
+  "key": "Paragraph|noun",
+  "keep": true,
+  "gloss_ko": "조항, 단락",
+  "example_de": "Laut Paragraph 3 des Vertrags ist eine Kündigung möglich.",
+  "example_ko": "계약서 3조에 따르면 해지할 수 있어요.",
+  "scene_en": "Borti points his paw at a highlighted block in a thick open law book, magnifying glass in hand."
+ },
+ {
+  "key": "dampfen|verb",
+  "keep": true,
+  "gloss_ko": "김이 나다",
+  "example_de": "Auf dem Tisch dampfte eine Schüssel Kartoffelsuppe.",
+  "example_ko": "식탁 위 감자 수프 그릇에서 김이 났어요.",
+  "scene_en": "Borti sniffs a bowl of soup as thick steam curls up into his face."
+ },
+ {
+  "key": "Terroranschlag|noun",
+  "keep": true,
+  "gloss_ko": "테러 공격",
+  "example_de": "Nach dem Terroranschlag wurden die Kontrollen verschärft.",
+  "example_ko": "테러 공격 이후 검문이 강화됐어요.",
+  "scene_en": "Borti stands solemnly beside flowers and candles laid at a memorial in a city square."
+ },
+ {
+  "key": "einloggen|verb",
+  "keep": true,
+  "gloss_ko": "로그인하다",
+  "example_de": "Ich kann mich seit gestern nicht mehr ins System einloggen.",
+  "example_ko": "어제부터 시스템에 로그인할 수가 없어요.",
+  "scene_en": "Borti taps a laptop key as a glowing padlock on the screen swings open."
+ },
+ {
+  "key": "Enzym|noun",
+  "keep": true,
+  "gloss_ko": "효소",
+  "example_de": "Dieses Enzym hilft dem Körper, Laktose abzubauen.",
+  "example_ko": "이 효소는 몸이 유당을 분해하도록 도와요.",
+  "scene_en": "Borti peers through a microscope at tiny glowing scissor-shaped molecules snipping a long bead chain."
+ },
+ {
+  "key": "satteln|verb",
+  "keep": true,
+  "gloss_ko": "안장을 얹다",
+  "example_de": "Vor dem Ausritt muss das Pferd gesattelt werden.",
+  "example_ko": "승마 전에 말에 안장을 얹어야 해요.",
+  "scene_en": "Borti heaves a leather saddle onto a patient pony's back in a stable."
+ },
+ {
+  "key": "Gedenkfeier|noun",
+  "keep": true,
+  "gloss_ko": "추모식, 기념식",
+  "example_de": "Zur Gedenkfeier kamen auch der Kanzler und mehrere Minister.",
+  "example_ko": "추모식에는 총리와 장관 여러 명도 왔어요.",
+  "scene_en": "Borti in a black bow tie places a white wreath beside candles at a solemn ceremony."
+ },
+ {
+  "key": "Amme|noun",
+  "keep": true,
+  "gloss_ko": "유모",
+  "example_de": "Früher wuchsen Kinder reicher Familien oft bei einer Amme auf.",
+  "example_ko": "예전엔 부잣집 아이들이 유모 손에서 자랐어요.",
+  "scene_en": "Borti peeks into an old-fashioned nursery where a kindly nanny rocks a wooden cradle."
+ },
+ {
+  "key": "Lehm|noun",
+  "keep": true,
+  "gloss_ko": "점토, 진흙",
+  "example_de": "Das alte Bauernhaus ist aus Lehm und Holz gebaut.",
+  "example_ko": "그 오래된 농가는 진흙과 나무로 지어졌어요.",
+  "scene_en": "Borti pats sticky brown clay into a mud brick, his paws and nose covered in mud."
+ },
+ {
+  "key": "Insulin|noun",
+  "keep": true,
+  "gloss_ko": "인슐린",
+  "example_de": "Diabetiker müssen sich oft mehrmals täglich Insulin spritzen.",
+  "example_ko": "당뇨 환자는 하루 여러 번 인슐린을 맞아요.",
+  "scene_en": "Borti carefully holds an insulin pen and a small glass vial on a kitchen table."
+ },
+ {
+  "key": "Schmach|noun",
+  "keep": true,
+  "gloss_ko": "치욕, 굴욕",
+  "example_de": "Die Niederlage war eine Schmach für die ganze Nation.",
+  "example_ko": "그 패배는 온 국민에게 치욕이었어요.",
+  "scene_en": "Borti hangs his head low, ears drooping, holding a broken trophy as the crowd turns away."
+ },
+ {
+  "key": "Weihnachtsfest|noun",
+  "keep": true,
+  "gloss_ko": "성탄절, 크리스마스",
+  "example_de": "Die Familie feiert das Weihnachtsfest bei den Großeltern.",
+  "example_ko": "가족은 조부모님 댁에서 크리스마스를 보내요.",
+  "scene_en": "Borti sits beside a glowing Christmas tree surrounded by wrapped presents and hanging stockings."
+ },
+ {
+  "key": "adressieren|verb",
+  "keep": true,
+  "gloss_ko": "다루다, 주소를 쓰다",
+  "example_de": "Der Bericht adressiert die wichtigsten Risiken des Projekts.",
+  "example_ko": "보고서는 프로젝트의 주요 위험을 다뤄요.",
+  "scene_en": "Borti presses a stamp onto a big envelope and drops it into a red mailbox."
+ },
+ {
+  "key": "kurzsichtig|adj",
+  "keep": true,
+  "gloss_ko": "근시의, 근시안적인",
+  "example_de": "Kürzungen bei der Bildung wären politisch kurzsichtig.",
+  "example_ko": "교육 예산 삭감은 정치적으로 근시안적이에요.",
+  "scene_en": "Borti squints with his nose almost touching a picture while everything farther away is a blur."
+ },
+ {
+  "key": "Redewendung|noun",
+  "keep": true,
+  "gloss_ko": "관용구, 숙어",
+  "example_de": "Diese Redewendung stammt ursprünglich aus der Seefahrt.",
+  "example_ko": "이 관용구는 원래 항해에서 유래했어요.",
+  "scene_en": "Borti listens to a parrot on a ship's mast whose speech bubble shows a tiny ship picture."
+ },
+ {
+  "key": "Emir|noun",
+  "keep": true,
+  "gloss_ko": "에미르, 이슬람 군주",
+  "example_de": "Der Emir empfing die Delegation in seinem Palast.",
+  "example_ko": "에미르가 궁전에서 대표단을 맞이했어요.",
+  "scene_en": "Borti bows to a regal figure in flowing white robes and a golden headband in a desert palace."
+ },
+ {
+  "key": "Bürokrat|noun",
+  "keep": true,
+  "gloss_ko": "관료, 관료주의자",
+  "example_de": "Ein Bürokrat bestand auf drei weiteren Formularen.",
+  "example_ko": "한 관료가 서류 세 장을 더 요구했어요.",
+  "scene_en": "Borti sighs before a stern clerk stamping an endless tower of forms on a desk."
+ },
+ {
+  "key": "orientieren|verb",
+  "keep": true,
+  "gloss_ko": "방향을 잡다, 맞추다",
+  "example_de": "Wir orientieren uns bei den Preisen an der Konkurrenz.",
+  "example_ko": "우리는 경쟁사를 기준으로 가격을 정해요.",
+  "scene_en": "Borti holds a compass in a forest, turning around to find the right direction."
+ },
+ {
+  "key": "Mineral|noun",
+  "keep": true,
+  "gloss_ko": "광물, 미네랄",
+  "example_de": "Das Gebirge ist reich an seltenen Mineralien.",
+  "example_ko": "그 산맥에는 희귀 광물이 풍부해요.",
+  "scene_en": "Borti holds a sparkling purple crystal up to the light in a rocky cave."
+ },
+ {
+  "key": "immens|adj",
+  "keep": true,
+  "gloss_ko": "막대한, 엄청난",
+  "example_de": "Der Umbau verursachte immense Kosten.",
+  "example_ko": "개조 공사에 막대한 비용이 들었어요.",
+  "scene_en": "Borti stares up at an immense mountain of coins towering into the clouds."
+ },
+ {
+  "key": "ruhmreich|adj",
+  "keep": true,
+  "gloss_ko": "영광스러운",
+  "example_de": "Der Verein blickt auf eine ruhmreiche Geschichte zurück.",
+  "example_ko": "그 구단은 영광스러운 역사를 지녔어요.",
+  "scene_en": "Borti stands on a podium wearing a laurel wreath as confetti falls and trumpets blare."
+ },
+ {
+  "key": "schnüren|verb",
+  "keep": true,
+  "gloss_ko": "끈으로 묶다, 마련하다",
+  "example_de": "Die Regierung schnürt ein neues Hilfspaket für Familien.",
+  "example_ko": "정부가 가정을 위한 새 지원책을 마련해요.",
+  "scene_en": "Borti ties the laces of a big hiking boot into a neat tight bow."
+ },
+ {
+  "key": "Bronze|noun",
+  "keep": true,
+  "gloss_ko": "청동, 동메달",
+  "example_de": "Die Schwimmerin gewann bei der WM Bronze.",
+  "example_ko": "그 수영 선수는 세계선수권에서 동메달을 땄어요.",
+  "scene_en": "Borti proudly wears a shiny bronze medal on a ribbon around his neck."
+ },
+ {
+  "key": "Opposition|noun",
+  "keep": true,
+  "gloss_ko": "야당, 반대",
+  "example_de": "Die Opposition kritisierte den Haushaltsentwurf scharf.",
+  "example_ko": "야당이 예산안을 강하게 비판했어요.",
+  "scene_en": "Borti speaks at a parliament podium while a row of puppies across the aisle shakes their heads."
+ },
+ {
+  "key": "Nobelpreis|noun",
+  "keep": true,
+  "gloss_ko": "노벨상",
+  "example_de": "Sie erhielt den Nobelpreis für Chemie.",
+  "example_ko": "그녀는 노벨 화학상을 받았어요.",
+  "scene_en": "Borti in a tuxedo receives a large gold medal on a grand stage, beaming with pride."
+ },
+ {
+  "key": "beispielsweise|adv",
+  "keep": true,
+  "gloss_ko": "예를 들어",
+  "example_de": "Viele Produkte, beispielsweise Brot, sind teurer geworden.",
+  "example_ko": "예를 들어 빵 같은 많은 제품이 비싸졌어요.",
+  "scene_en": "Borti holds up a single loaf of bread in front of a shelf full of groceries."
+ },
+ {
+  "key": "unklug|adj",
+  "keep": true,
+  "gloss_ko": "현명하지 못한",
+  "example_de": "Es wäre unklug, das Angebot jetzt abzulehnen.",
+  "example_ko": "지금 그 제안을 거절하는 건 현명하지 못해요.",
+  "scene_en": "Borti reaches a paw toward a hot stove while a wiser cat covers its eyes nearby."
+ },
+ {
+  "key": "Nachtwache|noun",
+  "keep": true,
+  "gloss_ko": "야간 당직, 불침번",
+  "example_de": "Die Pflegerin hat diese Woche dreimal Nachtwache.",
+  "example_ko": "그 간호사는 이번 주에 세 번 야간 당직이에요.",
+  "scene_en": "Borti sits wide awake with a lantern beside a hospital bed under a starry night window."
+ },
+ {
+  "key": "Olympiade|noun",
+  "keep": true,
+  "gloss_ko": "올림픽",
+  "example_de": "Die nächste Olympiade findet in Los Angeles statt.",
+  "example_ko": "다음 올림픽은 로스앤젤레스에서 열려요.",
+  "scene_en": "Borti carries a flaming torch into a huge stadium as fireworks burst overhead."
+ },
+ {
+  "key": "Marmor|noun",
+  "keep": true,
+  "gloss_ko": "대리석",
+  "example_de": "Die Treppe im Rathaus ist aus weißem Marmor.",
+  "example_ko": "시청 계단은 흰 대리석으로 되어 있어요.",
+  "scene_en": "Borti slides across a gleaming white marble floor with grey veins in a grand hall."
+ },
+ {
+  "key": "Eleganz|noun",
+  "keep": true,
+  "gloss_ko": "우아함, 세련미",
+  "example_de": "Das Kleid besticht durch schlichte Eleganz.",
+  "example_ko": "그 드레스는 단순한 우아함이 돋보여요.",
+  "scene_en": "Borti in a silk scarf and pearls poses gracefully on a velvet chair."
+ },
+ {
+  "key": "Hundefutter|noun",
+  "keep": true,
+  "gloss_ko": "개 사료",
+  "example_de": "Das Hundefutter ist im Supermarkt deutlich teurer geworden.",
+  "example_ko": "마트에서 개 사료가 훨씬 비싸졌어요.",
+  "scene_en": "Borti dives happily into an overflowing bowl of kibble beside a big open food sack."
+ },
+ {
+  "key": "Gravis|noun",
+  "keep": false,
+  "reason": "좁은 전문어"
+ },
+ {
+  "key": "Brandstifter|noun",
+  "keep": true,
+  "gloss_ko": "방화범",
+  "example_de": "Der Brandstifter legte in einer Nacht drei Feuer.",
+  "example_ko": "방화범이 하룻밤에 세 곳에 불을 질렀어요.",
+  "scene_en": "Borti in a firefighter helmet sniffs a burnt match beside a smoky shed."
+ },
+ {
+  "key": "Denkweise|noun",
+  "keep": true,
+  "gloss_ko": "사고방식",
+  "example_de": "Die junge Generation hat eine ganz andere Denkweise.",
+  "example_ko": "젊은 세대는 완전히 다른 사고방식을 가졌어요.",
+  "scene_en": "Borti tilts his head as glowing gears inside a giant transparent brain spin in a new direction."
+ },
+ {
+  "key": "Petition|noun",
+  "keep": true,
+  "gloss_ko": "청원",
+  "example_de": "Über 100.000 Menschen haben die Petition unterschrieben.",
+  "example_ko": "10만 명 넘게 그 청원에 서명했어요.",
+  "scene_en": "Borti presses his paw print onto a long scroll already covered with countless paw prints."
+ },
+ {
+  "key": "Stadtteil|noun",
+  "keep": true,
+  "gloss_ko": "구역, 동네",
+  "example_de": "In unserem Stadtteil gibt es kaum noch günstige Wohnungen.",
+  "example_ko": "우리 동네에는 저렴한 집이 거의 없어요.",
+  "scene_en": "Borti looks down from a hill at one colorful neighborhood nestled in a bend of the river."
+ },
+ {
+  "key": "präparieren|verb",
+  "keep": true,
+  "gloss_ko": "정비하다, 표본으로 만들다",
+  "example_de": "Die Pisten werden jeden Abend für die Skifahrer präpariert.",
+  "example_ko": "슬로프는 매일 저녁 스키어를 위해 정비돼요.",
+  "scene_en": "Borti drives a tiny snow groomer, smoothing a perfect ski slope at sunset."
+ },
+ {
+  "key": "erstrecken|verb",
+  "keep": true,
+  "gloss_ko": "뻗어 있다, 걸치다",
+  "example_de": "Die Verhandlungen erstreckten sich über mehrere Monate.",
+  "example_ko": "협상은 몇 달에 걸쳐 이어졌어요.",
+  "scene_en": "Borti stands at the start of a road stretching endlessly over hills to the horizon."
+ },
+ {
+  "key": "Barrikade|noun",
+  "keep": true,
+  "gloss_ko": "바리케이드",
+  "example_de": "Demonstranten errichteten Barrikaden aus Mülltonnen.",
+  "example_ko": "시위대가 쓰레기통으로 바리케이드를 쳤어요.",
+  "scene_en": "Borti peeks over a barricade of stacked crates and tires blocking a narrow street."
+ },
+ {
+  "key": "Handfläche|noun",
+  "keep": true,
+  "gloss_ko": "손바닥",
+  "example_de": "Sie schrieb sich die Telefonnummer auf die Handfläche.",
+  "example_ko": "그녀는 전화번호를 손바닥에 적었어요.",
+  "scene_en": "Borti places his little paw onto a child's big open palm, comparing sizes."
+ },
+ {
+  "key": "Gelenk|noun",
+  "keep": true,
+  "gloss_ko": "관절",
+  "example_de": "Bei Kälte schmerzen ihm die Gelenke.",
+  "example_ko": "추우면 그는 관절이 아파요.",
+  "scene_en": "Borti bends his knee, wincing, while a soft red glow highlights the sore joint."
+ },
+ {
+  "key": "weltberühmt|adj",
+  "keep": true,
+  "gloss_ko": "세계적으로 유명한",
+  "example_de": "Der weltberühmte Dirigent gibt nächste Woche ein Konzert.",
+  "example_ko": "세계적인 지휘자가 다음 주에 공연해요.",
+  "scene_en": "Borti in sunglasses walks a red carpet as cheering crowds from every land flash cameras."
+ },
+ {
+  "key": "Hieb|noun",
+  "keep": true,
+  "gloss_ko": "일격, 타격",
+  "example_de": "Die Kritik war ein Hieb gegen die Parteiführung.",
+  "example_ko": "그 비판은 당 지도부에 대한 일격이었어요.",
+  "scene_en": "Borti swings a big pillow in a wide arc, landing a soft blow on a punching bag."
+ },
+ {
+  "key": "Augenkontakt|noun",
+  "keep": true,
+  "gloss_ko": "눈맞춤",
+  "example_de": "Im Vorstellungsgespräch ist Augenkontakt wichtig.",
+  "example_ko": "면접에서는 눈을 맞추는 게 중요해요.",
+  "scene_en": "Borti and another puppy stare straight into each other's eyes across a desk, unblinking."
+ },
+ {
+  "key": "Teig|noun",
+  "keep": true,
+  "gloss_ko": "반죽",
+  "example_de": "Der Teig muss eine Stunde ruhen.",
+  "example_ko": "반죽은 한 시간 동안 숙성시켜야 해요.",
+  "scene_en": "Borti kneads a big soft ball of dough on a floury table, flour dusting his nose."
+ },
+ {
+  "key": "Autofahren|noun",
+  "keep": true,
+  "gloss_ko": "운전, 자동차 운전",
+  "example_de": "Beim Autofahren ist das Handy tabu.",
+  "example_ko": "운전 중에는 휴대폰 사용이 금지예요.",
+  "scene_en": "Borti sits behind the steering wheel of a little car, both paws on the wheel, eyes on the road."
+ },
+ {
+  "key": "Amok|noun",
+  "keep": true,
+  "gloss_ko": "광란, 난동",
+  "example_de": "Ein Mann lief in der Innenstadt Amok und verletzte mehrere Menschen.",
+  "example_ko": "한 남자가 시내에서 난동을 부려 여럿이 다쳤어요.",
+  "scene_en": "Borti hides behind a lamppost as a wild-eyed toy robot crashes around knocking over chairs."
+ },
+ {
+  "key": "Verlängerung|noun",
+  "keep": true,
+  "gloss_ko": "연장",
+  "example_de": "Ich habe eine Verlängerung meines Visums beantragt.",
+  "example_ko": "비자 연장을 신청했어요.",
+  "scene_en": "Borti stretches a long piece of dough even longer, pulling it with both paws."
+ },
+ {
+  "key": "entfallen|verb",
+  "keep": true,
+  "gloss_ko": "생략되다, 깜빡 잊히다",
+  "example_de": "Sein Name ist mir leider entfallen.",
+  "example_ko": "그의 이름이 안타깝게도 생각나지 않아요.",
+  "scene_en": "Borti scratches his head as a name bubble floats away out of his ear."
+ },
+ {
+  "key": "überschwemmen|verb",
+  "keep": true,
+  "gloss_ko": "범람시키다, 넘쳐나게 하다",
+  "example_de": "Billige Importe überschwemmen den europäischen Markt.",
+  "example_ko": "값싼 수입품이 유럽 시장에 넘쳐나요.",
+  "scene_en": "Borti stands on a chair as water floods the whole kitchen floor around him."
+ },
+ {
+  "key": "komfortabel|adj",
+  "keep": true,
+  "gloss_ko": "편안한, 넉넉한",
+  "example_de": "Die Regierung hat eine komfortable Mehrheit im Parlament.",
+  "example_ko": "정부는 의회에서 넉넉한 과반을 갖고 있어요.",
+  "scene_en": "Borti sinks blissfully into a huge soft armchair with a blanket and slippers."
+ },
+ {
+  "key": "Sicherheitsgurt|noun",
+  "keep": true,
+  "gloss_ko": "안전벨트",
+  "example_de": "Bitte legen Sie während des Fluges den Sicherheitsgurt an.",
+  "example_ko": "비행 중에는 안전벨트를 매 주세요.",
+  "scene_en": "Borti clicks a seat belt across his chest while sitting in a car seat."
+ },
+ {
+  "key": "einseitig|adj",
+  "keep": true,
+  "gloss_ko": "일방적인, 편파적인",
+  "example_de": "Der Bericht ist mir zu einseitig.",
+  "example_ko": "그 보도는 제가 보기에 너무 편파적이에요.",
+  "scene_en": "Borti frowns at a seesaw heavily tilted to one side with a big rock on it."
+ },
+ {
+  "key": "Rollenspiel|noun",
+  "keep": true,
+  "gloss_ko": "역할극, 롤플레잉",
+  "example_de": "Im Seminar üben wir Konfliktgespräche im Rollenspiel.",
+  "example_ko": "세미나에서 역할극으로 갈등 대화를 연습해요.",
+  "scene_en": "Borti wears a fake mustache and tie, pretending to be the boss for a puppy friend."
+ },
+ {
+  "key": "beglückwünschen|verb",
+  "keep": true,
+  "gloss_ko": "축하하다",
+  "example_de": "Der Präsident beglückwünschte den Wahlsieger.",
+  "example_ko": "대통령이 선거 승자를 축하했어요.",
+  "scene_en": "Borti happily shakes a friend's paw and hands over a bouquet of flowers."
+ },
+ {
+  "key": "anlächeln|verb",
+  "keep": true,
+  "gloss_ko": "미소 짓다",
+  "example_de": "Das Baby lächelte mich plötzlich an.",
+  "example_ko": "아기가 갑자기 저를 보고 웃었어요.",
+  "scene_en": "Borti beams a warm smile at a baby in a stroller who smiles back."
+ },
+ {
+  "key": "monatlich|adj",
+  "keep": true,
+  "gloss_ko": "매달의, 월간의",
+  "example_de": "Die monatliche Miete beträgt 950 Euro warm.",
+  "example_ko": "월세는 관리비 포함 950유로예요.",
+  "scene_en": "Borti flips a wall calendar, putting one coin in a jar for each month."
+ },
+ {
+  "key": "jungfräulich|adj",
+  "keep": true,
+  "gloss_ko": "처녀의, 손대지 않은",
+  "example_de": "Am Morgen lag jungfräulicher Schnee auf den Wiesen.",
+  "example_ko": "아침에 아무도 밟지 않은 눈이 들판에 쌓여 있었어요.",
+  "scene_en": "Borti hesitates at the edge of a perfectly smooth, untouched field of fresh snow."
+ },
+ {
+  "key": "konventionell|adj",
+  "keep": true,
+  "gloss_ko": "관습적인, 재래식의",
+  "example_de": "Bio-Gemüse ist teurer als konventionell angebautes.",
+  "example_ko": "유기농 채소는 일반 재배 채소보다 비싸요.",
+  "scene_en": "Borti in a plain gray suit stands in a row of identical gray suited dogs."
+ },
+ {
+  "key": "Lichtung|noun",
+  "keep": true,
+  "gloss_ko": "숲속 빈터",
+  "example_de": "Auf der Lichtung grasten ein paar Rehe.",
+  "example_ko": "숲속 빈터에서 노루 몇 마리가 풀을 뜯었어요.",
+  "scene_en": "Borti steps into a sunny open clearing surrounded by tall dark forest trees."
+ },
+ {
+  "key": "abhacken|verb",
+  "keep": true,
+  "gloss_ko": "잘라 내다, 쳐내다",
+  "example_de": "Der Gärtner hackte die trockenen Äste ab.",
+  "example_ko": "정원사가 마른 가지를 쳐냈어요.",
+  "scene_en": "Borti chops a dry branch off a tree with a small hatchet."
+ },
+ {
+  "key": "Geschehnis|noun",
+  "keep": true,
+  "gloss_ko": "사건, 일어난 일",
+  "example_de": "Die Geschehnisse der letzten Woche haben uns schockiert.",
+  "example_ko": "지난주의 사건들이 우리에게 충격을 줬어요.",
+  "scene_en": "Borti reads a newspaper at breakfast with wide eyes, coffee cup frozen mid-air."
+ },
+ {
+  "key": "zerfressen|verb",
+  "keep": true,
+  "gloss_ko": "갉아먹다, 부식시키다",
+  "example_de": "Der Rost hat das alte Geländer völlig zerfressen.",
+  "example_ko": "녹이 낡은 난간을 완전히 갉아먹었어요.",
+  "scene_en": "Borti holds up a sweater full of holes as a little moth flutters away."
+ },
+ {
+  "key": "Overall|noun",
+  "keep": true,
+  "gloss_ko": "작업복, 점프슈트",
+  "example_de": "Die Mechaniker tragen in der Werkstatt blaue Overalls.",
+  "example_ko": "정비사들은 정비소에서 파란 작업복을 입어요.",
+  "scene_en": "Borti wears a blue one-piece work overall with a wrench in his pocket."
+ },
+ {
+  "key": "Anleihe|noun",
+  "keep": true,
+  "gloss_ko": "채권, 차용",
+  "example_de": "Der Staat gibt neue Anleihen mit zehn Jahren Laufzeit aus.",
+  "example_ko": "국가가 만기 10년의 새 채권을 발행해요.",
+  "scene_en": "Borti proudly holds up an ornate certificate with a wax seal at a bank counter."
+ },
+ {
+  "key": "innig|adj",
+  "keep": true,
+  "gloss_ko": "친밀한, 간절한",
+  "example_de": "Die beiden Schwestern verbindet eine innige Freundschaft.",
+  "example_ko": "두 자매는 아주 친밀한 우정을 나눠요.",
+  "scene_en": "Borti hugs his best friend tightly with closed eyes and a heartfelt smile."
+ },
+ {
+  "key": "ordinär|adj",
+  "keep": true,
+  "gloss_ko": "천박한, 평범한",
+  "example_de": "Ich finde seine Witze ziemlich ordinär.",
+  "example_ko": "그의 농담은 꽤 천박하다고 생각해요.",
+  "scene_en": "Borti makes a disapproving face at a friend loudly burping at a fancy dinner."
+ },
+ {
+  "key": "verbarrikadieren|verb",
+  "keep": true,
+  "gloss_ko": "바리케이드로 막다",
+  "example_de": "Die Demonstranten verbarrikadierten sich im Gebäude.",
+  "example_ko": "시위대가 건물 안에 바리케이드를 치고 버텼어요.",
+  "scene_en": "Borti pushes furniture against a door, stacking chairs and a sofa to block it."
+ },
+ {
+  "key": "dirigieren|verb",
+  "keep": true,
+  "gloss_ko": "지휘하다",
+  "example_de": "Heute Abend dirigiert eine junge Dirigentin das Orchester.",
+  "example_ko": "오늘 밤엔 젊은 여성 지휘자가 오케스트라를 지휘해요.",
+  "scene_en": "Borti stands on a podium in a tailcoat, waving a baton at an orchestra."
+ },
+ {
+  "key": "hochwertig|adj",
+  "keep": true,
+  "gloss_ko": "고급의, 품질 좋은",
+  "example_de": "Die Firma verarbeitet nur hochwertige Materialien.",
+  "example_ko": "그 회사는 고급 소재만 써요.",
+  "scene_en": "Borti admires a gleaming, finely crafted leather bag with gold stitching."
+ },
+ {
+  "key": "verneigen|verb",
+  "keep": true,
+  "gloss_ko": "절하다, 고개 숙이다",
+  "example_de": "Nach dem Konzert verneigte sich der Pianist vor dem Publikum.",
+  "example_ko": "연주회 후 피아니스트가 관객에게 인사했어요.",
+  "scene_en": "Borti bows deeply on a stage while flowers are thrown at his feet."
+ },
+ {
+  "key": "verächtlich|adj",
+  "keep": true,
+  "gloss_ko": "경멸하는",
+  "example_de": "Sie warf ihm einen verächtlichen Blick zu.",
+  "example_ko": "그녀는 그를 경멸하는 눈빛으로 쳐다봤어요.",
+  "scene_en": "Borti looks down his nose with a scornful sneer at a muddy puddle."
+ },
+ {
+  "key": "Ferienlager|noun",
+  "keep": true,
+  "gloss_ko": "여름 캠프",
+  "example_de": "Im Sommer fahren die Kinder zwei Wochen ins Ferienlager.",
+  "example_ko": "여름에 아이들이 2주간 캠프에 가요.",
+  "scene_en": "Borti sits around a campfire with puppy friends in front of rows of tents."
+ },
+ {
+  "key": "Abschiedsgeschenk|noun",
+  "keep": true,
+  "gloss_ko": "송별 선물",
+  "example_de": "Die Kollegen überreichten ihr ein Abschiedsgeschenk.",
+  "example_ko": "동료들이 그녀에게 송별 선물을 건넸어요.",
+  "scene_en": "Borti hands a wrapped gift box to a friend holding a suitcase at the door."
+ },
+ {
+  "key": "Separatist|noun",
+  "keep": true,
+  "gloss_ko": "분리주의자",
+  "example_de": "Separatisten fordern die Unabhängigkeit der Region.",
+  "example_ko": "분리주의자들이 그 지역의 독립을 요구해요.",
+  "scene_en": "Borti watches a group of puppies march away from a big group, carrying their own flag."
+ },
+ {
+  "key": "Kandidatur|noun",
+  "keep": true,
+  "gloss_ko": "입후보, 출마",
+  "example_de": "Die Ministerin hat ihre Kandidatur für das Amt bekanntgegeben.",
+  "example_ko": "장관이 그 직책 출마를 발표했어요.",
+  "scene_en": "Borti stands at a podium waving, with a rosette pinned to his chest and balloons behind."
+ },
+ {
+  "key": "Feuchtigkeit|noun",
+  "keep": true,
+  "gloss_ko": "습기, 습도",
+  "example_de": "Die Feuchtigkeit im Keller hat Schimmel verursacht.",
+  "example_ko": "지하실 습기가 곰팡이를 일으켰어요.",
+  "scene_en": "Borti wipes droplets off a foggy, dripping wall in a damp basement."
+ },
+ {
+  "key": "widerwärtig|adj",
+  "keep": true,
+  "gloss_ko": "역겨운, 혐오스러운",
+  "example_de": "Der Geruch im Müllraum war einfach widerwärtig.",
+  "example_ko": "쓰레기실 냄새는 정말 역겨웠어요.",
+  "scene_en": "Borti pinches his nose with a disgusted face next to an overflowing trash can."
+ },
+ {
+  "key": "vorschnell|adj",
+  "keep": true,
+  "gloss_ko": "성급한",
+  "example_de": "Wir sollten keine vorschnellen Schlüsse ziehen.",
+  "example_ko": "성급한 결론을 내리면 안 돼요.",
+  "scene_en": "Borti leaps off a diving board before checking there is no water in the pool."
+ },
+ {
+  "key": "Lähmung|noun",
+  "keep": true,
+  "gloss_ko": "마비",
+  "example_de": "Nach dem Unfall litt er an einer teilweisen Lähmung.",
+  "example_ko": "사고 후 그는 부분 마비를 겪었어요.",
+  "scene_en": "Borti sits in a small wheelchair, smiling bravely as a nurse adjusts his blanket."
+ },
+ {
+  "key": "Nickel|noun",
+  "keep": true,
+  "gloss_ko": "니켈",
+  "example_de": "Viele Menschen reagieren allergisch auf Nickel.",
+  "example_ko": "많은 사람이 니켈 알레르기가 있어요.",
+  "scene_en": "Borti scratches an itchy red wrist under a shiny silver metal watch strap."
+ },
+ {
+  "key": "erdulden|verb",
+  "keep": true,
+  "gloss_ko": "참다, 견디다",
+  "example_de": "Die Gefangenen mussten große Qualen erdulden.",
+  "example_ko": "포로들은 큰 고통을 견뎌야 했어요.",
+  "scene_en": "Borti patiently endures heavy rain without moving, jaw set, guarding his post."
+ },
+ {
+  "key": "aufsagen|verb",
+  "keep": true,
+  "gloss_ko": "암송하다",
+  "example_de": "Zu Weihnachten sagt jedes Kind ein Gedicht auf.",
+  "example_ko": "크리스마스에 아이마다 시를 암송해요.",
+  "scene_en": "Borti stands on a stool by a Christmas tree reciting a poem with a serious face."
+ },
+ {
+  "key": "Smaragd|noun",
+  "keep": true,
+  "gloss_ko": "에메랄드",
+  "example_de": "Der Ring ist mit einem großen Smaragd besetzt.",
+  "example_ko": "그 반지엔 큰 에메랄드가 박혀 있어요.",
+  "scene_en": "Borti gazes at a large sparkling green emerald glowing on a velvet cushion."
+ },
+ {
+  "key": "Errungenschaft|noun",
+  "keep": true,
+  "gloss_ko": "성과, 업적",
+  "example_de": "Die Pressefreiheit ist eine wichtige Errungenschaft der Demokratie.",
+  "example_ko": "언론 자유는 민주주의의 중요한 성과예요.",
+  "scene_en": "Borti proudly stands beside a shelf full of medals and trophies he earned."
+ },
+ {
+  "key": "wedeln|verb",
+  "keep": true,
+  "gloss_ko": "흔들다, 살랑거리다",
+  "example_de": "Der Hund wedelt vor Freude mit dem Schwanz.",
+  "example_ko": "개가 기뻐서 꼬리를 흔들어요.",
+  "scene_en": "Borti wags his tail so fast it blurs, a huge happy grin on his face."
+ },
+ {
+  "key": "Residenz|noun",
+  "keep": true,
+  "gloss_ko": "관저, 궁전",
+  "example_de": "Der Botschafter empfing die Gäste in seiner Residenz.",
+  "example_ko": "대사가 관저에서 손님들을 맞았어요.",
+  "scene_en": "Borti stands at the gate of a grand palace with tall columns and a fountain."
+ },
+ {
+  "key": "Karaoke|noun",
+  "keep": true,
+  "gloss_ko": "노래방, 가라오케",
+  "example_de": "Nach der Weihnachtsfeier gingen alle zum Karaoke.",
+  "example_ko": "송년회 후 다 같이 노래방에 갔어요.",
+  "scene_en": "Borti sings passionately into a microphone under colorful disco lights."
+ },
+ {
+  "key": "Süd|noun",
+  "keep": false,
+  "reason": "중복 표기"
+ },
+ {
+  "key": "Solidarität|noun",
+  "keep": true,
+  "gloss_ko": "연대, 결속",
+  "example_de": "Viele Bürger zeigten Solidarität mit den Flutopfern.",
+  "example_ko": "많은 시민이 홍수 피해자들과 연대했어요.",
+  "scene_en": "Borti links paws with a long chain of animals standing together side by side."
+ },
+ {
+  "key": "Landhaus|noun",
+  "keep": true,
+  "gloss_ko": "시골 별장",
+  "example_de": "Am Wochenende fahren wir in unser Landhaus in Brandenburg.",
+  "example_ko": "주말에 브란덴부르크 별장에 가요.",
+  "scene_en": "Borti relaxes on the porch of a charming cottage surrounded by fields and flowers."
+ },
+ {
+  "key": "Feueralarm|noun",
+  "keep": true,
+  "gloss_ko": "화재경보",
+  "example_de": "Wegen eines Feueralarms musste das Gebäude geräumt werden.",
+  "example_ko": "화재경보로 건물을 비워야 했어요.",
+  "scene_en": "Borti covers his ears as a red alarm bell rings loudly on the wall."
+ },
+ {
+  "key": "ungeeignet|adj",
+  "keep": true,
+  "gloss_ko": "적합하지 않은",
+  "example_de": "Der Film ist für Kinder ungeeignet.",
+  "example_ko": "그 영화는 아이들에게 적합하지 않아요.",
+  "scene_en": "Borti tries to eat soup with a fork, looking puzzled as it drips through."
+ },
+ {
+  "key": "Privatjet|noun",
+  "keep": true,
+  "gloss_ko": "전용기",
+  "example_de": "Der Milliardär reist ausschließlich im Privatjet.",
+  "example_ko": "그 억만장자는 전용기로만 다녀요.",
+  "scene_en": "Borti in sunglasses climbs the steps of a sleek small private jet."
+ },
+ {
+  "key": "Landstraße|noun",
+  "keep": true,
+  "gloss_ko": "국도, 지방도로",
+  "example_de": "Auf der Landstraße gilt ein Tempolimit von 100.",
+  "example_ko": "국도에선 제한 속도가 100이에요.",
+  "scene_en": "Borti drives a small car along a winding country road between green fields."
+ },
+ {
+  "key": "unzerstörbar|adj",
+  "keep": true,
+  "gloss_ko": "파괴할 수 없는",
+  "example_de": "Diese alte Handyhülle scheint unzerstörbar zu sein.",
+  "example_ko": "이 낡은 폰 케이스는 부서지지 않는 것 같아요.",
+  "scene_en": "Borti jumps on a tough little box that stays perfectly unharmed under him."
+ },
+ {
+  "key": "Säugling|noun",
+  "keep": true,
+  "gloss_ko": "젖먹이, 영아",
+  "example_de": "Säuglinge brauchen in den ersten Monaten viel Schlaf.",
+  "example_ko": "영아는 첫 몇 달간 잠이 많이 필요해요.",
+  "scene_en": "Borti gently watches over a tiny baby sleeping in a cradle."
+ },
+ {
+  "key": "positionieren|verb",
+  "keep": true,
+  "gloss_ko": "배치하다, 입장을 정하다",
+  "example_de": "Die Partei positioniert sich klar gegen die Reform.",
+  "example_ko": "그 정당은 개혁에 분명히 반대 입장을 취해요.",
+  "scene_en": "Borti carefully places a vase exactly in the center of a table, checking the angle."
+ },
+ {
+  "key": "anlaufen|verb",
+  "keep": true,
+  "gloss_ko": "시작되다, 김이 서리다",
+  "example_de": "Die Produktion soll im Frühjahr anlaufen.",
+  "example_ko": "생산은 봄에 시작될 예정이에요.",
+  "scene_en": "Borti pulls a big lever as factory machines begin to whir and conveyor belts start rolling."
+ },
+ {
+  "key": "durchkreuzen|verb",
+  "keep": true,
+  "gloss_ko": "좌절시키다, 방해하다",
+  "example_de": "Das schlechte Wetter hat unsere Pläne durchkreuzt.",
+  "example_ko": "나쁜 날씨가 우리 계획을 망쳤어요.",
+  "scene_en": "Borti looks dismayed as a cat knocks over his carefully lined-up dominoes."
+ },
+ {
+  "key": "Rückflug|noun",
+  "keep": true,
+  "gloss_ko": "귀국편, 돌아오는 비행",
+  "example_de": "Unser Rückflug wurde um sechs Stunden verschoben.",
+  "example_ko": "돌아오는 비행기가 6시간 연기됐어요.",
+  "scene_en": "Borti waves goodbye from an airplane window as palm trees shrink below."
+ },
+ {
+  "key": "Bolzen|noun",
+  "keep": true,
+  "gloss_ko": "볼트, 빗장",
+  "example_de": "Der Mechaniker zog die Bolzen am Rad fest.",
+  "example_ko": "정비사가 바퀴 볼트를 단단히 조였어요.",
+  "scene_en": "Borti tightens a big metal bolt on a wheel with a wrench."
+ },
+ {
+  "key": "unordentlich|adj",
+  "keep": true,
+  "gloss_ko": "어질러진, 단정치 못한",
+  "example_de": "Mein Schreibtisch ist leider immer unordentlich.",
+  "example_ko": "제 책상은 안타깝게도 늘 어질러져 있어요.",
+  "scene_en": "Borti sits in a messy room with clothes, toys and papers piled everywhere."
+ },
+ {
+  "key": "einwenden|verb",
+  "keep": true,
+  "gloss_ko": "이의를 제기하다",
+  "example_de": "Dagegen ist nichts einzuwenden.",
+  "example_ko": "거기엔 반대할 게 없어요.",
+  "scene_en": "Borti raises a paw in a meeting, frowning, ready to object."
+ },
+ {
+  "key": "dämmern|verb",
+  "keep": true,
+  "gloss_ko": "동트다, 어두워지다",
+  "example_de": "Als wir losfuhren, dämmerte es bereits.",
+  "example_ko": "출발할 때 벌써 날이 어스름했어요.",
+  "scene_en": "Borti watches the sky glow pink and orange as the sun rises over hills."
+ },
+ {
+  "key": "erträglich|adj",
+  "keep": true,
+  "gloss_ko": "견딜 만한",
+  "example_de": "Mit dem Ventilator ist die Hitze halbwegs erträglich.",
+  "example_ko": "선풍기가 있으니 더위가 그럭저럭 견딜 만해요.",
+  "scene_en": "Borti sits in the heat in front of a small fan, looking just about okay."
+ },
+ {
+  "key": "detonieren|verb",
+  "keep": true,
+  "gloss_ko": "폭발하다",
+  "example_de": "Die Bombe aus dem Zweiten Weltkrieg wurde kontrolliert detoniert.",
+  "example_ko": "2차 대전 폭탄을 통제 폭파했어요.",
+  "scene_en": "Borti watches from far behind a safety barrier as a big puff of smoke bursts in a field."
+ },
+ {
+  "key": "rehabilitieren|verb",
+  "keep": true,
+  "gloss_ko": "명예를 회복시키다",
+  "example_de": "Der Journalist wurde nach Jahren vollständig rehabilitiert.",
+  "example_ko": "그 기자는 몇 년 뒤 완전히 명예를 회복했어요.",
+  "scene_en": "Borti steps out of a shadow into bright light while a crowd applauds him."
+ },
+ {
+  "key": "Nächstenliebe|noun",
+  "keep": true,
+  "gloss_ko": "이웃 사랑, 박애",
+  "example_de": "Die Organisation lebt von Spenden und Nächstenliebe.",
+  "example_ko": "그 단체는 기부와 이웃 사랑으로 운영돼요.",
+  "scene_en": "Borti hands out warm soup bowls to a line of shivering animals in the snow."
+ },
+ {
+  "key": "Rachen|noun",
+  "keep": true,
+  "gloss_ko": "목구멍, 인두",
+  "example_de": "Der Arzt untersuchte meinen geröteten Rachen.",
+  "example_ko": "의사가 빨갛게 부은 목을 진찰했어요.",
+  "scene_en": "Borti opens his mouth wide saying ah while a doctor shines a light into his throat."
+ },
+ {
+  "key": "Tropf|noun",
+  "keep": true,
+  "gloss_ko": "링거, 점적 주사",
+  "example_de": "Im Krankenhaus hing sie zwei Tage am Tropf.",
+  "example_ko": "그녀는 병원에서 이틀간 링거를 맞았어요.",
+  "scene_en": "Borti lies in a hospital bed beside a stand with a hanging IV drip bag."
+ },
+ {
+  "key": "Gewerbe|noun",
+  "keep": true,
+  "gloss_ko": "영업, 업종",
+  "example_de": "Wer ein Gewerbe eröffnet, muss es beim Amt anmelden.",
+  "example_ko": "영업을 시작하면 관청에 신고해야 해요.",
+  "scene_en": "Borti proudly opens his tiny bakery shop door, wearing an apron and holding a key."
+ },
+ {
+  "key": "Schlafsaal|noun",
+  "keep": true,
+  "gloss_ko": "공동 침실",
+  "example_de": "In der Jugendherberge schliefen wir in einem Schlafsaal.",
+  "example_ko": "유스호스텔에서 공동 침실에서 잤어요.",
+  "scene_en": "Borti sleeps in one of many bunk beds lined up in a long dormitory hall."
+ },
+ {
+  "key": "Wassermelone|noun",
+  "keep": true,
+  "gloss_ko": "수박",
+  "example_de": "Im Sommer gibt es nichts Besseres als kalte Wassermelone.",
+  "example_ko": "여름엔 시원한 수박만 한 게 없어요.",
+  "scene_en": "Borti bites into a huge juicy slice of red watermelon, seeds on his cheeks."
+ },
+ {
+  "key": "regenerieren|verb",
+  "keep": true,
+  "gloss_ko": "회복하다, 재생하다",
+  "example_de": "Nach dem Training braucht der Körper Zeit zu regenerieren.",
+  "example_ko": "운동 후엔 몸이 회복할 시간이 필요해요.",
+  "scene_en": "Borti naps on a soft mat after a workout, a little battery icon filling up beside him."
+ },
+ {
+  "key": "einstehen|verb",
+  "keep": true,
+  "gloss_ko": "책임지다, 옹호하다",
+  "example_de": "Man muss für seine Fehler einstehen.",
+  "example_ko": "자기 실수는 책임져야 해요.",
+  "scene_en": "Borti steps forward with a raised paw in front of a broken vase, owning up to it."
+ },
+ {
+  "key": "nörgeln|verb",
+  "keep": true,
+  "gloss_ko": "투덜대다",
+  "example_de": "Er nörgelt ständig am Essen herum.",
+  "example_ko": "그는 음식에 늘 투덜대요.",
+  "scene_en": "Borti grumbles with a sour face, poking at his food bowl with one paw."
+ },
+ {
+  "key": "andrehen|verb",
+  "keep": true,
+  "gloss_ko": "켜다, 떠넘기다(구어)",
+  "example_de": "Der Verkäufer wollte mir ein teures Abo andrehen.",
+  "example_ko": "판매원이 비싼 구독을 떠넘기려 했어요.",
+  "scene_en": "Borti shakes his head as a pushy salesman pushes a heap of products at him."
+ },
+ {
+  "key": "mitreden|verb",
+  "keep": true,
+  "gloss_ko": "참견하다, 의견을 내다",
+  "example_de": "Bei dieser Entscheidung wollen die Mitarbeiter mitreden.",
+  "example_ko": "이 결정에 직원들도 의견을 내고 싶어 해요.",
+  "scene_en": "Borti eagerly raises his paw in a lively group discussion around a table."
+ },
+ {
+  "key": "vertrocknen|verb",
+  "keep": true,
+  "gloss_ko": "말라 죽다, 시들다",
+  "example_de": "Im Urlaub sind alle meine Pflanzen vertrocknet.",
+  "example_ko": "휴가 동안 화초가 다 말라 죽었어요.",
+  "scene_en": "Borti sadly holds a pot with a brown, withered plant drooping over the edge."
+ },
+ {
+  "key": "schüchtern|adj",
+  "keep": true,
+  "gloss_ko": "수줍은",
+  "example_de": "Als Kind war ich sehr schüchtern.",
+  "example_ko": "어릴 때 저는 무척 수줍었어요.",
+  "scene_en": "Borti peeks shyly from behind his mother's leg, cheeks blushing pink."
+ },
+ {
+  "key": "Neustart|noun",
+  "keep": true,
+  "gloss_ko": "재시작, 새 출발",
+  "example_de": "Nach der Scheidung wagte sie einen Neustart in Hamburg.",
+  "example_ko": "이혼 후 그녀는 함부르크에서 새 출발을 했어요.",
+  "scene_en": "Borti steps through a doorway into a bright sunrise, carrying a small suitcase."
+ },
+ {
+  "key": "Tank|noun",
+  "keep": true,
+  "gloss_ko": "탱크, 연료통",
+  "example_de": "Der Tank ist fast leer, wir müssen tanken.",
+  "example_ko": "연료통이 거의 비어서 기름을 넣어야 해요.",
+  "scene_en": "Borti peers into a big round metal storage tank with a fuel hose."
+ },
+ {
+  "key": "versterben|verb",
+  "keep": true,
+  "gloss_ko": "별세하다",
+  "example_de": "Der Schauspieler ist im Alter von 82 Jahren verstorben.",
+  "example_ko": "그 배우가 82세로 별세했어요.",
+  "scene_en": "Borti places a single white flower beside a candle and a framed photo."
+ },
+ {
+  "key": "Fiasko|noun",
+  "keep": true,
+  "gloss_ko": "대실패, 낭패",
+  "example_de": "Die Eröffnung des Flughafens wurde zum Fiasko.",
+  "example_ko": "공항 개장은 대실패로 끝났어요.",
+  "scene_en": "Borti stands stunned amid a collapsed tent, spilled food and a toppled cake."
+ },
+ {
+  "key": "Kavalier|noun",
+  "keep": true,
+  "gloss_ko": "신사",
+  "example_de": "Ganz Kavalier hielt er ihr die Tür auf.",
+  "example_ko": "그는 신사답게 그녀에게 문을 잡아 줬어요.",
+  "scene_en": "Borti in a top hat bows and holds a door open for a lady."
+ },
+ {
+  "key": "nice|adj",
+  "keep": false,
+  "reason": "영어 차용 구어"
+ },
+ {
+  "key": "Ensemble|noun",
+  "keep": true,
+  "gloss_ko": "앙상블, 극단",
+  "example_de": "Das Ensemble des Theaters geht auf Tournee.",
+  "example_ko": "그 극단은 순회공연을 떠나요.",
+  "scene_en": "Borti bows in a row with a small group of costumed actors on a stage."
+ },
+ {
+  "key": "unfruchtbar|adj",
+  "keep": true,
+  "gloss_ko": "불모의, 불임의",
+  "example_de": "Durch die Dürre ist der Boden unfruchtbar geworden.",
+  "example_ko": "가뭄으로 땅이 불모지가 됐어요.",
+  "scene_en": "Borti kneels on cracked barren ground holding seeds that will not sprout."
+ },
+ {
+  "key": "alleinerziehend|adj",
+  "keep": true,
+  "gloss_ko": "한부모의",
+  "example_de": "Viele alleinerziehende Mütter arbeiten in Teilzeit.",
+  "example_ko": "많은 한부모 엄마들이 시간제로 일해요.",
+  "scene_en": "Borti as a parent holds a puppy's paw while carrying groceries and a schoolbag."
+ },
+ {
+  "key": "beurlauben|verb",
+  "keep": true,
+  "gloss_ko": "휴가를 주다, 직무 정지하다",
+  "example_de": "Der Beamte wurde bis zur Klärung des Falls beurlaubt.",
+  "example_ko": "그 공무원은 사건이 밝혀질 때까지 직무 정지됐어요.",
+  "scene_en": "Borti carries his box of desk items out of an office, looking puzzled."
+ },
+ {
+  "key": "tiefgründig|adj",
+  "keep": true,
+  "gloss_ko": "심오한",
+  "example_de": "Das Buch ist tiefgründiger, als es zunächst scheint.",
+  "example_ko": "그 책은 처음 보기보다 심오해요.",
+  "scene_en": "Borti gazes into a very deep, clear well, lost in thought."
+ },
+ {
+  "key": "entfesseln|verb",
+  "keep": true,
+  "gloss_ko": "일으키다, 풀어놓다",
+  "example_de": "Seine Äußerung entfesselte eine heftige Debatte.",
+  "example_ko": "그의 발언이 격렬한 논쟁을 일으켰어요.",
+  "scene_en": "Borti opens a box and a whirlwind of swirling wind bursts out."
+ },
+ {
+  "key": "greifbar|adj",
+  "keep": true,
+  "gloss_ko": "손에 잡히는, 구체적인",
+  "example_de": "Nach monatelangen Gesprächen gibt es nun greifbare Ergebnisse.",
+  "example_ko": "몇 달간의 대화 끝에 이제 구체적 성과가 나왔어요.",
+  "scene_en": "Borti reaches out and almost touches a shiny star hanging just in front of his nose."
+ },
+ {
+  "key": "verdunkeln|verb",
+  "keep": true,
+  "gloss_ko": "어둡게 하다, 은폐하다",
+  "example_de": "Dunkle Wolken verdunkelten plötzlich den Himmel.",
+  "example_ko": "먹구름이 갑자기 하늘을 어둡게 했어요.",
+  "scene_en": "Borti looks up as heavy black clouds roll in and darken the sunny sky."
+ },
+ {
+  "key": "schlussendlich|adj",
+  "keep": true,
+  "gloss_ko": "결국, 마침내",
+  "example_de": "Schlussendlich haben wir uns doch geeinigt.",
+  "example_ko": "결국 우리는 합의했어요.",
+  "scene_en": "Borti and a cat finally shake paws at the end of a long table covered in papers."
+ },
+ {
+  "key": "Trubel|noun",
+  "keep": true,
+  "gloss_ko": "북새통, 소란",
+  "example_de": "Vor Weihnachten herrscht in der Stadt großer Trubel.",
+  "example_ko": "크리스마스 전엔 시내가 북새통이에요.",
+  "scene_en": "Borti is jostled in a bustling crowded market full of shoppers and bags."
+ },
+ {
+  "key": "auswärts|adv",
+  "keep": true,
+  "gloss_ko": "밖에서, 원정에서",
+  "example_de": "Heute essen wir mal auswärts.",
+  "example_ko": "오늘은 외식해요.",
+  "scene_en": "Borti sits at a cozy restaurant table with a napkin tucked in, menu in paw."
+ },
+ {
+  "key": "Etikett|noun",
+  "keep": true,
+  "gloss_ko": "라벨, 꼬리표",
+  "example_de": "Auf dem Etikett stehen alle Inhaltsstoffe.",
+  "example_ko": "라벨에 모든 성분이 적혀 있어요.",
+  "scene_en": "Borti peers closely at a blank tag hanging from a jar on a shelf."
+ },
+ {
+  "key": "haargenau|adj",
+  "keep": true,
+  "gloss_ko": "아주 정확한",
+  "example_de": "Das ist haargenau das, was ich gemeint habe.",
+  "example_ko": "그게 바로 제가 말한 거예요.",
+  "scene_en": "Borti fits the last puzzle piece in perfectly, with a satisfied nod."
+ },
+ {
+  "key": "Mitarbeit|noun",
+  "keep": true,
+  "gloss_ko": "협력, 참여",
+  "example_de": "Vielen Dank für Ihre Mitarbeit an dem Projekt.",
+  "example_ko": "프로젝트에 참여해 주셔서 감사해요.",
+  "scene_en": "Borti and several puppies carry a long plank together, each holding one part."
+ },
+ {
+  "key": "Zauberin|noun",
+  "keep": true,
+  "gloss_ko": "마녀, 여자 마법사",
+  "example_de": "In dem Märchen verwandelt eine Zauberin den Prinzen.",
+  "example_ko": "그 동화에서 마녀가 왕자를 변신시켜요.",
+  "scene_en": "Borti watches in awe as a sorceress in a starry cloak waves a glowing staff."
+ },
+ {
+  "key": "Rasenmäher|noun",
+  "keep": true,
+  "gloss_ko": "잔디 깎는 기계",
+  "example_de": "Sonntags darf man den Rasenmäher nicht benutzen.",
+  "example_ko": "일요일엔 잔디 깎는 기계를 쓰면 안 돼요.",
+  "scene_en": "Borti pushes a lawn mower across a garden, cut grass flying behind him."
+ },
+ {
+  "key": "Bureau|noun",
+  "keep": false,
+  "reason": "고어·옛 철자"
+ },
+ {
+  "key": "After|noun",
+  "keep": false,
+  "reason": "기타"
+ },
+ {
+  "key": "erörtern|verb",
+  "keep": true,
+  "gloss_ko": "논의하다, 검토하다",
+  "example_de": "Die Minister erörterten die Lage im Nahen Osten.",
+  "example_ko": "장관들이 중동 정세를 논의했어요.",
+  "scene_en": "Borti sits at a round table with serious officials, pointing at a map."
+ },
+ {
+  "key": "Kokon|noun",
+  "keep": true,
+  "gloss_ko": "고치, 누에고치",
+  "example_de": "Die Raupe spinnt sich in einen Kokon ein.",
+  "example_ko": "애벌레가 실을 뽑아 고치 속에 들어가요.",
+  "scene_en": "Borti peers curiously at a big silky white cocoon hanging from a twig."
+ },
+ {
+  "key": "Straßenecke|noun",
+  "keep": true,
+  "gloss_ko": "길모퉁이",
+  "example_de": "Wir treffen uns an der Straßenecke vor der Bäckerei.",
+  "example_ko": "빵집 앞 길모퉁이에서 만나요.",
+  "scene_en": "Borti waits at a street corner where two sidewalks meet, peeking around the edge of a building."
+ },
+ {
+  "key": "Mango|noun",
+  "keep": true,
+  "gloss_ko": "망고",
+  "example_de": "Zum Frühstück gibt es frische Mango mit Joghurt.",
+  "example_ko": "아침으로 요거트를 곁들인 망고가 나와요.",
+  "scene_en": "Borti sniffs a huge ripe yellow-orange mango cut into juicy cubes on a plate."
+ },
+ {
+  "key": "darlegen|verb",
+  "keep": true,
+  "gloss_ko": "설명하다, 상세히 밝히다",
+  "example_de": "Die Ministerin legte ihre Pläne im Parlament ausführlich dar.",
+  "example_ko": "장관은 의회에서 계획을 자세히 설명했어요.",
+  "scene_en": "Borti stands at a lectern pointing a paw at a big diagram, calmly explaining to a seated audience."
+ },
+ {
+  "key": "blocken|verb",
+  "keep": true,
+  "gloss_ko": "막다, 차단하다",
+  "example_de": "Der Spamfilter blockt verdächtige E-Mails automatisch.",
+  "example_ko": "스팸 필터가 의심스러운 메일을 자동 차단해요.",
+  "scene_en": "Borti leaps at the volleyball net, paws raised high, blocking the ball from crossing."
+ },
+ {
+  "key": "Geschichtsbuch|noun",
+  "keep": true,
+  "gloss_ko": "역사책",
+  "example_de": "Dieses Ereignis wird einmal in den Geschichtsbüchern stehen.",
+  "example_ko": "이 사건은 언젠가 역사책에 실릴 거예요.",
+  "scene_en": "Borti reads a thick old history book full of pictures of castles and knights."
+ },
+ {
+  "key": "Mietwagen|noun",
+  "keep": true,
+  "gloss_ko": "렌터카",
+  "example_de": "Am Flughafen haben wir einen Mietwagen abgeholt.",
+  "example_ko": "공항에서 렌터카를 받았어요.",
+  "scene_en": "Borti takes a car key from a counter clerk in front of a shiny rental car."
+ },
+ {
+  "key": "konstant|adj",
+  "keep": true,
+  "gloss_ko": "일정한, 꾸준한",
+  "example_de": "Die Temperatur im Labor muss konstant bleiben.",
+  "example_ko": "실험실 온도는 일정하게 유지돼야 해요.",
+  "scene_en": "Borti watches a perfectly flat line on a monitor, nodding calmly as it stays exactly level."
+ },
+ {
+  "key": "Plutonium|noun",
+  "keep": true,
+  "gloss_ko": "플루토늄",
+  "example_de": "Der Transport von Plutonium unterliegt strengen Auflagen.",
+  "example_ko": "플루토늄 운송에는 엄격한 규제가 따라요.",
+  "scene_en": "Borti in a tiny protective suit stares at a glowing sealed canister behind thick glass."
+ },
+ {
+  "key": "Zepter|noun",
+  "keep": true,
+  "gloss_ko": "왕홀, 통치권",
+  "example_de": "In der Firma schwingt jetzt die neue Chefin das Zepter.",
+  "example_ko": "이제 회사는 새 사장이 쥐고 흔들어요.",
+  "scene_en": "Borti wears a crown and proudly raises a golden jeweled scepter while sitting on a throne."
+ },
+ {
+  "key": "Habgier|noun",
+  "keep": true,
+  "gloss_ko": "탐욕",
+  "example_de": "Aus reiner Habgier betrog er seine eigenen Kunden.",
+  "example_ko": "그는 순전히 탐욕 때문에 고객을 속였어요.",
+  "scene_en": "Borti greedily clutches an enormous heap of gold coins, eyes gleaming, refusing to share."
+ },
+ {
+  "key": "Zusammenfassung|noun",
+  "keep": true,
+  "gloss_ko": "요약",
+  "example_de": "Schicken Sie mir bitte eine kurze Zusammenfassung des Berichts.",
+  "example_ko": "보고서를 짧게 요약해서 보내 주세요.",
+  "scene_en": "Borti squeezes a tall stack of papers into one small neat card and holds it up proudly."
+ },
+ {
+  "key": "Violine|noun",
+  "keep": true,
+  "gloss_ko": "바이올린",
+  "example_de": "Sie spielt erste Violine im Stadtorchester.",
+  "example_ko": "그녀는 시립 악단 제1바이올린 주자예요.",
+  "scene_en": "Borti tucks a violin under his chin and draws the bow with eyes blissfully closed."
+ },
+ {
+  "key": "reinhauen|verb",
+  "keep": true,
+  "gloss_ko": "(구어) 실컷 먹다, 때리다",
+  "example_de": "Nach der Wanderung haben alle beim Essen ordentlich reingehauen.",
+  "example_ko": "등산 후 다들 밥을 엄청 먹었어요.",
+  "scene_en": "Borti digs into a giant bowl of food, cheeks stuffed, crumbs flying everywhere."
+ },
+ {
+  "key": "Evangelium|noun",
+  "keep": true,
+  "gloss_ko": "복음, 복음서",
+  "example_de": "Der Pfarrer las eine Stelle aus dem Evangelium vor.",
+  "example_ko": "신부님이 복음서의 한 대목을 읽었어요.",
+  "scene_en": "Borti sits quietly in a candlelit chapel beside a large open gilded bible on a lectern."
+ },
+ {
+  "key": "nachprüfen|verb",
+  "keep": true,
+  "gloss_ko": "재확인하다, 검증하다",
+  "example_de": "Ich muss die Zahlen im Bericht noch einmal nachprüfen.",
+  "example_ko": "보고서 숫자를 한 번 더 확인해야 해요.",
+  "scene_en": "Borti wears reading glasses and double-checks a long receipt through a magnifying glass."
+ },
+ {
+  "key": "Empfindung|noun",
+  "keep": true,
+  "gloss_ko": "감각, 느낌",
+  "example_de": "Schmerz ist eine sehr subjektive Empfindung.",
+  "example_ko": "통증은 아주 주관적인 감각이에요.",
+  "scene_en": "Borti closes his eyes as a soft feather brushes his nose, his face full of tingling sensation."
+ },
+ {
+  "key": "einflößen|verb",
+  "keep": true,
+  "gloss_ko": "먹이다, 불어넣다",
+  "example_de": "Seine ruhige Art flößt den Patienten Vertrauen ein.",
+  "example_ko": "그의 차분한 태도가 환자들에게 믿음을 줘요.",
+  "scene_en": "Borti gently spoons medicine into the mouth of a sick puppy lying in bed."
+ },
+ {
+  "key": "betroffen|adj",
+  "keep": true,
+  "gloss_ko": "해당되는, 충격받은",
+  "example_de": "Von den Kürzungen sind vor allem Familien betroffen.",
+  "example_ko": "삭감으로 특히 가정들이 타격을 받아요.",
+  "scene_en": "Borti stands stunned, ears drooping, as rain pours only on his spot while everyone around stays dry."
+ },
+ {
+  "key": "Terrain|noun",
+  "keep": true,
+  "gloss_ko": "지형, 영역",
+  "example_de": "Mit diesem Projekt betreten wir völlig neues Terrain.",
+  "example_ko": "이 프로젝트로 완전히 새 영역에 들어서요.",
+  "scene_en": "Borti explores rugged hilly terrain with rocks and steep slopes, a rolled map in his mouth."
+ },
+ {
+  "key": "Kleber|noun",
+  "keep": true,
+  "gloss_ko": "접착제, 풀",
+  "example_de": "Der Kleber muss mindestens eine Stunde trocknen.",
+  "example_ko": "접착제는 최소 한 시간은 말려야 해요.",
+  "scene_en": "Borti squeezes a big tube of glue, his paw now stuck firmly to a sheet of paper."
+ },
+ {
+  "key": "Kampfgeist|noun",
+  "keep": true,
+  "gloss_ko": "투지",
+  "example_de": "Trotz des Rückstands zeigte die Mannschaft großen Kampfgeist.",
+  "example_ko": "지고 있었지만 팀은 큰 투지를 보였어요.",
+  "scene_en": "Borti charges, muddy and determined, toward a ball with fiery eyes and a clenched jaw."
+ },
+ {
+  "key": "Schnelligkeit|noun",
+  "keep": true,
+  "gloss_ko": "신속함, 빠르기",
+  "example_de": "Bei Notfällen kommt es vor allem auf Schnelligkeit an.",
+  "example_ko": "응급 상황에서는 무엇보다 신속함이 중요해요.",
+  "scene_en": "Borti dashes so fast that speed streaks and a cloud of dust trail behind him."
+ },
+ {
+  "key": "Unruhestifter|noun",
+  "keep": true,
+  "gloss_ko": "말썽꾼, 선동자",
+  "example_de": "Die Polizei nahm mehrere Unruhestifter fest.",
+  "example_ko": "경찰이 말썽꾼 여러 명을 체포했어요.",
+  "scene_en": "Borti frowns at a mischievous puppy knocking over chairs and stirring up chaos in a classroom."
+ },
+ {
+  "key": "Hochschule|noun",
+  "keep": true,
+  "gloss_ko": "대학, 고등교육기관",
+  "example_de": "Sie lehrt an einer Hochschule für angewandte Wissenschaften.",
+  "example_ko": "그녀는 응용과학대학에서 가르쳐요.",
+  "scene_en": "Borti in a graduation cap trots up wide steps toward a grand university building."
+ },
+ {
+  "key": "Selbstmordversuch|noun",
+  "keep": true,
+  "gloss_ko": "자살 시도",
+  "example_de": "Nach einem Selbstmordversuch wurde er psychologisch betreut.",
+  "example_ko": "자살 시도 후 그는 심리 치료를 받았어요.",
+  "scene_en": "Borti sits beside a friend's hospital bed, gently holding a paw, with a caring, worried look."
+ },
+ {
+  "key": "Sandale|noun",
+  "keep": true,
+  "gloss_ko": "샌들",
+  "example_de": "Im Sommer trägt er im Büro sogar Sandalen.",
+  "example_ko": "여름에 그는 사무실에서도 샌들을 신어요.",
+  "scene_en": "Borti wears a pair of leather sandals on his front paws, strutting across hot sand."
+ },
+ {
+  "key": "Quartal|noun",
+  "keep": true,
+  "gloss_ko": "분기",
+  "example_de": "Der Umsatz ist im dritten Quartal deutlich gestiegen.",
+  "example_ko": "3분기에 매출이 크게 올랐어요.",
+  "scene_en": "Borti points at a year calendar split into four colored blocks, one block brightly highlighted."
+ },
+ {
+  "key": "Drogentest|noun",
+  "keep": true,
+  "gloss_ko": "약물 검사",
+  "example_de": "Alle Bewerber müssen vorher einen Drogentest machen.",
+  "example_ko": "모든 지원자는 미리 약물 검사를 받아야 해요.",
+  "scene_en": "Borti nervously hands a small sample cup to a nurse in a bright clinic."
+ },
+ {
+  "key": "Parole|noun",
+  "keep": true,
+  "gloss_ko": "구호, 슬로건, 암호",
+  "example_de": "Die Demonstranten riefen Parolen gegen die Regierung.",
+  "example_ko": "시위대가 정부 반대 구호를 외쳤어요.",
+  "scene_en": "Borti marches in a crowd, mouth wide open chanting, raising a blank banner high."
+ },
+ {
+  "key": "zahllos|adj",
+  "keep": true,
+  "gloss_ko": "수많은, 무수한",
+  "example_de": "Zahllose Freiwillige halfen nach dem Hochwasser.",
+  "example_ko": "홍수 뒤 수많은 자원봉사자가 도왔어요.",
+  "scene_en": "Borti gazes up in awe at a night sky packed with countless twinkling stars."
+ },
+ {
+  "key": "heuern|verb",
+  "keep": false,
+  "reason": "좁은 전문어"
+ },
+ {
+  "key": "erbeuten|verb",
+  "keep": true,
+  "gloss_ko": "노획하다, 강탈하다",
+  "example_de": "Die Täter erbeuteten Schmuck im Wert von 50.000 Euro.",
+  "example_ko": "범인들은 5만 유로어치 보석을 털어 갔어요.",
+  "scene_en": "Borti gasps as a masked raccoon sneaks off with a sack of glittering jewels."
+ },
+ {
+  "key": "wirbeln|verb",
+  "keep": true,
+  "gloss_ko": "소용돌이치다, 휘날리다",
+  "example_de": "Der Wind wirbelte die Blätter durch die Luft.",
+  "example_ko": "바람에 낙엽이 공중으로 휘날렸어요.",
+  "scene_en": "Borti spins happily in the middle of autumn leaves whirling around him in a swirl."
+ },
+ {
+  "key": "Schulfreund|noun",
+  "keep": true,
+  "gloss_ko": "학교 친구, 동창",
+  "example_de": "Gestern habe ich einen alten Schulfreund wiedergetroffen.",
+  "example_ko": "어제 옛 학교 친구를 다시 만났어요.",
+  "scene_en": "Borti hugs another puppy, both wearing little school backpacks, in a sunny schoolyard."
+ },
+ {
+  "key": "zuwerfen|verb",
+  "keep": true,
+  "gloss_ko": "던져 주다, (눈길을) 보내다",
+  "example_de": "Sie warf mir in der Sitzung einen vielsagenden Blick zu.",
+  "example_ko": "회의 중 그녀가 의미심장한 눈길을 보냈어요.",
+  "scene_en": "Borti tosses a ball across the lawn to a waiting friend, caught mid-throw."
+ },
+ {
+  "key": "brasilianisch|adj",
+  "keep": false,
+  "reason": "고유명사·국적"
+ },
+ {
+  "key": "montags|adv",
+  "keep": true,
+  "gloss_ko": "월요일마다",
+  "example_de": "Montags haben wir immer eine Teambesprechung.",
+  "example_ko": "월요일마다 늘 팀 회의가 있어요.",
+  "scene_en": "Borti yawns sleepily at an early start-of-week team meeting, clutching a big coffee mug."
+ },
+ {
+  "key": "Durchmesser|noun",
+  "keep": true,
+  "gloss_ko": "지름, 직경",
+  "example_de": "Das Rohr hat einen Durchmesser von zehn Zentimetern.",
+  "example_ko": "그 관은 지름이 10센티미터예요.",
+  "scene_en": "Borti stretches a measuring tape straight across the middle of a giant round pizza."
+ },
+ {
+  "key": "Gamma|noun",
+  "keep": false,
+  "reason": "좁은 전문어"
+ },
+ {
+  "key": "Sucher|noun",
+  "keep": true,
+  "gloss_ko": "뷰파인더, 찾는 사람",
+  "example_de": "Er blickte durch den Sucher und drückte auf den Auslöser.",
+  "example_ko": "그는 뷰파인더를 보고 셔터를 눌렀어요.",
+  "scene_en": "Borti presses one eye to the viewfinder of a big camera, squinting the other shut."
+ },
+ {
+  "key": "Hokuspokus|noun",
+  "keep": true,
+  "gloss_ko": "마술 주문, 속임수",
+  "example_de": "Das Gerede über heilende Steine ist doch Hokuspokus.",
+  "example_ko": "치유의 돌 얘기는 다 엉터리예요.",
+  "scene_en": "Borti in a wizard hat waves a wand over a top hat as sparkles puff out."
+ },
+ {
+  "key": "Schuster|noun",
+  "keep": true,
+  "gloss_ko": "구두 수선공",
+  "example_de": "Ich bringe die kaputten Stiefel morgen zum Schuster.",
+  "example_ko": "내일 망가진 부츠를 구둣방에 맡길게요.",
+  "scene_en": "Borti in a leather apron hammers a nail into a boot sole at a cobbler's workbench."
+ },
+ {
+  "key": "Airport|noun",
+  "keep": false,
+  "reason": "영어 차용 구어"
+ },
+ {
+  "key": "Schaffner|noun",
+  "keep": true,
+  "gloss_ko": "차장, 검표원",
+  "example_de": "Der Schaffner kontrollierte im Zug die Fahrkarten.",
+  "example_ko": "차장이 열차에서 승차권을 검사했어요.",
+  "scene_en": "Borti in a conductor's cap punches a passenger's ticket aboard a moving train."
+ },
+ {
+  "key": "Trust|noun",
+  "keep": true,
+  "gloss_ko": "트러스트, 기업 합동",
+  "example_de": "Der Trust kontrollierte fast den gesamten Ölmarkt.",
+  "example_ko": "그 트러스트가 석유 시장을 거의 장악했어요.",
+  "scene_en": "Borti stares at several factories tied together by one giant rope into a single bundle."
+ },
+ {
+  "key": "verblassen|verb",
+  "keep": true,
+  "gloss_ko": "바래다, 희미해지다",
+  "example_de": "Die Erinnerungen an den Krieg verblassen allmählich.",
+  "example_ko": "전쟁의 기억이 점점 희미해져요.",
+  "scene_en": "Borti looks sadly at an old photo whose colors have faded almost to white."
+ },
+ {
+  "key": "Feeling|noun",
+  "keep": false,
+  "reason": "영어 차용 구어"
+ },
+ {
+  "key": "Hilferuf|noun",
+  "keep": true,
+  "gloss_ko": "구조 요청",
+  "example_de": "Die Nachbarn hörten einen Hilferuf aus dem Haus.",
+  "example_ko": "이웃들이 집에서 살려 달라는 외침을 들었어요.",
+  "scene_en": "Borti barks loudly for help from a floating log, paws cupped around his mouth."
+ },
+ {
+  "key": "verknüpfen|verb",
+  "keep": true,
+  "gloss_ko": "연결하다, 결합하다",
+  "example_de": "Das Programm verknüpft Kundendaten mit Bestellungen.",
+  "example_ko": "프로그램이 고객 정보를 주문과 연결해요.",
+  "scene_en": "Borti ties two ropes together into a firm knot and tugs hard to test it."
+ },
+ {
+  "key": "Wespe|noun",
+  "keep": true,
+  "gloss_ko": "말벌",
+  "example_de": "Beim Picknick hat mich eine Wespe gestochen.",
+  "example_ko": "소풍 중에 말벌에 쏘였어요.",
+  "scene_en": "Borti freezes, cross-eyed, as a big striped wasp lands on the tip of his nose."
+ },
+ {
+  "key": "Telefonleitung|noun",
+  "keep": true,
+  "gloss_ko": "전화선",
+  "example_de": "Durch den Sturm ist die Telefonleitung unterbrochen.",
+  "example_ko": "폭풍 때문에 전화선이 끊겼어요.",
+  "scene_en": "Borti holds a silent phone handset, staring at a snapped telephone wire dangling from a pole."
+ },
+ {
+  "key": "auflauern|verb",
+  "keep": true,
+  "gloss_ko": "숨어 기다리다, 매복하다",
+  "example_de": "Der Täter lauerte dem Opfer im Treppenhaus auf.",
+  "example_ko": "범인은 계단에서 피해자를 숨어 기다렸어요.",
+  "scene_en": "Borti hides behind a bush, eyes peering out, ready to pounce on a rolling ball."
+ },
+ {
+  "key": "nachjagen|verb",
+  "keep": true,
+  "gloss_ko": "뒤쫓다, 좇다",
+  "example_de": "Viele jagen ihr Leben lang dem Erfolg nach.",
+  "example_ko": "많은 사람이 평생 성공을 좇아요.",
+  "scene_en": "Borti chases a fluttering butterfly across a meadow, ears flapping wildly."
+ },
+ {
+  "key": "selbstgerecht|adj",
+  "keep": true,
+  "gloss_ko": "독선적인",
+  "example_de": "Seine selbstgerechte Art geht allen auf die Nerven.",
+  "example_ko": "그의 독선적인 태도에 다들 짜증 나요.",
+  "scene_en": "Borti sits with his nose high in the air and arms crossed, smugly ignoring everyone around him."
+ },
+ {
+  "key": "herumtreiben|verb",
+  "keep": true,
+  "gloss_ko": "쏘다니다, 배회하다",
+  "example_de": "Wo hast du dich die ganze Nacht herumgetrieben?",
+  "example_ko": "밤새 어디를 쏘다닌 거예요?",
+  "scene_en": "Borti wanders muddy and scruffy down a dark night street, glancing around aimlessly."
+ },
+ {
+  "key": "kopflos|adj",
+  "keep": true,
+  "gloss_ko": "허둥대는, 무분별한",
+  "example_de": "In der Krise reagierte die Regierung völlig kopflos.",
+  "example_ko": "위기 때 정부는 완전히 허둥지둥했어요.",
+  "scene_en": "Borti runs in frantic circles as papers fly everywhere, totally panicked and confused."
+ },
+ {
+  "key": "Kammerjäger|noun",
+  "keep": true,
+  "gloss_ko": "해충 방제업자",
+  "example_de": "Wegen der Kakerlaken mussten wir den Kammerjäger rufen.",
+  "example_ko": "바퀴벌레 때문에 방역 업체를 불러야 했어요.",
+  "scene_en": "Borti in overalls with a sprayer tank on his back inspects a kitchen corner for bugs."
+ },
+ {
+  "key": "vergleichbar|adj",
+  "keep": true,
+  "gloss_ko": "비교할 만한, 비슷한",
+  "example_de": "Die Preise sind mit denen des Vorjahres vergleichbar.",
+  "example_ko": "가격은 작년과 비슷한 수준이에요.",
+  "scene_en": "Borti stands between two nearly identical bones, looking back and forth from one to the other."
+ },
+ {
+  "key": "Mitgliedschaft|noun",
+  "keep": true,
+  "gloss_ko": "회원 자격, 회원권",
+  "example_de": "Ich habe meine Mitgliedschaft im Fitnessstudio gekündigt.",
+  "example_ko": "헬스장 회원권을 해지했어요.",
+  "scene_en": "Borti proudly holds up a shiny member card at the entrance of a gym."
+ },
+ {
+  "key": "Busbahnhof|noun",
+  "keep": true,
+  "gloss_ko": "버스 터미널",
+  "example_de": "Der Fernbus fährt um acht Uhr vom Busbahnhof ab.",
+  "example_ko": "고속버스는 8시에 버스 터미널에서 떠나요.",
+  "scene_en": "Borti sits on a suitcase in a busy bus station surrounded by rows of parked coaches."
+ },
+ {
+  "key": "Skrupel|noun",
+  "keep": true,
+  "gloss_ko": "양심의 가책, 거리낌",
+  "example_de": "Er hatte keinerlei Skrupel, seine Kollegen zu belügen.",
+  "example_ko": "그는 동료를 속이는 데 아무 거리낌이 없었어요.",
+  "scene_en": "Borti hesitates, paw hovering over a forbidden cookie jar, with a guilty, conflicted frown."
+ },
+ {
+  "key": "Kandidatin|noun",
+  "keep": true,
+  "gloss_ko": "여성 후보자",
+  "example_de": "Die Kandidatin stellte ihr Wahlprogramm vor.",
+  "example_ko": "그 후보는 선거 공약을 발표했어요.",
+  "scene_en": "Borti cheers as a female dog candidate wearing a sash waves from a campaign podium."
+ },
+ {
+  "key": "Inszenierung|noun",
+  "keep": true,
+  "gloss_ko": "연출, 무대 공연",
+  "example_de": "Die neue Inszenierung des Stücks begeistert das Publikum.",
+  "example_ko": "새로 연출한 연극이 관객을 사로잡아요.",
+  "scene_en": "Borti as a director in a beret gestures to actors on a brightly lit theater stage."
+ },
+ {
+  "key": "Format|noun",
+  "keep": true,
+  "gloss_ko": "형식, 판형, 역량",
+  "example_de": "Bitte speichern Sie die Datei im PDF-Format.",
+  "example_ko": "파일을 PDF 형식으로 저장해 주세요.",
+  "scene_en": "Borti lines up picture frames of different shapes, square, wide and tall, side by side on a table."
+ },
+ {
+  "key": "Delegation|noun",
+  "keep": true,
+  "gloss_ko": "대표단, 위임",
+  "example_de": "Eine Delegation aus China besucht nächste Woche das Werk.",
+  "example_ko": "다음 주에 중국 대표단이 공장을 방문해요.",
+  "scene_en": "Borti in a suit walks with a row of formally dressed dogs along a red carpet."
+ },
+ {
+  "key": "String|noun",
+  "keep": true,
+  "gloss_ko": "문자열(IT)",
+  "example_de": "Die Funktion gibt einen leeren String zurück.",
+  "example_ko": "그 함수는 빈 문자열을 반환해요.",
+  "scene_en": "Borti pulls a long chain of colorful beads out of a glowing computer screen."
+ },
+ {
+  "key": "Harfe|noun",
+  "keep": true,
+  "gloss_ko": "하프",
+  "example_de": "Bei der Hochzeit spielte eine Musikerin Harfe.",
+  "example_ko": "결혼식에서 한 음악가가 하프를 연주했어요.",
+  "scene_en": "Borti plucks the strings of a tall golden harp with delicate paws."
+ },
+ {
+  "key": "Alleingang|noun",
+  "keep": true,
+  "gloss_ko": "단독 행동, 독자 노선",
+  "example_de": "Im Alleingang hat sie das gescheiterte Projekt gerettet.",
+  "example_ko": "그녀가 혼자 힘으로 실패한 프로젝트를 살렸어요.",
+  "scene_en": "Borti alone pushes a huge boulder uphill while other dogs watch from far away."
+ },
+ {
+  "key": "zutragen|verb",
+  "keep": true,
+  "gloss_ko": "일어나다, 전해 주다",
+  "example_de": "Der Unfall hat sich gestern Abend an der Kreuzung zugetragen.",
+  "example_ko": "그 사고는 어젯밤 교차로에서 일어났어요.",
+  "scene_en": "Borti stares wide-eyed at a crossroads where a bicycle has just toppled over."
+ },
+ {
+  "key": "Konserve|noun",
+  "keep": true,
+  "gloss_ko": "통조림",
+  "example_de": "Im Keller lagern Konserven für den Notfall.",
+  "example_ko": "지하실에 비상용 통조림이 있어요.",
+  "scene_en": "Borti stacks a tall wobbly tower of tin cans on a pantry shelf."
+ },
+ {
+  "key": "Bandage|noun",
+  "keep": true,
+  "gloss_ko": "압박 붕대",
+  "example_de": "Der Sportler trägt eine Bandage am Knie.",
+  "example_ko": "그 선수는 무릎에 압박 붕대를 했어요.",
+  "scene_en": "Borti has his front leg wrapped in a thick elastic bandage and limps along bravely."
+ },
+ {
+  "key": "frühzeitig|adj",
+  "keep": true,
+  "gloss_ko": "조기의, 일찌감치",
+  "example_de": "Bitte melden Sie sich frühzeitig für den Kurs an.",
+  "example_ko": "강좌에 일찌감치 등록해 주세요.",
+  "scene_en": "Borti arrives first at an empty office at dawn, the sunrise glowing in the window."
+ },
+ {
+  "key": "posieren|verb",
+  "keep": true,
+  "gloss_ko": "포즈를 취하다",
+  "example_de": "Die Politiker posierten lächelnd für die Fotografen.",
+  "example_ko": "정치인들이 웃으며 사진 포즈를 취했어요.",
+  "scene_en": "Borti strikes a dramatic pose, one paw on his hip, as camera flashes burst around him."
+ },
+ {
+  "key": "beängstigend|adj",
+  "keep": true,
+  "gloss_ko": "무서운, 불안하게 하는",
+  "example_de": "Das Tempo des Klimawandels ist beängstigend.",
+  "example_ko": "기후 변화의 속도가 겁날 정도예요.",
+  "scene_en": "Borti trembles under a blanket while a huge dark storm looms outside the window."
+ },
+ {
+  "key": "philosophisch|adj",
+  "keep": true,
+  "gloss_ko": "철학적인",
+  "example_de": "Sie stellte dem Redner eine eher philosophische Frage.",
+  "example_ko": "그녀는 연사에게 꽤 철학적인 질문을 했어요.",
+  "scene_en": "Borti sits under a tree, chin on paw, deep in thought while gazing up at the stars."
+ },
+ {
+  "key": "Anziehung|noun",
+  "keep": true,
+  "gloss_ko": "끌림, 매력, 인력",
+  "example_de": "Zwischen den beiden besteht eine starke Anziehung.",
+  "example_ko": "두 사람 사이에는 강한 끌림이 있어요.",
+  "scene_en": "Borti is pulled toward a giant horseshoe magnet, paws sliding helplessly across the floor."
+ },
+ {
+  "key": "Ellenbogen|noun",
+  "keep": true,
+  "gloss_ko": "팔꿈치",
+  "example_de": "Er stützte die Ellenbogen auf den Tisch.",
+  "example_ko": "그는 팔꿈치를 탁자에 괴었어요.",
+  "scene_en": "Borti leans both elbows on a table, chin resting in his paws, looking bored."
+ },
+ {
+  "key": "Trommelwirbel|noun",
+  "keep": true,
+  "gloss_ko": "드럼 롤",
+  "example_de": "Unter Trommelwirbel wurde der Sieger verkündet.",
+  "example_ko": "드럼 롤과 함께 우승자가 발표됐어요.",
+  "scene_en": "Borti rapidly beats a snare drum with two sticks, his paws a blur."
+ },
+ {
+  "key": "Weltuntergang|noun",
+  "keep": true,
+  "gloss_ko": "세상의 종말",
+  "example_de": "Eine schlechte Note ist doch nicht der Weltuntergang.",
+  "example_ko": "점수 하나 나쁜 게 세상 끝은 아니에요.",
+  "scene_en": "Borti hides under a table as fiery meteors streak across a dark red sky."
+ },
+ {
+  "key": "Forensik|noun",
+  "keep": true,
+  "gloss_ko": "법의학, 과학 수사",
+  "example_de": "Die Forensik untersucht die Spuren am Tatort.",
+  "example_ko": "과학 수사팀이 현장의 흔적을 조사해요.",
+  "scene_en": "Borti in a lab coat dusts a drinking glass for paw prints with a soft brush."
+ },
+ {
+  "key": "Baumhaus|noun",
+  "keep": true,
+  "gloss_ko": "나무 위 집",
+  "example_de": "Die Kinder haben im Garten ein Baumhaus gebaut.",
+  "example_ko": "아이들이 정원에 나무 위 집을 지었어요.",
+  "scene_en": "Borti peeks out of a cozy wooden treehouse high up in a big oak tree."
+ },
+ {
+  "key": "Bewachung|noun",
+  "keep": true,
+  "gloss_ko": "감시, 경비",
+  "example_de": "Der Gefangene stand unter ständiger Bewachung.",
+  "example_ko": "그 수감자는 늘 감시를 받았어요.",
+  "scene_en": "Borti in a guard cap stands alert beside a locked iron gate, watching closely."
+ },
+ {
+  "key": "Gurgel|noun",
+  "keep": true,
+  "gloss_ko": "목구멍, 멱",
+  "example_de": "Die beiden Konkurrenten gehen sich gegenseitig an die Gurgel.",
+  "example_ko": "두 경쟁자가 서로 멱살을 잡고 싸워요.",
+  "scene_en": "Borti points at his own throat, a thick scarf wrapped around his neck, wincing as he swallows."
+ },
+ {
+  "key": "Hardware|noun",
+  "keep": true,
+  "gloss_ko": "하드웨어",
+  "example_de": "Die neue Software läuft nur auf aktueller Hardware.",
+  "example_ko": "새 소프트웨어는 최신 하드웨어에서만 돌아가요.",
+  "scene_en": "Borti tinkers with a screwdriver amid computer parts, circuit boards, cables and a hard drive."
+ },
+ {
+  "key": "verbitten|verb",
+  "keep": true,
+  "gloss_ko": "사절하다, 삼가 달라고 하다",
+  "example_de": "Ich verbitte mir diesen Ton!",
+  "example_ko": "그런 말투는 삼가 주세요!",
+  "scene_en": "Borti raises a stern paw in a stop gesture, frowning at a rude puppy shouting at him."
+ },
+ {
+  "key": "Syndrom|noun",
+  "keep": true,
+  "gloss_ko": "증후군",
+  "example_de": "Die Ärzte erkannten das seltene Syndrom erst sehr spät.",
+  "example_ko": "의사들은 그 희귀 증후군을 뒤늦게 알아냈어요.",
+  "scene_en": "Borti lies on an exam table while a puzzled vet studies an x-ray against a light box."
+ },
+ {
+  "key": "schwungvoll|adj",
+  "keep": true,
+  "gloss_ko": "활기찬, 힘찬",
+  "example_de": "Mit einer schwungvollen Rede eröffnete sie die Messe.",
+  "example_ko": "그녀는 힘찬 연설로 박람회를 열었어요.",
+  "scene_en": "Borti swings a golf club in a huge energetic arc, ears flying out behind him."
+ },
+ {
+  "key": "Ausflucht|noun",
+  "keep": true,
+  "gloss_ko": "핑계, 변명",
+  "example_de": "Er suchte immer neue Ausflüchte, um nicht zu zahlen.",
+  "example_ko": "그는 돈을 안 내려고 계속 핑계를 댔어요.",
+  "scene_en": "Borti shrugs innocently beside a chewed-up shoe, shifty eyes darting as he invents excuses."
+ },
+ {
+  "key": "Zensur|noun",
+  "keep": true,
+  "gloss_ko": "검열, 성적",
+  "example_de": "Das Regime verschärfte die Zensur der Presse.",
+  "example_ko": "정권이 언론 검열을 강화했어요.",
+  "scene_en": "Borti holds up a newspaper covered in black blocks, a strip of tape over his mouth."
+ },
+ {
+  "key": "rentieren|verb",
+  "keep": true,
+  "gloss_ko": "수지가 맞다, 이익이 되다",
+  "example_de": "Die Investition rentiert sich erst nach einigen Jahren.",
+  "example_ko": "그 투자는 몇 년 지나야 수익이 나요.",
+  "scene_en": "Borti grins as a small coin he planted grows into a tree heavy with gold coins."
+ },
+ {
+  "key": "Windmühle|noun",
+  "keep": true,
+  "gloss_ko": "풍차",
+  "example_de": "Am Deich steht eine alte Windmühle.",
+  "example_ko": "제방에 오래된 풍차가 서 있어요.",
+  "scene_en": "Borti stands in a tulip field gazing up at a big windmill with turning sails."
+ },
+ {
+  "key": "hinauszögern|verb",
+  "keep": true,
+  "gloss_ko": "미루다, 지연시키다",
+  "example_de": "Die Firma hat die Entscheidung immer weiter hinausgezögert.",
+  "example_ko": "회사가 결정을 계속 미뤘어요.",
+  "scene_en": "Borti shoves a ringing alarm clock under his pillow, delaying getting up again and again."
+ },
+ {
+  "key": "desinfizieren|verb",
+  "keep": true,
+  "gloss_ko": "소독하다",
+  "example_de": "Die Krankenschwester desinfizierte vorsichtig die Wunde.",
+  "example_ko": "간호사가 조심스럽게 상처를 소독했어요.",
+  "scene_en": "Borti in gloves and a mask sprays disinfectant on a door handle and wipes it clean."
+ },
+ {
+  "key": "umwerfen|verb",
+  "keep": true,
+  "gloss_ko": "넘어뜨리다, 엎다",
+  "example_de": "Beim Aufstehen hat er die Kaffeetasse umgeworfen.",
+  "example_ko": "그는 일어나다가 커피잔을 엎었어요.",
+  "scene_en": "Borti knocks over a full coffee cup with his wagging tail, coffee splashing across the table."
+ },
+ {
+  "key": "durchlöchern|verb",
+  "keep": true,
+  "gloss_ko": "구멍을 숭숭 내다",
+  "example_de": "Die vielen Ausnahmen durchlöchern das neue Gesetz.",
+  "example_ko": "수많은 예외가 새 법을 허술하게 만들어요.",
+  "scene_en": "Borti holds up a sheet of cardboard riddled with dozens of holes, peeking through one."
+ },
+ {
+  "key": "niederlegen|verb",
+  "keep": true,
+  "gloss_ko": "내려놓다, 사임하다",
+  "example_de": "Der Vorsitzende hat sein Amt überraschend niedergelegt.",
+  "example_ko": "의장이 갑자기 자리에서 물러났어요.",
+  "scene_en": "Borti gently sets a golden badge down on a desk and walks away with dignity."
+ },
+ {
+  "key": "Gästehaus|noun",
+  "keep": true,
+  "gloss_ko": "게스트하우스, 영빈관",
+  "example_de": "Die Delegation übernachtet im Gästehaus der Regierung.",
+  "example_ko": "대표단은 정부 영빈관에서 묵어요.",
+  "scene_en": "Borti carries a suitcase up the path to a charming small guesthouse with flower boxes."
+ },
+ {
+  "key": "Lotterie|noun",
+  "keep": true,
+  "gloss_ko": "복권, 추첨",
+  "example_de": "Sie spielt jede Woche Lotterie, gewonnen hat sie nie.",
+  "example_ko": "그녀는 매주 복권을 사지만 당첨된 적이 없어요.",
+  "scene_en": "Borti clutches a ticket while colorful balls tumble in a spinning glass lottery drum."
+ },
+ {
+  "key": "Heuchelei|noun",
+  "keep": true,
+  "gloss_ko": "위선",
+  "example_de": "Diese Heuchelei mancher Politiker ist kaum zu ertragen.",
+  "example_ko": "일부 정치인의 이런 위선은 참기 힘들어요.",
+  "scene_en": "Borti smiles sweetly at a friend while hiding a stolen bone behind his back."
+ },
+ {
+  "key": "Herausforderer|noun",
+  "keep": true,
+  "gloss_ko": "도전자",
+  "example_de": "Der Herausforderer liegt in den Umfragen knapp vorne.",
+  "example_ko": "도전자가 여론 조사에서 근소하게 앞서요.",
+  "scene_en": "Borti in boxing gloves steps boldly into the ring to face a much bigger champion dog."
+ },
+ {
+  "key": "Titelbild|noun",
+  "keep": true,
+  "gloss_ko": "표지 사진",
+  "example_de": "Ihr Foto erschien auf dem Titelbild des Magazins.",
+  "example_ko": "그녀의 사진이 잡지 표지에 실렸어요.",
+  "scene_en": "Borti beams at a glossy magazine whose whole cover is a big photo of himself."
+ },
+ {
+  "key": "Pizzeria|noun",
+  "keep": true,
+  "gloss_ko": "피자 가게",
+  "example_de": "Um die Ecke hat eine neue Pizzeria aufgemacht.",
+  "example_ko": "모퉁이에 새 피자 가게가 문을 열었어요.",
+  "scene_en": "Borti sits at a checkered table in a cozy pizzeria as a chef slides a pizza from a brick oven."
+ },
+ {
+  "key": "wahrhaben|verb",
+  "keep": true,
+  "gloss_ko": "(사실로) 인정하다",
+  "example_de": "Er wollte die Niederlage einfach nicht wahrhaben.",
+  "example_ko": "그는 패배를 도무지 인정하려 하지 않았어요.",
+  "scene_en": "Borti covers his eyes with both paws, refusing to look at his collapsed sandcastle."
+ },
+ {
+  "key": "Provokation|noun",
+  "keep": true,
+  "gloss_ko": "도발",
+  "example_de": "Die Militärübung gilt als gezielte Provokation.",
+  "example_ko": "그 군사 훈련은 의도적인 도발로 여겨져요.",
+  "scene_en": "Borti glares as a smirking cat dangles a toy just out of his reach to provoke him."
+ },
+ {
+  "key": "Straftäter|noun",
+  "keep": true,
+  "gloss_ko": "범죄자",
+  "example_de": "Der verurteilte Straftäter wurde vorzeitig entlassen.",
+  "example_ko": "유죄 판결을 받은 범죄자가 조기 석방됐어요.",
+  "scene_en": "Borti watches a masked raccoon in striped clothes being led away by a police dog."
+ },
+ {
+  "key": "brandmarken|verb",
+  "keep": true,
+  "gloss_ko": "낙인찍다",
+  "example_de": "Die Presse brandmarkte ihn als Verräter.",
+  "example_ko": "언론은 그를 배신자로 낙인찍었어요.",
+  "scene_en": "Borti stands alone in a town square with a big dark mark on his coat while everyone turns away."
+ },
+ {
+  "key": "Beschuldigung|noun",
+  "keep": true,
+  "gloss_ko": "비난, 혐의 제기",
+  "example_de": "Er weist alle Beschuldigungen entschieden zurück.",
+  "example_ko": "그는 모든 혐의를 단호히 부인해요.",
+  "scene_en": "Borti shakes his head firmly as several dogs point accusing paws at him."
+ },
+ {
+  "key": "Sonnenstrahl|noun",
+  "keep": true,
+  "gloss_ko": "햇살, 햇빛 줄기",
+  "example_de": "Ein Sonnenstrahl fiel durch das Fenster auf den Schreibtisch.",
+  "example_ko": "햇살 한 줄기가 창으로 책상에 비쳤어요.",
+  "scene_en": "Borti basks happily in a single bright sunbeam falling through a window onto the floor."
+ },
+ {
+  "key": "unschätzbar|adj",
+  "keep": true,
+  "gloss_ko": "헤아릴 수 없는, 귀중한",
+  "example_de": "Ihre Erfahrung ist für das Team von unschätzbarem Wert.",
+  "example_ko": "그녀의 경험은 팀에 더없이 귀중해요.",
+  "scene_en": "Borti cradles a glowing priceless jewel in both paws, eyes shining with awe."
+ },
+ {
+  "key": "animalisch|adj",
+  "keep": true,
+  "gloss_ko": "동물적인, 본능적인",
+  "example_de": "Die Menge reagierte mit fast animalischer Wut.",
+  "example_ko": "군중은 거의 동물적인 분노를 보였어요.",
+  "scene_en": "Borti growls wildly on all fours with his fur bristling, like a fierce wild beast."
+ },
+ {
+  "key": "Reisepass|noun",
+  "keep": true,
+  "gloss_ko": "여권",
+  "example_de": "Mein Reisepass läuft im März ab.",
+  "example_ko": "제 여권은 3월에 만료돼요.",
+  "scene_en": "Borti proudly holds up his passport at an airport passport control desk."
+ },
+ {
+  "key": "Kreuzer|noun",
+  "keep": true,
+  "gloss_ko": "순양함",
+  "example_de": "Ein Kreuzer der Marine lag im Hafen vor Anker.",
+  "example_ko": "해군 순양함 한 척이 항구에 정박해 있었어요.",
+  "scene_en": "Borti salutes from a dock as a huge gray naval cruiser glides past."
+ },
+ {
+  "key": "Weinkeller|noun",
+  "keep": true,
+  "gloss_ko": "와인 저장고",
+  "example_de": "Im Weinkeller lagern über tausend Flaschen.",
+  "example_ko": "와인 저장고에 천 병이 넘게 있어요.",
+  "scene_en": "Borti holds a candle in a dim stone cellar lined with racks of dusty wine bottles."
+ },
+ {
+  "key": "gleichermaßen|adv",
+  "keep": true,
+  "gloss_ko": "똑같이, 마찬가지로",
+  "example_de": "Das Gesetz gilt für Männer und Frauen gleichermaßen.",
+  "example_ko": "그 법은 남녀 모두에게 똑같이 적용돼요.",
+  "scene_en": "Borti carefully pours exactly equal portions of food into two identical bowls."
+ },
+ {
+  "key": "Raumstation|noun",
+  "keep": true,
+  "gloss_ko": "우주 정거장",
+  "example_de": "Die Astronauten bleiben sechs Monate auf der Raumstation.",
+  "example_ko": "우주비행사들은 6개월간 우주 정거장에 있어요.",
+  "scene_en": "Borti floats weightless inside a space station, looking at Earth through a round window."
+ },
+ {
+  "key": "Innenminister|noun",
+  "keep": true,
+  "gloss_ko": "내무부 장관",
+  "example_de": "Der Innenminister kündigte mehr Polizeipräsenz an.",
+  "example_ko": "내무부 장관이 경찰 배치 확대를 발표했어요.",
+  "scene_en": "Borti in a dark suit speaks at a government press podium flanked by flags."
+ },
+ {
+  "key": "Pflegeeltern|noun",
+  "keep": true,
+  "gloss_ko": "위탁 부모",
+  "example_de": "Das Kind wächst bei Pflegeeltern auf.",
+  "example_ko": "그 아이는 위탁 부모 밑에서 자라요.",
+  "scene_en": "Borti snuggles happily between two kind adult dogs, his foster parents, on a cozy sofa."
+ },
+ {
+  "key": "verspannen|verb",
+  "keep": true,
+  "gloss_ko": "(근육이) 뭉치다, 경직되다",
+  "example_de": "Vom vielen Sitzen ist mein Nacken total verspannt.",
+  "example_ko": "오래 앉아 있었더니 목이 잔뜩 뭉쳤어요.",
+  "scene_en": "Borti rubs his stiff neck at a desk, shoulders hunched up, wincing."
+ },
+ {
+  "key": "Armbrust|noun",
+  "keep": true,
+  "gloss_ko": "석궁",
+  "example_de": "Im Museum ist eine mittelalterliche Armbrust ausgestellt.",
+  "example_ko": "박물관에 중세 석궁이 전시돼 있어요.",
+  "scene_en": "Borti aims a wooden crossbow loaded with a suction-cup bolt at a hay target."
+ },
+ {
+  "key": "Diktatur|noun",
+  "keep": true,
+  "gloss_ko": "독재, 독재 국가",
+  "example_de": "Das Land war jahrzehntelang eine Diktatur.",
+  "example_ko": "그 나라는 수십 년간 독재 국가였어요.",
+  "scene_en": "Borti looks small and worried beneath a giant stern statue of a strutting ruler."
+ },
+ {
+  "key": "Pipeline|noun",
+  "keep": true,
+  "gloss_ko": "송유관, 파이프라인",
+  "example_de": "Die neue Pipeline soll Gas aus Norwegen liefern.",
+  "example_ko": "새 파이프라인으로 노르웨이 가스가 들어와요.",
+  "scene_en": "Borti walks along a giant steel pipeline stretching across the plains to the horizon."
+ },
+ {
+  "key": "Warze|noun",
+  "keep": true,
+  "gloss_ko": "사마귀(피부)",
+  "example_de": "Der Hautarzt hat die Warze am Finger entfernt.",
+  "example_ko": "피부과 의사가 손가락 사마귀를 없앴어요.",
+  "scene_en": "Borti stares cross-eyed at a little bumpy wart on the tip of his paw."
+ },
+ {
+  "key": "zusammenführen|verb",
+  "keep": true,
+  "gloss_ko": "통합하다, 재회시키다",
+  "example_de": "Die beiden Abteilungen werden nächstes Jahr zusammengeführt.",
+  "example_ko": "두 부서는 내년에 통합돼요.",
+  "scene_en": "Borti guides two separate lines of puppies together into one big happy group."
+ },
+ {
+  "key": "abgewöhnen|verb",
+  "keep": true,
+  "gloss_ko": "(습관을) 끊다, 버리다",
+  "example_de": "Ich habe mir das Rauchen endgültig abgewöhnt.",
+  "example_ko": "저는 담배를 완전히 끊었어요.",
+  "scene_en": "Borti firmly pushes away a plate of sweets and crosses his arms with determination."
+ },
+ {
+  "key": "gewagt|adj",
+  "keep": true,
+  "gloss_ko": "대담한, 아슬아슬한",
+  "example_de": "Das ist eine ziemlich gewagte These.",
+  "example_ko": "그건 꽤 대담한 주장이에요.",
+  "scene_en": "Borti tiptoes across a thin tightrope high above a canyon with a daring grin."
+ },
+ {
+  "key": "Todestag|noun",
+  "keep": true,
+  "gloss_ko": "기일, 사망일",
+  "example_de": "Heute ist der zehnte Todestag meines Großvaters.",
+  "example_ko": "오늘이 할아버지 10주기예요.",
+  "scene_en": "Borti lays flowers beside a lit candle at a grave, head bowed solemnly."
+ },
+ {
+  "key": "Einzug|noun",
+  "keep": true,
+  "gloss_ko": "입주, 입성, 진입",
+  "example_de": "Nach dem Einzug in die neue Wohnung gaben wir eine Party.",
+  "example_ko": "새집에 입주한 뒤 파티를 열었어요.",
+  "scene_en": "Borti carries a moving box through the door of a new empty apartment, tail wagging."
+ },
+ {
+  "key": "Skifahren|noun",
+  "keep": true,
+  "gloss_ko": "스키 타기",
+  "example_de": "Im Winter fahren wir zum Skifahren in die Alpen.",
+  "example_ko": "겨울엔 스키 타러 알프스에 가요.",
+  "scene_en": "Borti speeds down a snowy slope on tiny skis, goggles on, snow spraying behind."
+ },
+ {
+  "key": "seltsamerweise|adv",
+  "keep": true,
+  "gloss_ko": "이상하게도",
+  "example_de": "Seltsamerweise hat niemand den Fehler bemerkt.",
+  "example_ko": "이상하게도 아무도 실수를 알아채지 못했어요.",
+  "scene_en": "Borti scratches his head, puzzled, at a big hole in the wall that everyone else walks past."
+ },
+ {
+  "key": "Tonfall|noun",
+  "keep": true,
+  "gloss_ko": "말투, 어조",
+  "example_de": "Ihr Tonfall wurde plötzlich sehr scharf.",
+  "example_ko": "그녀의 말투가 갑자기 날카로워졌어요.",
+  "scene_en": "Borti flattens his ears as a stern dog barks at him in a sharp, cutting voice."
+ },
+ {
+  "key": "eigensinnig|adj",
+  "keep": true,
+  "gloss_ko": "고집 센, 제멋대로인",
+  "example_de": "Das eigensinnige Kind wollte nicht nach Hause gehen.",
+  "example_ko": "고집 센 아이가 집에 안 가려고 했어요.",
+  "scene_en": "Borti plants all four paws firmly and refuses to budge while someone tugs his leash."
+ },
+ {
+  "key": "knifflig|adj",
+  "keep": true,
+  "gloss_ko": "까다로운, 골치 아픈",
+  "example_de": "Das ist eine knifflige Frage für die Juristen.",
+  "example_ko": "법률가들에게도 까다로운 문제예요.",
+  "scene_en": "Borti frowns in concentration at a tangled puzzle box of interlocking pieces."
+ },
+ {
+  "key": "galant|adj",
+  "keep": true,
+  "gloss_ko": "정중한, 신사적인",
+  "example_de": "Er hielt ihr galant die Tür auf.",
+  "example_ko": "그는 정중하게 그녀에게 문을 잡아 줬어요.",
+  "scene_en": "Borti bows gallantly, top hat in paw, while holding a door open for a lady dog."
+ },
+ {
+  "key": "entheben|verb",
+  "keep": true,
+  "gloss_ko": "해임하다, 면제하다",
+  "example_de": "Der Trainer wurde mit sofortiger Wirkung seines Amtes enthoben.",
+  "example_ko": "그 감독은 즉시 해임됐어요.",
+  "scene_en": "Borti watches sadly as an official takes the whistle and cap away from a coach dog."
+ },
+ {
+  "key": "Photo|noun",
+  "keep": false,
+  "reason": "고어·옛 철자"
+ },
+ {
+  "key": "Peak|noun",
+  "keep": false,
+  "reason": "영어 차용 구어"
+ },
+ {
+  "key": "Spiegelei|noun",
+  "keep": true,
+  "gloss_ko": "계란 프라이",
+  "example_de": "Zum Frühstück gibt es Toast mit Spiegelei.",
+  "example_ko": "아침으로 토스트와 계란 프라이가 나와요.",
+  "scene_en": "Borti gazes lovingly at a big sunny-side-up fried egg sizzling in a pan."
+ },
+ {
+  "key": "Hürde|noun",
+  "keep": true,
+  "gloss_ko": "장애물, 허들",
+  "example_de": "Die Finanzierung ist die größte Hürde für das Projekt.",
+  "example_ko": "자금 조달이 그 프로젝트의 가장 큰 걸림돌이에요.",
+  "scene_en": "Borti leaps over a tall track hurdle, ears streaming back mid-jump."
+ },
+ {
+  "key": "schlummern|verb",
+  "keep": true,
+  "gloss_ko": "선잠 자다, 잠재하다",
+  "example_de": "In ihr schlummert ein großes Talent.",
+  "example_ko": "그녀 안에는 큰 재능이 잠자고 있어요.",
+  "scene_en": "Borti dozes peacefully curled up on a soft cushion, breathing slowly in deep slumber."
+ },
+ {
+  "key": "bräunen|verb",
+  "keep": true,
+  "gloss_ko": "그을리다, 노릇하게 굽다",
+  "example_de": "Die Zwiebeln in Butter leicht bräunen.",
+  "example_ko": "양파를 버터에 살짝 노릇하게 볶아요.",
+  "scene_en": "Borti lies on a beach towel in sunglasses, his cream fur turning golden brown in the sun."
+ },
+ {
+  "key": "herausschneiden|verb",
+  "keep": true,
+  "gloss_ko": "잘라 내다, 오려 내다",
+  "example_de": "Der Chirurg schnitt den Tumor vollständig heraus.",
+  "example_ko": "외과의가 종양을 완전히 잘라 냈어요.",
+  "scene_en": "Borti carefully cuts a picture out of a magazine page with a pair of scissors."
+ },
+ {
+  "key": "nachahmen|verb",
+  "keep": true,
+  "gloss_ko": "모방하다, 흉내 내다",
+  "example_de": "Kinder ahmen das Verhalten ihrer Eltern nach.",
+  "example_ko": "아이들은 부모의 행동을 따라 해요.",
+  "scene_en": "Borti copies an old dog's pose exactly, both standing on one leg side by side."
+ },
+ {
+  "key": "majestätisch|adj",
+  "keep": true,
+  "gloss_ko": "장엄한, 위엄 있는",
+  "example_de": "Majestätisch erheben sich die Berge über dem See.",
+  "example_ko": "산들이 호수 위로 장엄하게 솟아 있어요.",
+  "scene_en": "Borti stands on a rock, chest out, before majestic snowy mountains at sunrise."
+ },
+ {
+  "key": "Klaps|noun",
+  "keep": true,
+  "gloss_ko": "가볍게 툭 치기",
+  "example_de": "Er gab seinem Kollegen einen freundlichen Klaps auf die Schulter.",
+  "example_ko": "그는 동료 어깨를 다정하게 툭 쳤어요.",
+  "scene_en": "Borti gives a friend a light, friendly pat on the shoulder with his paw."
+ },
+ {
+  "key": "Oberbefehlshaber|noun",
+  "keep": true,
+  "gloss_ko": "최고 사령관",
+  "example_de": "Der Präsident ist zugleich Oberbefehlshaber der Streitkräfte.",
+  "example_ko": "대통령은 군 최고 사령관이기도 해요.",
+  "scene_en": "Borti in a decorated general's coat stands before rows of saluting toy soldiers."
+ },
+ {
+  "key": "Überfluss|noun",
+  "keep": true,
+  "gloss_ko": "과잉, 풍요",
+  "example_de": "In manchen Ländern herrscht Überfluss, in anderen Hunger.",
+  "example_ko": "어떤 나라는 넘쳐 나고, 어떤 나라는 굶주려요.",
+  "scene_en": "Borti sits buried in a mountain of overflowing food baskets spilling everywhere."
+ },
+ {
+  "key": "Kaffeemaschine|noun",
+  "keep": true,
+  "gloss_ko": "커피 머신",
+  "example_de": "Die Kaffeemaschine im Büro ist schon wieder kaputt.",
+  "example_ko": "사무실 커피 머신이 또 고장 났어요.",
+  "scene_en": "Borti waits eagerly beside a big coffee machine as coffee streams into his mug."
+ },
+ {
+  "key": "Safari|noun",
+  "keep": true,
+  "gloss_ko": "사파리",
+  "example_de": "Auf der Safari haben wir Elefanten gesehen.",
+  "example_ko": "사파리에서 코끼리를 봤어요.",
+  "scene_en": "Borti in a safari hat peers through binoculars from a jeep at giraffes and elephants."
+ },
+ {
+  "key": "Vergnügungspark|noun",
+  "keep": true,
+  "gloss_ko": "놀이공원",
+  "example_de": "Am Wochenende fahren wir in den Vergnügungspark.",
+  "example_ko": "주말에 놀이공원에 가요.",
+  "scene_en": "Borti screams with joy on a roller coaster in a colorful amusement park."
+ },
+ {
+  "key": "Minenfeld|noun",
+  "keep": true,
+  "gloss_ko": "지뢰밭",
+  "example_de": "Das Thema ist politisch ein echtes Minenfeld.",
+  "example_ko": "그 주제는 정치적으로 진짜 지뢰밭이에요.",
+  "scene_en": "Borti tiptoes nervously across a field dotted with little warning flags, avoiding every spot."
+ },
+ {
+  "key": "abblitzen|verb",
+  "keep": true,
+  "gloss_ko": "(구어) 퇴짜 맞다",
+  "example_de": "Mit seiner Bitte ist er beim Chef abgeblitzt.",
+  "example_ko": "그는 부탁했다가 사장에게 퇴짜 맞았어요.",
+  "scene_en": "Borti offers a flower, but a haughty poodle turns her nose away, leaving him crestfallen."
+ },
+ {
+  "key": "Spaßvogel|noun",
+  "keep": true,
+  "gloss_ko": "익살꾼, 장난꾸러기",
+  "example_de": "Irgendein Spaßvogel hat die Namensschilder vertauscht.",
+  "example_ko": "어떤 장난꾸러기가 이름표를 바꿔 놨어요.",
+  "scene_en": "Borti wears a clown nose and juggles balls, making his friends roar with laughter."
+ },
+ {
+  "key": "Hungersnot|noun",
+  "keep": true,
+  "gloss_ko": "기근",
+  "example_de": "Die lange Dürre löste eine schwere Hungersnot aus.",
+  "example_ko": "긴 가뭄이 심각한 기근을 불러왔어요.",
+  "scene_en": "Borti looks sadly at cracked, dry fields beside an empty food bowl."
+ },
+ {
+  "key": "Fuchs|noun",
+  "keep": true,
+  "gloss_ko": "여우",
+  "example_de": "Nachts schleicht ein Fuchs durch unseren Garten.",
+  "example_ko": "밤마다 여우 한 마리가 정원을 지나가요.",
+  "scene_en": "Borti meets a sly red fox with a bushy tail in a moonlit garden."
+ },
+ {
+  "key": "munkeln|verb",
+  "keep": true,
+  "gloss_ko": "수군대다, 소문이 돌다",
+  "example_de": "Man munkelt, dass der Chef bald geht.",
+  "example_ko": "사장이 곧 떠난다는 소문이 돌아요.",
+  "scene_en": "Borti and two dogs huddle together whispering behind their paws, glancing sideways."
+ },
+ {
+  "key": "iranisch|adj",
+  "keep": false,
+  "reason": "고유명사·국적"
+ },
+ {
+  "key": "sponsern|verb",
+  "keep": true,
+  "gloss_ko": "후원하다",
+  "example_de": "Eine regionale Bank sponsert das Musikfestival.",
+  "example_ko": "지역 은행이 음악 축제를 후원해요.",
+  "scene_en": "Borti hands a big bag of coins to a band of musician puppies on an outdoor stage."
+ },
+ {
+  "key": "Missionar|noun",
+  "keep": true,
+  "gloss_ko": "선교사",
+  "example_de": "Sein Großvater arbeitete als Missionar in Afrika.",
+  "example_ko": "그의 할아버지는 아프리카에서 선교사였어요.",
+  "scene_en": "Borti in a simple robe walks along a dusty village road carrying a bible."
+ },
+ {
+  "key": "kicken|verb",
+  "keep": true,
+  "gloss_ko": "(구어) 공을 차다",
+  "example_de": "Nach der Schule kicken die Jungs auf dem Bolzplatz.",
+  "example_ko": "방과 후 남자애들이 공터에서 공을 차요.",
+  "scene_en": "Borti kicks a soccer ball hard, one leg swung high, on a dusty playground."
+ },
+ {
+  "key": "luxuriös|adj",
+  "keep": true,
+  "gloss_ko": "호화로운, 사치스러운",
+  "example_de": "Das Hotel ist luxuriös, aber sehr teuer.",
+  "example_ko": "그 호텔은 호화롭지만 아주 비싸요.",
+  "scene_en": "Borti lounges on a velvet cushion in a golden room under a sparkling chandelier."
+ },
+ {
+  "key": "Handschlag|noun",
+  "keep": true,
+  "gloss_ko": "악수",
+  "example_de": "Der Vertrag wurde per Handschlag besiegelt.",
+  "example_ko": "계약은 악수로 확정됐어요.",
+  "scene_en": "Borti firmly shakes paws with a businessman dog across a meeting table."
+ },
+ {
+  "key": "Helium|noun",
+  "keep": true,
+  "gloss_ko": "헬륨",
+  "example_de": "Die Ballons sind mit Helium gefüllt.",
+  "example_ko": "풍선은 헬륨으로 채워져 있어요.",
+  "scene_en": "Borti floats off the ground holding a bunch of helium balloons, looking surprised."
+ },
+ {
+  "key": "Obduktion|noun",
+  "keep": true,
+  "gloss_ko": "부검",
+  "example_de": "Die Obduktion soll die Todesursache klären.",
+  "example_ko": "부검으로 사망 원인을 밝힐 예정이에요.",
+  "scene_en": "Borti in a lab coat and mask studies x-rays seriously in a sterile examination room."
+ },
+ {
+  "key": "Antikörper|noun",
+  "keep": true,
+  "gloss_ko": "항체",
+  "example_de": "Nach der Impfung bildet der Körper Antikörper.",
+  "example_ko": "백신을 맞으면 몸에서 항체가 생겨요.",
+  "scene_en": "Borti peers into a microscope at tiny Y-shaped antibodies grabbing round spiky germs."
+ },
+ {
+  "key": "spaßen|verb",
+  "keep": true,
+  "gloss_ko": "농담하다, 장난치다",
+  "example_de": "Mit dem neuen Chef ist nicht zu spaßen.",
+  "example_ko": "새 사장은 만만히 볼 사람이 아니에요.",
+  "scene_en": "Borti laughs and playfully nudges a friend with his elbow while telling a joke."
+ },
+ {
+  "key": "Guru|noun",
+  "keep": true,
+  "gloss_ko": "구루, 대가",
+  "example_de": "Er gilt als Guru der Marketingbranche.",
+  "example_ko": "그는 마케팅 업계의 대가로 통해요.",
+  "scene_en": "Borti sits cross-legged on a cushion, eyes closed, while puppy disciples listen in awe."
+ },
+ {
+  "key": "phänomenal|adj",
+  "keep": true,
+  "gloss_ko": "경이로운, 굉장한",
+  "example_de": "Die Mannschaft spielte eine phänomenale Saison.",
+  "example_ko": "그 팀은 경이로운 시즌을 보냈어요.",
+  "scene_en": "Borti flips a stunning triple somersault over a crowd gasping in amazement."
+ },
+ {
+  "key": "Feuerball|noun",
+  "keep": true,
+  "gloss_ko": "불덩이, 화구",
+  "example_de": "Nach der Explosion stieg ein Feuerball in den Himmel.",
+  "example_ko": "폭발 후 불덩이가 하늘로 치솟았어요.",
+  "scene_en": "Borti stares, ears blown back, at a huge orange fireball rising in the distance."
+ },
+ {
+  "key": "Landei|noun",
+  "keep": true,
+  "gloss_ko": "(구어) 시골뜨기",
+  "example_de": "Als Landei war ich in Berlin anfangs völlig überfordert.",
+  "example_ko": "시골 출신이라 처음엔 베를린이 버거웠어요.",
+  "scene_en": "Borti in a straw hat gapes wide-eyed at towering skyscrapers and busy city traffic."
+ },
+ {
+  "key": "Steuererklärung|noun",
+  "keep": true,
+  "gloss_ko": "세금 신고(서)",
+  "example_de": "Ich muss bis Juli meine Steuererklärung abgeben.",
+  "example_ko": "7월까지 세금 신고서를 내야 해요.",
+  "scene_en": "Borti sits buried in piles of receipts and forms at a desk, frowning hard."
+ },
+ {
+  "key": "auftanken|verb",
+  "keep": true,
+  "gloss_ko": "주유하다, 재충전하다",
+  "example_de": "Vor der Autobahn müssen wir noch auftanken.",
+  "example_ko": "고속도로 타기 전에 기름을 넣어야 해요.",
+  "scene_en": "Borti holds a fuel nozzle to a little car at a gas station pump."
+ },
+ {
+  "key": "glamourös|adj",
+  "keep": true,
+  "gloss_ko": "화려한, 매혹적인",
+  "example_de": "Die Preisverleihung war ein glamouröses Ereignis.",
+  "example_ko": "시상식은 화려한 행사였어요.",
+  "scene_en": "Borti wears a sparkly bow tie on a red carpet amid flashing cameras."
+ },
+ {
+  "key": "Ausgrabung|noun",
+  "keep": true,
+  "gloss_ko": "발굴",
+  "example_de": "Bei der Ausgrabung fanden Archäologen römische Münzen.",
+  "example_ko": "발굴 중에 고고학자들이 로마 동전을 찾았어요.",
+  "scene_en": "Borti brushes dirt off an ancient clay pot at an archaeological dig site."
+ },
+ {
+  "key": "anvisieren|verb",
+  "keep": true,
+  "gloss_ko": "겨누다, 목표로 삼다",
+  "example_de": "Das Unternehmen visiert den asiatischen Markt an.",
+  "example_ko": "그 회사는 아시아 시장을 노려요.",
+  "scene_en": "Borti squints through a telescope at a distant target, aiming carefully."
+ },
+ {
+  "key": "aufrollen|verb",
+  "keep": true,
+  "gloss_ko": "말다, (사건을) 재조사하다",
+  "example_de": "Die Staatsanwaltschaft will den Fall neu aufrollen.",
+  "example_ko": "검찰은 그 사건을 다시 조사하려 해요.",
+  "scene_en": "Borti rolls up a long rug neatly from one end to the other."
+ },
+ {
+  "key": "Community|noun",
+  "keep": false,
+  "reason": "영어 차용 구어"
+ },
+ {
+  "key": "Gejammer|noun",
+  "keep": true,
+  "gloss_ko": "넋두리, 징징거림",
+  "example_de": "Ich kann sein ständiges Gejammer nicht mehr hören.",
+  "example_ko": "그의 끝없는 넋두리를 더는 못 듣겠어요.",
+  "scene_en": "Borti covers his ears as a puppy beside him whines and whimpers nonstop."
+ },
+ {
+  "key": "Arthritis|noun",
+  "keep": true,
+  "gloss_ko": "관절염",
+  "example_de": "Meine Oma leidet an Arthritis in den Händen.",
+  "example_ko": "할머니는 손 관절염을 앓으세요.",
+  "scene_en": "Borti gently rubs ointment on an old dog's swollen knee joints."
+ },
+ {
+  "key": "Mandarin|noun",
+  "keep": true,
+  "gloss_ko": "중국 표준어, 고관",
+  "example_de": "Sie spricht fließend Mandarin und Englisch.",
+  "example_ko": "그녀는 중국어와 영어를 유창하게 해요.",
+  "scene_en": "Borti chats happily with a panda in front of a red pagoda, carefully shaping each tone."
+ },
+ {
+  "key": "seitlich|adj",
+  "keep": true,
+  "gloss_ko": "옆의, 옆으로",
+  "example_de": "Der Eingang befindet sich seitlich am Gebäude.",
+  "example_ko": "입구는 건물 옆쪽에 있어요.",
+  "scene_en": "Borti squeezes sideways through a narrow gap between two walls."
+ },
+ {
+  "key": "Trinkwasser|noun",
+  "keep": true,
+  "gloss_ko": "식수, 음용수",
+  "example_de": "In vielen Regionen ist sauberes Trinkwasser knapp.",
+  "example_ko": "많은 지역에서 깨끗한 식수가 부족해요.",
+  "scene_en": "Borti laps clean drinking water from a village tap into his bowl."
+ },
+ {
+  "key": "Absage|noun",
+  "keep": true,
+  "gloss_ko": "거절, 취소",
+  "example_de": "Auf meine Bewerbung habe ich eine Absage bekommen.",
+  "example_ko": "지원서에 불합격 통보를 받았어요.",
+  "scene_en": "Borti droops sadly over an opened letter, ears down, the empty envelope at his paws."
+ },
+ {
+  "key": "Viola|noun",
+  "keep": true,
+  "gloss_ko": "비올라",
+  "example_de": "Er spielt Viola in einem Streichquartett.",
+  "example_ko": "그는 현악 사중주단에서 비올라를 켜요.",
+  "scene_en": "Borti plays a viola, a bit bigger than a violin, in a small string quartet."
+ },
+ {
+  "key": "Justizminister|noun",
+  "keep": true,
+  "gloss_ko": "법무부 장관",
+  "example_de": "Der Justizminister will das Strafrecht reformieren.",
+  "example_ko": "법무부 장관은 형법을 개정하려 해요.",
+  "scene_en": "Borti in a dark suit stands at a government podium beside a large balance scale."
+ },
+ {
+  "key": "weiterkämpfen|verb",
+  "keep": true,
+  "gloss_ko": "계속 싸우다",
+  "example_de": "Trotz der Niederlage wollen die Aktivisten weiterkämpfen.",
+  "example_ko": "패배에도 활동가들은 계속 싸우려 해요.",
+  "scene_en": "Borti gets back up, bandaged but determined, and raises his paws to keep fighting."
+ },
+ {
+  "key": "Paparazzo|noun",
+  "keep": true,
+  "gloss_ko": "파파라치",
+  "example_de": "Ein Paparazzo lauerte vor ihrem Haus.",
+  "example_ko": "파파라치 한 명이 그녀 집 앞에 잠복했어요.",
+  "scene_en": "Borti hides behind a bush, aiming a giant telephoto camera at a celebrity dog."
+ },
+ {
+  "key": "Delle|noun",
+  "keep": true,
+  "gloss_ko": "찌그러진 곳, 움푹 팬 곳",
+  "example_de": "Beim Einparken habe ich eine Delle ins Auto gefahren.",
+  "example_ko": "주차하다가 차를 찌그러뜨렸어요.",
+  "scene_en": "Borti stares in dismay at a big dent in the shiny door of a car."
+ },
+ {
+  "key": "störrisch|adj",
+  "keep": true,
+  "gloss_ko": "고집 센, 완강한",
+  "example_de": "Der störrische Esel wollte keinen Schritt weitergehen.",
+  "example_ko": "고집 센 당나귀가 한 발짝도 안 움직였어요.",
+  "scene_en": "Borti pulls with all his might on a rope tied to a stubborn donkey that won't budge."
+ },
+ {
+  "key": "bezwecken|verb",
+  "keep": true,
+  "gloss_ko": "의도하다, 노리다",
+  "example_de": "Was will er mit diesem Brief eigentlich bezwecken?",
+  "example_ko": "그는 이 편지로 대체 뭘 노리는 걸까요?",
+  "scene_en": "Borti narrows his eyes suspiciously at a puppy offering him a gift with a sly grin."
+ },
+ {
+  "key": "Testperson|noun",
+  "keep": true,
+  "gloss_ko": "피험자, 실험 참가자",
+  "example_de": "Die Testpersonen mussten einen Fragebogen ausfüllen.",
+  "example_ko": "피험자들은 설문지를 작성해야 했어요.",
+  "scene_en": "Borti sits wired to sensors in a lab chair while a scientist dog takes notes."
+ },
+ {
+  "key": "islamisch|adj",
+  "keep": true,
+  "gloss_ko": "이슬람의",
+  "example_de": "In der Stadt gibt es mehrere islamische Gemeinden.",
+  "example_ko": "그 도시에는 이슬람 공동체가 여럿 있어요.",
+  "scene_en": "Borti admires a mosque with a big dome and slender minarets at sunset."
+ },
+ {
+  "key": "ausweiten|verb",
+  "keep": true,
+  "gloss_ko": "확대하다, 넓히다",
+  "example_de": "Die Firma will ihr Geschäft auf Asien ausweiten.",
+  "example_ko": "회사는 사업을 아시아로 확대하려 해요.",
+  "scene_en": "Borti pushes a garden fence outward with effort, making his play area much bigger."
+ },
+ {
+  "key": "Mundgeruch|noun",
+  "keep": true,
+  "gloss_ko": "입 냄새",
+  "example_de": "Gegen Mundgeruch hilft gründliches Zähneputzen.",
+  "example_ko": "입 냄새엔 꼼꼼한 양치가 도움이 돼요.",
+  "scene_en": "Borti breathes out a green puff and a friend recoils, pinching his nose."
+ },
+ {
+  "key": "Navigator|noun",
+  "keep": true,
+  "gloss_ko": "항해사, 항법사",
+  "example_de": "Der Navigator bestimmte den Kurs des Schiffes.",
+  "example_ko": "항해사가 배의 항로를 정했어요.",
+  "scene_en": "Borti in a captain's hat plots a course on a sea chart with a brass compass."
+ },
+ {
+  "key": "Zwillingsbruder|noun",
+  "keep": true,
+  "gloss_ko": "쌍둥이 형제",
+  "example_de": "Mein Zwillingsbruder lebt seit Jahren in Hamburg.",
+  "example_ko": "제 쌍둥이 형제는 몇 년째 함부르크에 살아요.",
+  "scene_en": "Borti stands beside an identical puppy, both making exactly the same face."
+ },
+ {
+  "key": "Ahne|noun",
+  "keep": true,
+  "gloss_ko": "조상, 선조",
+  "example_de": "Unsere Ahnen stammen aus einem kleinen Dorf.",
+  "example_ko": "우리 조상은 작은 마을 출신이에요.",
+  "scene_en": "Borti gazes up at old portraits of dachshund ancestors hanging on a castle wall."
+ },
+ {
+  "key": "Müllhalde|noun",
+  "keep": true,
+  "gloss_ko": "쓰레기 매립지",
+  "example_de": "Die Müllhalde am Stadtrand soll geschlossen werden.",
+  "example_ko": "도시 외곽 쓰레기장이 폐쇄될 예정이에요.",
+  "scene_en": "Borti holds his nose at the foot of a towering mountain of garbage."
+ },
+ {
+  "key": "Cricket|noun",
+  "keep": true,
+  "gloss_ko": "크리켓",
+  "example_de": "In Indien ist Cricket der beliebteste Sport.",
+  "example_ko": "인도에서는 크리켓이 가장 인기 있어요.",
+  "scene_en": "Borti swings a flat cricket bat at a red ball in front of wooden wickets."
+ },
+ {
+  "key": "Aluminium|noun",
+  "keep": true,
+  "gloss_ko": "알루미늄",
+  "example_de": "Getränkedosen bestehen meist aus Aluminium.",
+  "example_ko": "음료 캔은 대부분 알루미늄이에요.",
+  "scene_en": "Borti crushes shiny aluminium cans and drops them into a recycling bin."
+ },
+ {
+  "key": "Ausgangspunkt|noun",
+  "keep": true,
+  "gloss_ko": "출발점",
+  "example_de": "Die Studie dient als Ausgangspunkt für weitere Forschung.",
+  "example_ko": "그 연구는 후속 연구의 출발점이 돼요.",
+  "scene_en": "Borti stands at a chalk starting line at the very beginning of a long winding path."
+ },
+ {
+  "key": "gell|adj",
+  "keep": true,
+  "gloss_ko": "(구어·남독) 그렇죠?",
+  "example_de": "Du kommst morgen doch auch zur Sitzung, gell?",
+  "example_ko": "내일 회의에 오시는 거죠, 그렇죠?",
+  "scene_en": "Borti tilts his head with a hopeful questioning smile, waiting for a friend to nod yes."
+ },
+ {
+  "key": "seiden|adj",
+  "keep": true,
+  "gloss_ko": "비단의, 실크의",
+  "example_de": "Sie trug ein seidenes Halstuch.",
+  "example_ko": "그녀는 실크 스카프를 맸어요.",
+  "scene_en": "Borti wears a shimmering silk scarf that flows smoothly in the breeze."
+ },
+ {
+  "key": "komplizieren|verb",
+  "keep": true,
+  "gloss_ko": "복잡하게 만들다",
+  "example_de": "Die neuen Vorschriften komplizieren die Abrechnung.",
+  "example_ko": "새 규정 때문에 정산이 복잡해져요.",
+  "scene_en": "Borti watches in dismay as a simple straight path twists into a messy tangled maze."
+ },
+ {
+  "key": "Ger|noun",
+  "keep": false,
+  "reason": "고어·옛 철자"
+ },
+ {
+  "key": "stetig|adj",
+  "keep": true,
+  "gloss_ko": "꾸준한, 지속적인",
+  "example_de": "Die Zahl der Nutzer wächst stetig.",
+  "example_ko": "이용자 수가 꾸준히 늘고 있어요.",
+  "scene_en": "Borti steadily climbs a long staircase one step at a time, never pausing."
+ },
+ {
+  "key": "Heuschrecke|noun",
+  "keep": true,
+  "gloss_ko": "메뚜기",
+  "example_de": "Heuschrecken haben die gesamte Ernte vernichtet.",
+  "example_ko": "메뚜기 떼가 수확물을 전부 망쳤어요.",
+  "scene_en": "Borti stares nose to nose with a big green grasshopper perched on a stalk of grass."
+ },
+ {
+  "key": "Moskito|noun",
+  "keep": true,
+  "gloss_ko": "모기",
+  "example_de": "In den Tropen schützt ein Netz vor Moskitos.",
+  "example_ko": "열대 지방에서는 모기장이 모기를 막아 줘요.",
+  "scene_en": "Borti swats at a buzzing mosquito circling his ear under a mosquito net."
+ },
+ {
+  "key": "diktieren|verb",
+  "keep": true,
+  "gloss_ko": "받아쓰게 하다, 강요하다",
+  "example_de": "Der Chef diktierte der Assistentin einen Brief.",
+  "example_ko": "사장이 비서에게 편지를 받아쓰게 했어요.",
+  "scene_en": "Borti paces with paws behind his back, talking, while an assistant dog types quickly."
+ },
+ {
+  "key": "tilgen|verb",
+  "keep": true,
+  "gloss_ko": "상환하다, 지우다",
+  "example_de": "Die Firma hat ihre Schulden vollständig getilgt.",
+  "example_ko": "회사는 빚을 전부 갚았어요.",
+  "scene_en": "Borti hands over a final bag of coins and happily tears up a long bill."
+ },
+ {
+  "key": "trampeln|verb",
+  "keep": true,
+  "gloss_ko": "짓밟다, 쿵쿵 걷다",
+  "example_de": "Die Kinder trampelten mit nassen Schuhen durch die Küche.",
+  "example_ko": "아이들이 젖은 신발로 부엌을 쿵쿵 지나갔어요.",
+  "scene_en": "Borti stomps heavily through a flowerbed, leaving muddy paw prints everywhere."
+ },
+ {
+  "key": "vergreifen|verb",
+  "keep": true,
+  "gloss_ko": "손대다, (말이) 지나치다",
+  "example_de": "Der Minister hat sich bei der Debatte im Ton vergriffen.",
+  "example_ko": "장관은 토론에서 말이 너무 지나쳤어요.",
+  "scene_en": "Borti winces after barking too harshly at a small puppy, who now looks hurt."
+ },
+ {
+  "key": "gebacken|adj",
+  "keep": true,
+  "gloss_ko": "구운, (frisch ~) 갓 된",
+  "example_de": "Das Brot ist frisch gebacken und noch warm.",
+  "example_ko": "빵이 갓 구워져서 아직 따뜻해요.",
+  "scene_en": "Borti sniffs a tray of freshly baked golden bread rolls steaming from the oven."
+ },
+ {
+  "key": "hinterlistig|adj",
+  "keep": true,
+  "gloss_ko": "음흉한, 교활한",
+  "example_de": "Das war ein hinterlistiger Angriff von hinten.",
+  "example_ko": "그건 뒤에서 한 비열한 공격이었어요.",
+  "scene_en": "Borti smiles sweetly while secretly tying a friend's shoelaces together behind his back."
+ },
+ {
+  "key": "physikalisch|adj",
+  "keep": true,
+  "gloss_ko": "물리학의, 물리적인",
+  "example_de": "Das Experiment zeigt ein einfaches physikalisches Gesetz.",
+  "example_ko": "그 실험은 간단한 물리 법칙을 보여 줘요.",
+  "scene_en": "Borti watches a swinging pendulum and a falling apple in a physics lab."
+ },
+ {
+  "key": "mütterlich|adj",
+  "keep": true,
+  "gloss_ko": "어머니 같은, 모성의",
+  "example_de": "Sie kümmert sich mütterlich um die neuen Kollegen.",
+  "example_ko": "그녀는 신입 동료들을 엄마처럼 챙겨요.",
+  "scene_en": "Borti tucks a blanket around tiny kittens, cuddling them like a caring mother."
+ },
+ {
+  "key": "Augenlicht|noun",
+  "keep": true,
+  "gloss_ko": "시력",
+  "example_de": "Nach dem Unfall verlor er auf einem Auge das Augenlicht.",
+  "example_ko": "사고 후 그는 한쪽 눈의 시력을 잃었어요.",
+  "scene_en": "Borti gets his eyes examined as a vet shines a small light into them."
+ },
+ {
+  "key": "zweifelsohne|adv",
+  "keep": true,
+  "gloss_ko": "의심할 여지 없이",
+  "example_de": "Sie ist zweifelsohne die beste Kandidatin.",
+  "example_ko": "그녀가 틀림없이 최고의 후보예요.",
+  "scene_en": "Borti points confidently at the clear winner on a podium, nodding with total certainty."
+ },
+ {
+  "key": "Leier|noun",
+  "keep": true,
+  "gloss_ko": "리라(악기), 같은 소리",
+  "example_de": "Es ist immer die gleiche alte Leier mit ihm.",
+  "example_ko": "그 사람은 늘 똑같은 소리만 해요.",
+  "scene_en": "Borti plucks an ancient lyre while a friend yawns, hearing the same old tune again."
+ },
+ {
+  "key": "Ausweichmanöver|noun",
+  "keep": true,
+  "gloss_ko": "회피 기동, 회피책",
+  "example_de": "Mit einem Ausweichmanöver verhinderte der Fahrer einen Unfall.",
+  "example_ko": "운전자는 급히 피해서 사고를 막았어요.",
+  "scene_en": "Borti swerves his toy car sharply around a rock in the road, tires squealing."
+ },
+ {
+  "key": "Fluß|noun",
+  "keep": false,
+  "reason": "고어·옛 철자"
+ },
+ {
+  "key": "Intellekt|noun",
+  "keep": true,
+  "gloss_ko": "지성, 지력",
+  "example_de": "Sie beeindruckt alle durch ihren scharfen Intellekt.",
+  "example_ko": "그녀는 날카로운 지성으로 모두를 감탄시켜요.",
+  "scene_en": "Borti in round glasses solves a complex chess puzzle with a brilliant, knowing look."
+ },
+ {
+  "key": "Oberkommando|noun",
+  "keep": true,
+  "gloss_ko": "최고 사령부",
+  "example_de": "Das Oberkommando ordnete den Rückzug an.",
+  "example_ko": "최고 사령부가 후퇴를 명령했어요.",
+  "scene_en": "Borti salutes inside a war room where generals gather around a big map table."
+ },
+ {
+  "key": "Besichtigung|noun",
+  "keep": true,
+  "gloss_ko": "관람, 견학, 집 보기",
+  "example_de": "Die Besichtigung der Wohnung ist am Samstag.",
+  "example_ko": "집 보기는 토요일이에요.",
+  "scene_en": "Borti follows a guide through a grand castle hall, gazing up at paintings."
+ },
+ {
+  "key": "Küchenchef|noun",
+  "keep": true,
+  "gloss_ko": "주방장, 수석 셰프",
+  "example_de": "Der Küchenchef empfiehlt heute den Fisch.",
+  "example_ko": "주방장이 오늘은 생선을 추천해요.",
+  "scene_en": "Borti in a tall white chef's hat presents a steaming dish in a restaurant kitchen."
+ },
+ {
+  "key": "Elektroschock|noun",
+  "keep": true,
+  "gloss_ko": "전기 충격",
+  "example_de": "Der Patient wurde mit Elektroschocks wiederbelebt.",
+  "example_ko": "환자는 전기 충격으로 소생했어요.",
+  "scene_en": "Borti jolts with his fur standing on end after touching a sparking wire, comic sparks crackling."
+ },
+ {
+  "key": "Kabelfernsehen|noun",
+  "keep": true,
+  "gloss_ko": "케이블 TV",
+  "example_de": "Wir haben das Kabelfernsehen gekündigt und streamen nur noch.",
+  "example_ko": "케이블 TV를 끊고 이제 스트리밍만 봐요.",
+  "scene_en": "Borti sits on a sofa with a remote, a thick cable running from the wall to the TV."
+ },
+ {
+  "key": "Hochmut|noun",
+  "keep": true,
+  "gloss_ko": "거만, 오만",
+  "example_de": "Hochmut kommt vor dem Fall.",
+  "example_ko": "교만하면 넘어지기 마련이에요.",
+  "scene_en": "Borti struts with his nose high in the air, about to trip over a rock he doesn't see."
+ },
+ {
+  "key": "Käsekuchen|noun",
+  "keep": true,
+  "gloss_ko": "치즈케이크",
+  "example_de": "Zum Kaffee gab es selbst gebackenen Käsekuchen.",
+  "example_ko": "커피에 직접 구운 치즈케이크가 나왔어요.",
+  "scene_en": "Borti licks his lips before a thick slice of creamy cheesecake on a plate."
+ },
+ {
+  "key": "ergründen|verb",
+  "keep": true,
+  "gloss_ko": "규명하다, 캐내다",
+  "example_de": "Die Forscher wollen die Ursache des Phänomens ergründen.",
+  "example_ko": "연구자들이 그 현상의 원인을 밝히려 해요.",
+  "scene_en": "Borti digs deep into a hole with a flashlight, searching for something hidden at the bottom."
+ },
+ {
+  "key": "Tribüne|noun",
+  "keep": true,
+  "gloss_ko": "관람석, 연단",
+  "example_de": "Die Fans auf der Tribüne jubelten laut.",
+  "example_ko": "관중석의 팬들이 크게 환호했어요.",
+  "scene_en": "Borti cheers wildly in a packed stadium grandstand, waving a scarf."
+ },
+ {
+  "key": "Zahnspange|noun",
+  "keep": true,
+  "gloss_ko": "치아 교정기",
+  "example_de": "Meine Tochter muss zwei Jahre lang eine Zahnspange tragen.",
+  "example_ko": "딸은 2년 동안 교정기를 껴야 해요.",
+  "scene_en": "Borti grins widely, showing shiny metal braces on his teeth."
+ },
+ {
+  "key": "Dildo|noun",
+  "keep": false,
+  "reason": "성적 표현"
+ },
+ {
+  "key": "Kalb|noun",
+  "keep": true,
+  "gloss_ko": "송아지",
+  "example_de": "Die Kuh hat heute Nacht ein Kalb bekommen.",
+  "example_ko": "소가 오늘 밤 송아지를 낳았어요.",
+  "scene_en": "Borti nuzzles a wobbly newborn calf standing beside its mother cow in a barn."
+ },
+ {
+  "key": "einschreiten|verb",
+  "keep": true,
+  "gloss_ko": "개입하다, 조치하다",
+  "example_de": "Die Polizei musste bei der Schlägerei einschreiten.",
+  "example_ko": "경찰이 싸움에 개입해야 했어요.",
+  "scene_en": "Borti steps between two squabbling puppies, paws outstretched to separate them."
+ },
+ {
+  "key": "bestmöglich|adj",
+  "keep": true,
+  "gloss_ko": "최선의, 가능한 한 좋은",
+  "example_de": "Wir wollen unsere Kunden bestmöglich beraten.",
+  "example_ko": "고객에게 최선의 상담을 드리려고 해요.",
+  "scene_en": "Borti polishes a trophy until it gleams perfectly, giving it his very best effort."
+ },
+ {
+  "key": "aufrichten|verb",
+  "keep": true,
+  "gloss_ko": "일으키다, 세우다",
+  "example_de": "Sie richtete sich mühsam im Bett auf.",
+  "example_ko": "그녀는 힘겹게 침대에서 몸을 일으켰어요.",
+  "scene_en": "Borti pushes a fallen little tree back upright and props it with a stick."
+ },
+ {
+  "key": "Investment|noun",
+  "keep": true,
+  "gloss_ko": "투자",
+  "example_de": "Die Immobilie gilt als sicheres Investment.",
+  "example_ko": "그 부동산은 안전한 투자로 여겨져요.",
+  "scene_en": "Borti carefully drops a gold coin into a piggy bank shaped like a little house."
+ },
+ {
+  "key": "unermesslich|adj",
+  "keep": true,
+  "gloss_ko": "헤아릴 수 없는, 막대한",
+  "example_de": "Der Krieg verursachte unermessliches Leid.",
+  "example_ko": "전쟁은 헤아릴 수 없는 고통을 낳았어요.",
+  "scene_en": "Borti stands tiny before an endless ocean stretching beyond the horizon in every direction."
+ },
+ {
+  "key": "episch|adj",
+  "keep": true,
+  "gloss_ko": "서사적인, 장대한",
+  "example_de": "Der Film erzählt eine epische Familiengeschichte.",
+  "example_ko": "그 영화는 장대한 가족사를 그려요.",
+  "scene_en": "Borti in armor stands on a cliff before a sweeping valley and a towering castle under stormy skies."
+ },
+ {
+  "key": "Krüger|noun",
+  "keep": false,
+  "reason": "고유명사·국적"
+ },
+ {
+  "key": "Groschen|noun",
+  "keep": true,
+  "gloss_ko": "그로셴(옛 동전), 푼돈",
+  "example_de": "Endlich ist bei ihm der Groschen gefallen.",
+  "example_ko": "드디어 그가 상황을 알아챘어요.",
+  "scene_en": "Borti watches, eyes lighting up, as a small copper coin drops into a slot with a clink."
+ },
+ {
+  "key": "Übereinkunft|noun",
+  "keep": true,
+  "gloss_ko": "합의, 협정",
+  "example_de": "Die Parteien haben eine Übereinkunft erzielt.",
+  "example_ko": "양측이 합의에 이르렀어요.",
+  "scene_en": "Borti and another dog shake paws across a table after a long negotiation, both smiling."
+ },
+ {
+  "key": "Junggesellenabschied|noun",
+  "keep": true,
+  "gloss_ko": "총각 파티",
+  "example_de": "Zum Junggesellenabschied fahren sie nach Hamburg.",
+  "example_ko": "총각 파티를 하러 그들은 함부르크에 가요.",
+  "scene_en": "Borti wears a silly crown and parties with his friends the night before his wedding."
+ },
+ {
+  "key": "Makel|noun",
+  "keep": true,
+  "gloss_ko": "결점, 흠",
+  "example_de": "Der einzige Makel an der Wohnung ist der Lärm.",
+  "example_ko": "그 집의 유일한 흠은 소음이에요.",
+  "scene_en": "Borti squints at a single tiny spot on an otherwise perfect white plate."
+ },
+ {
+  "key": "Lederjacke|noun",
+  "keep": true,
+  "gloss_ko": "가죽 재킷",
+  "example_de": "Er trägt eine alte schwarze Lederjacke.",
+  "example_ko": "그는 낡은 검정 가죽 재킷을 입어요.",
+  "scene_en": "Borti poses coolly in a black leather jacket and sunglasses."
+ },
+ {
+  "key": "Wartezeit|noun",
+  "keep": true,
+  "gloss_ko": "대기 시간",
+  "example_de": "Die Wartezeit beim Facharzt beträgt drei Monate.",
+  "example_ko": "전문의 진료는 3개월을 기다려야 해요.",
+  "scene_en": "Borti sighs in a long line of dogs in a crowded waiting room."
+ },
+ {
+  "key": "Boutique|noun",
+  "keep": true,
+  "gloss_ko": "부티크, 옷가게",
+  "example_de": "In der Altstadt gibt es viele kleine Boutiquen.",
+  "example_ko": "구시가지에 작은 부티크가 많아요.",
+  "scene_en": "Borti peeks into a chic little boutique full of elegant dresses and hats."
+ },
+ {
+  "key": "Garnele|noun",
+  "keep": true,
+  "gloss_ko": "새우",
+  "example_de": "Zur Vorspeise gibt es gegrillte Garnelen.",
+  "example_ko": "전채로 구운 새우가 나와요.",
+  "scene_en": "Borti stares hungrily at a plate of pink grilled prawns on skewers."
+ },
+ {
+  "key": "unvermeidbar|adj",
+  "keep": true,
+  "gloss_ko": "피할 수 없는",
+  "example_de": "Gewisse Risiken sind bei jeder Operation unvermeidbar.",
+  "example_ko": "어떤 수술이든 일부 위험은 피할 수 없어요.",
+  "scene_en": "Borti sighs under a tiny umbrella as rain pours on him from every direction."
+ },
+ {
+  "key": "absägen|verb",
+  "keep": true,
+  "gloss_ko": "톱으로 자르다, 쫓아내다",
+  "example_de": "Der Vorstand hat den Geschäftsführer abgesägt.",
+  "example_ko": "이사회가 대표를 몰아냈어요.",
+  "scene_en": "Borti saws a dead branch off a tree with a little hand saw."
+ },
+ {
+  "key": "turnen|verb",
+  "keep": true,
+  "gloss_ko": "체조하다",
+  "example_de": "Die Kinder turnen jeden Dienstag in der Halle.",
+  "example_ko": "아이들은 화요일마다 체육관에서 체조해요.",
+  "scene_en": "Borti does a handstand on a balance beam in a gym, tail pointing straight up."
+ },
+ {
+  "key": "Brezel|noun",
+  "keep": true,
+  "gloss_ko": "프레첼",
+  "example_de": "Zum Weißbier gehört eine frische Brezel.",
+  "example_ko": "밀맥주에는 갓 구운 프레첼이 제격이에요.",
+  "scene_en": "Borti holds a giant salted pretzel twisted into a knot and takes a big bite."
+ },
+ {
+  "key": "lackieren|verb",
+  "keep": true,
+  "gloss_ko": "칠하다, 도장하다",
+  "example_de": "Wir haben die alte Kommode weiß lackiert.",
+  "example_ko": "낡은 서랍장을 흰색으로 칠했어요.",
+  "scene_en": "Borti brushes a glossy coat of red paint onto a wooden chair."
+ },
+ {
+  "key": "rinnen|verb",
+  "keep": true,
+  "gloss_ko": "흐르다, 졸졸 흐르다",
+  "example_de": "Der Schweiß rann ihm über die Stirn.",
+  "example_ko": "땀이 그의 이마를 타고 흘렀어요.",
+  "scene_en": "Borti sits in the hot sun as sweat trickles down his forehead in little drops."
+ },
+ {
+  "key": "besessen|adj",
+  "keep": true,
+  "gloss_ko": "사로잡힌, 집착하는",
+  "example_de": "Er ist von seiner Arbeit regelrecht besessen.",
+  "example_ko": "그는 일에 완전히 사로잡혀 있어요.",
+  "scene_en": "Borti works feverishly at a desk at midnight, wild-eyed, surrounded by stacks of papers."
+ },
+ {
+  "key": "Clementine|noun",
+  "keep": true,
+  "gloss_ko": "클레멘타인(귤)",
+  "example_de": "Im Winter essen wir gern Clementinen.",
+  "example_ko": "겨울엔 귤을 즐겨 먹어요.",
+  "scene_en": "Borti peels a small bright orange clementine as juice spritzes out."
+ },
+ {
+  "key": "Heimatland|noun",
+  "keep": true,
+  "gloss_ko": "고국, 모국",
+  "example_de": "Viele Flüchtlinge möchten in ihr Heimatland zurückkehren.",
+  "example_ko": "많은 난민이 고국으로 돌아가길 원해요.",
+  "scene_en": "Borti gazes longingly from a ship's deck toward a distant green coastline and his old village."
+ },
+ {
+  "key": "Bankraub|noun",
+  "keep": true,
+  "gloss_ko": "은행 강도 사건",
+  "example_de": "Nach dem Bankraub flohen die Täter mit dem Auto.",
+  "example_ko": "은행을 턴 범인들이 차로 달아났어요.",
+  "scene_en": "Borti gapes as cartoonish masked raccoons run from a bank carrying sacks of coins."
+ },
+ {
+  "key": "Pfarrhaus|noun",
+  "keep": true,
+  "gloss_ko": "사제관, 목사관",
+  "example_de": "Der Pfarrer wohnt im Pfarrhaus neben der Kirche.",
+  "example_ko": "신부님은 성당 옆 사제관에 살아요.",
+  "scene_en": "Borti trots up to a cozy old house right next to a small village church."
+ },
+ {
+  "key": "Lebenskraft|noun",
+  "keep": true,
+  "gloss_ko": "생명력, 활력",
+  "example_de": "Trotz ihres Alters strotzt sie vor Lebenskraft.",
+  "example_ko": "그녀는 나이가 무색하게 활력이 넘쳐요.",
+  "scene_en": "Borti bursts with energy, springing through a meadow as flowers bloom all around him."
+ },
+ {
+  "key": "Kämpferin|noun",
+  "keep": true,
+  "gloss_ko": "여성 투사, 싸움꾼",
+  "example_de": "Sie ist eine echte Kämpferin und gibt nie auf.",
+  "example_ko": "그녀는 진정한 투사라 절대 포기 안 해요.",
+  "scene_en": "Borti cheers on a determined female dog boxer raising her gloves high."
+ },
+ {
+  "key": "langen|verb",
+  "keep": true,
+  "gloss_ko": "(구어) 충분하다, 손 뻗다",
+  "example_de": "Das Geld langt nicht bis zum Monatsende.",
+  "example_ko": "돈이 월말까지 모자라요.",
+  "scene_en": "Borti stretches up to grab a cookie jar on a high shelf, his paw just reaching it."
+ },
+ {
+  "key": "Liebling|noun",
+  "keep": true,
+  "gloss_ko": "가장 좋아하는 것, 자기",
+  "example_de": "Dieses Lied ist mein absoluter Liebling.",
+  "example_ko": "이 노래가 제가 제일 좋아하는 곡이에요.",
+  "scene_en": "Borti hugs his favorite squeaky toy tightly, little hearts floating above his head."
+ },
+ {
+  "key": "Geldgeber|noun",
+  "keep": true,
+  "gloss_ko": "투자자, 자금 제공자",
+  "example_de": "Für das Start-up werden noch Geldgeber gesucht.",
+  "example_ko": "그 스타트업은 아직 투자자를 찾고 있어요.",
+  "scene_en": "Borti in a suit hands a fat bag of coins to a grateful inventor puppy."
+ },
+ {
+  "key": "Entzündung|noun",
+  "keep": true,
+  "gloss_ko": "염증",
+  "example_de": "Der Arzt hat eine Entzündung im Knie festgestellt.",
+  "example_ko": "의사가 무릎에서 염증을 발견했어요.",
+  "scene_en": "Borti holds up a red, swollen paw while a concerned vet examines it."
+ },
+ {
+  "key": "Knirps|noun",
+  "keep": true,
+  "gloss_ko": "(구어) 꼬마, 접이 우산",
+  "example_de": "Der kleine Knirps will schon allein zur Schule gehen.",
+  "example_ko": "그 꼬마가 벌써 혼자 학교에 가려고 해요.",
+  "scene_en": "Borti walks beside a tiny boy with a giant backpack, both looking very proud."
+ },
+ {
+  "key": "verstauen|verb",
+  "keep": true,
+  "gloss_ko": "집어넣다, 챙겨 넣다",
+  "example_de": "Wir verstauten das ganze Gepäck im Kofferraum.",
+  "example_ko": "짐을 전부 트렁크에 실었어요.",
+  "scene_en": "Borti neatly stuffs suitcases and bags into the trunk of a car."
+ },
+ {
+  "key": "willigen|verb",
+  "keep": false,
+  "reason": "활용형·표제어 오류"
+ },
+ {
+  "key": "Bettwäsche|noun",
+  "keep": true,
+  "gloss_ko": "침구, 이불 커버",
+  "example_de": "Ich wechsle die Bettwäsche jede Woche.",
+  "example_ko": "침구는 매주 갈아요.",
+  "scene_en": "Borti tugs a fresh flowery duvet cover onto a big bed."
+ },
+ {
+  "key": "Abenteurer|noun",
+  "keep": true,
+  "gloss_ko": "모험가",
+  "example_de": "Als junger Abenteurer bereiste er die halbe Welt.",
+  "example_ko": "젊은 모험가 시절 그는 세계 곳곳을 다녔어요.",
+  "scene_en": "Borti in an explorer's hat swings on a vine across a jungle river."
+ },
+ {
+  "key": "Eins|noun",
+  "keep": true,
+  "gloss_ko": "숫자 1, 최고 성적",
+  "example_de": "Sie hat in der Matheprüfung eine Eins bekommen.",
+  "example_ko": "그녀는 수학 시험에서 최고 점수를 받았어요.",
+  "scene_en": "Borti proudly holds up a test paper topped with a big gold star, beaming."
+ },
+ {
+  "key": "Lektüre|noun",
+  "keep": true,
+  "gloss_ko": "읽을거리, 독서",
+  "example_de": "Der Bericht ist eine spannende Lektüre.",
+  "example_ko": "그 보고서는 흥미진진하게 읽혀요.",
+  "scene_en": "Borti curls up in an armchair absorbed in a thick book, a cup of tea beside him."
+ },
+ {
+  "key": "Karat|noun",
+  "keep": true,
+  "gloss_ko": "캐럿",
+  "example_de": "Der Ring hat einen Diamanten von zwei Karat.",
+  "example_ko": "그 반지에는 2캐럿 다이아몬드가 있어요.",
+  "scene_en": "Borti gapes at a ring with a huge sparkling diamond on a velvet cushion."
+ },
+ {
+  "key": "Vorbehalt|noun",
+  "keep": true,
+  "gloss_ko": "유보, 의구심",
+  "example_de": "Viele Bürger haben Vorbehalte gegen das Projekt.",
+  "example_ko": "많은 시민이 그 사업에 의구심을 품어요.",
+  "scene_en": "Borti eyes an offered dish skeptically, holding back with a doubtful, hesitant look."
+ },
+ {
+  "key": "verschanzen|verb",
+  "keep": true,
+  "gloss_ko": "(참호에) 숨다, 틀어박히다",
+  "example_de": "Der Täter verschanzte sich in seiner Wohnung.",
+  "example_ko": "범인은 자기 집에 틀어박혀 버텼어요.",
+  "scene_en": "Borti hides behind a wall of piled pillows and boxes, peeking out from his fort."
+ },
+ {
+  "key": "entwaffnen|verb",
+  "keep": true,
+  "gloss_ko": "무장 해제하다",
+  "example_de": "Die Polizei konnte den Angreifer schnell entwaffnen.",
+  "example_ko": "경찰이 공격자를 재빨리 무장 해제했어요.",
+  "scene_en": "Borti gently takes a toy sword out of a startled puppy's paws."
+ },
+ {
+  "key": "quittieren|verb",
+  "keep": true,
+  "gloss_ko": "영수 확인하다, 응수하다",
+  "example_de": "Sie quittierte die Kritik mit einem Lächeln.",
+  "example_ko": "그녀는 비판에 미소로 응했어요.",
+  "scene_en": "Borti stamps his paw print at the bottom of a receipt and hands it back."
+ },
+ {
+  "key": "gesichert|adj",
+  "keep": true,
+  "gloss_ko": "확보된, 보장된",
+  "example_de": "Die Finanzierung des Projekts ist gesichert.",
+  "example_ko": "그 프로젝트의 자금은 확보됐어요.",
+  "scene_en": "Borti locks a treasure chest with heavy chains and a huge padlock, looking relieved."
+ },
+ {
+  "key": "unrecht|adj",
+  "keep": true,
+  "gloss_ko": "옳지 않은, 부당한",
+  "example_de": "Mit diesem Vorwurf tust du ihm unrecht.",
+  "example_ko": "그런 비난은 그에게 부당해요.",
+  "scene_en": "Borti looks hurt as he's blamed for a broken vase that a cat actually knocked over."
+ },
+ {
+  "key": "Glut|noun",
+  "keep": true,
+  "gloss_ko": "잉걸불, 열기",
+  "example_de": "Die Würstchen werden über der Glut gegrillt.",
+  "example_ko": "소시지를 숯불 위에서 구워요.",
+  "scene_en": "Borti warms his paws over glowing red embers in a grill."
+ },
+ {
+  "key": "Gleichheit|noun",
+  "keep": true,
+  "gloss_ko": "평등, 동일함",
+  "example_de": "Die Verfassung garantiert die Gleichheit aller Bürger.",
+  "example_ko": "헌법은 모든 시민의 평등을 보장해요.",
+  "scene_en": "Borti sits on a perfectly level seesaw opposite a big dog, both exactly balanced."
+ },
+ {
+  "key": "Globus|noun",
+  "keep": true,
+  "gloss_ko": "지구본",
+  "example_de": "Auf dem Schreibtisch steht ein alter Globus.",
+  "example_ko": "책상 위에 오래된 지구본이 있어요.",
+  "scene_en": "Borti spins a large globe with his paw, pointing at a distant ocean."
+ },
+ {
+  "key": "Ungnade|noun",
+  "keep": true,
+  "gloss_ko": "미움, 총애를 잃음",
+  "example_de": "Der Berater ist beim Präsidenten in Ungnade gefallen.",
+  "example_ko": "그 고문은 대통령 눈 밖에 났어요.",
+  "scene_en": "Borti sits outside a closed palace door, ears drooping, banished from the king's favor."
+ },
+ {
+  "key": "selbständig|adj",
+  "keep": true,
+  "gloss_ko": "자립적인, 자영업의",
+  "example_de": "Seit drei Jahren ist sie als Grafikerin selbständig.",
+  "example_ko": "그녀는 3년째 프리랜서 디자이너예요.",
+  "scene_en": "Borti runs his own little shop all by himself, wearing an apron behind the counter."
+ },
+ {
+  "key": "Patent|noun",
+  "keep": true,
+  "gloss_ko": "특허",
+  "example_de": "Die Firma hat ein Patent auf die Technologie angemeldet.",
+  "example_ko": "회사는 그 기술의 특허를 출원했어요.",
+  "scene_en": "Borti proudly holds up a framed certificate with a gold seal beside his ball-throwing invention."
+ },
+ {
+  "key": "Vielzahl|noun",
+  "keep": true,
+  "gloss_ko": "다수, 많은 수",
+  "example_de": "Das Museum zeigt eine Vielzahl von Exponaten.",
+  "example_ko": "그 박물관은 수많은 전시물을 보여 줘요.",
+  "scene_en": "Borti stands amazed before a huge number of different toys covering the whole floor."
+ },
+ {
+  "key": "Programmierung|noun",
+  "keep": true,
+  "gloss_ko": "프로그래밍",
+  "example_de": "Die Programmierung der App dauerte ein halbes Jahr.",
+  "example_ko": "앱 프로그래밍에 반년이 걸렸어요.",
+  "scene_en": "Borti types at a laptop in a dark room, the glowing screen reflected in his glasses."
+ },
+ {
+  "key": "Roulette|noun",
+  "keep": true,
+  "gloss_ko": "룰렛",
+  "example_de": "Er verlor sein ganzes Geld beim Roulette.",
+  "example_ko": "그는 룰렛에서 돈을 몽땅 잃었어요.",
+  "scene_en": "Borti holds his breath as a ball spins around a red-and-black roulette wheel."
+ },
+ {
+  "key": "Draufgänger|noun",
+  "keep": true,
+  "gloss_ko": "저돌적인 사람",
+  "example_de": "Als junger Mann war er ein echter Draufgänger.",
+  "example_ko": "젊었을 때 그는 정말 겁이 없었어요.",
+  "scene_en": "Borti rides a skateboard straight off a ramp, flying fearlessly through the air."
+ },
+ {
+  "key": "Apostel|noun",
+  "keep": true,
+  "gloss_ko": "사도, 열렬한 주창자",
+  "example_de": "Er tritt auf wie ein Apostel der Digitalisierung.",
+  "example_ko": "그는 디지털화의 전도사처럼 행동해요.",
+  "scene_en": "Borti in a simple robe stands on a crate, preaching passionately to a gathered crowd."
+ },
+ {
+  "key": "wahllos|adj",
+  "keep": true,
+  "gloss_ko": "닥치는 대로, 무작위의",
+  "example_de": "Er kaufte wahllos alles, was im Angebot war.",
+  "example_ko": "그는 할인 상품을 닥치는 대로 샀어요.",
+  "scene_en": "Borti tosses random items into an overflowing shopping cart without even looking."
+ },
+ {
+  "key": "Zusammenstoß|noun",
+  "keep": true,
+  "gloss_ko": "충돌",
+  "example_de": "Bei dem Zusammenstoß wurden zwei Personen verletzt.",
+  "example_ko": "충돌로 두 명이 다쳤어요.",
+  "scene_en": "Borti winces as two bumper cars crash head-on with a big bump."
+ },
+ {
+  "key": "Gottheit|noun",
+  "keep": true,
+  "gloss_ko": "신, 신성",
+  "example_de": "Die alten Römer verehrten viele Gottheiten.",
+  "example_ko": "고대 로마인은 여러 신을 숭배했어요.",
+  "scene_en": "Borti bows before a giant golden statue of an ancient deity inside a temple."
+ },
+ {
+  "key": "verfassen|verb",
+  "keep": true,
+  "gloss_ko": "작성하다, 집필하다",
+  "example_de": "Sie hat einen Bericht über die Reform verfasst.",
+  "example_ko": "그녀는 개혁에 관한 보고서를 썼어요.",
+  "scene_en": "Borti writes with a feather quill at a desk, deep in concentration."
+ },
+ {
+  "key": "schrill|adj",
+  "keep": true,
+  "gloss_ko": "날카로운, 요란한",
+  "example_de": "Ein schriller Pfiff unterbrach die Rede.",
+  "example_ko": "날카로운 휘파람 소리가 연설을 끊었어요.",
+  "scene_en": "Borti clamps his ears shut as a whistle blasts a piercing shriek."
+ },
+ {
+  "key": "heimisch|adj",
+  "keep": true,
+  "gloss_ko": "토종의, 편안한",
+  "example_de": "In der neuen Stadt fühle ich mich schon heimisch.",
+  "example_ko": "새 도시가 벌써 집처럼 편해요.",
+  "scene_en": "Borti curls up contentedly by the fireplace in a new house, totally at home."
+ },
+ {
+  "key": "unbezahlt|adj",
+  "keep": true,
+  "gloss_ko": "무급의, 미납의",
+  "example_de": "Viele Praktika sind leider immer noch unbezahlt.",
+  "example_ko": "안타깝게도 많은 인턴십이 아직 무급이에요.",
+  "scene_en": "Borti sweeps a shop all day, then holds out an empty paw at closing time."
+ },
+ {
+  "key": "Sinneswandel|noun",
+  "keep": true,
+  "gloss_ko": "심경 변화",
+  "example_de": "Was hat zu diesem plötzlichen Sinneswandel geführt?",
+  "example_ko": "왜 이렇게 갑자기 마음이 바뀌었나요?",
+  "scene_en": "Borti stops mid-walk with a sudden look of realization and turns around to head the other way."
+ },
+ {
+  "key": "Hunderttausende|noun",
+  "keep": true,
+  "gloss_ko": "수십만",
+  "example_de": "Hunderttausende demonstrierten gegen den Krieg.",
+  "example_ko": "수십만 명이 전쟁 반대 시위를 했어요.",
+  "scene_en": "Borti stands on a hill above a vast sea of people filling every street of a city."
+ },
+ {
+  "key": "kopfüber|adv",
+  "keep": true,
+  "gloss_ko": "거꾸로, 무작정",
+  "example_de": "Nach der Trennung stürzte er sich kopfüber in die Arbeit.",
+  "example_ko": "이별 후 그는 일에 무작정 뛰어들었어요.",
+  "scene_en": "Borti dives headfirst into a swimming pool, ears flying straight up."
+ },
+ {
+  "key": "Essenz|noun",
+  "keep": true,
+  "gloss_ko": "본질, 정수, 에센스",
+  "example_de": "Das ist die Essenz seiner Philosophie.",
+  "example_ko": "그게 그의 철학의 핵심이에요.",
+  "scene_en": "Borti squeezes a single glowing drop from a huge pile of flowers into a tiny glass vial."
+ },
+ {
+  "key": "Spital|noun",
+  "keep": true,
+  "gloss_ko": "(오)(스) 병원",
+  "example_de": "Nach dem Unfall wurde er ins Spital gebracht.",
+  "example_ko": "사고 후 그는 병원으로 옮겨졌어요.",
+  "scene_en": "Borti lies in a hospital bed with a bandaged paw as a nurse checks on him."
+ },
+ {
+  "key": "Chemotherapie|noun",
+  "keep": true,
+  "gloss_ko": "항암 화학 요법",
+  "example_de": "Nach der Operation folgt eine Chemotherapie.",
+  "example_ko": "수술 후에는 항암 치료가 이어져요.",
+  "scene_en": "Borti sits holding paws with a friend in a knit cap beside an IV drip stand."
+ },
+ {
+  "key": "Heimkehr|noun",
+  "keep": true,
+  "gloss_ko": "귀향, 귀가",
+  "example_de": "Die Familie feierte die Heimkehr des Sohnes.",
+  "example_ko": "가족이 아들의 귀향을 축하했어요.",
+  "scene_en": "Borti bursts through the front door with a suitcase as his family rushes to hug him."
+ },
+ {
+  "key": "geleiten|verb",
+  "keep": true,
+  "gloss_ko": "안내하다, 호위하다",
+  "example_de": "Ein Mitarbeiter geleitete die Gäste zum Ausgang.",
+  "example_ko": "직원이 손님들을 출구까지 안내했어요.",
+  "scene_en": "Borti politely escorts an elderly lady dog arm in arm down a long corridor."
+ },
+ {
+  "key": "Lesung|noun",
+  "keep": true,
+  "gloss_ko": "낭독회, (의회) 독회",
+  "example_de": "Der Autor hält heute Abend eine Lesung in der Buchhandlung.",
+  "example_ko": "작가가 오늘 저녁 서점에서 낭독회를 해요.",
+  "scene_en": "Borti reads aloud from a book on a small stage while an audience listens in a bookstore."
+ },
+ {
+  "key": "Gazelle|noun",
+  "keep": true,
+  "gloss_ko": "가젤",
+  "example_de": "Die Gazelle flüchtete vor dem Löwen.",
+  "example_ko": "가젤이 사자를 피해 달아났어요.",
+  "scene_en": "Borti watches a graceful gazelle leap high across the golden savanna."
+ },
+ {
+  "key": "Imitation|noun",
+  "keep": true,
+  "gloss_ko": "모조품, 모방",
+  "example_de": "Die Designertasche ist nur eine billige Imitation.",
+  "example_ko": "그 명품 가방은 싸구려 모조품일 뿐이에요.",
+  "scene_en": "Borti compares two identical-looking handbags, sniffing one suspiciously as the fake."
+ },
+ {
+  "key": "fernbleiben|verb",
+  "keep": true,
+  "gloss_ko": "불참하다, 멀리하다",
+  "example_de": "Mehrere Abgeordnete blieben der Abstimmung fern.",
+  "example_ko": "의원 여러 명이 표결에 불참했어요.",
+  "scene_en": "Borti watches from behind a distant tree while everyone else gathers at a meeting table."
+ },
+ {
+  "key": "abschirmen|verb",
+  "keep": true,
+  "gloss_ko": "차단하다, 보호하다",
+  "example_de": "Die Leibwächter schirmten den Star vor den Fans ab.",
+  "example_ko": "경호원들이 팬들로부터 스타를 막아 줬어요.",
+  "scene_en": "Borti holds up a big umbrella, shielding a small puppy from a hailstorm."
+ },
+ {
+  "key": "entledigen|verb",
+  "keep": true,
+  "gloss_ko": "벗어나다, 처리하다",
+  "example_de": "Er entledigte sich schnell seiner nassen Kleider.",
+  "example_ko": "그는 젖은 옷을 재빨리 벗었어요.",
+  "scene_en": "Borti shrugs off a heavy, soaking-wet coat with relief and shakes himself free."
+ },
+ {
+  "key": "ballen|verb",
+  "keep": true,
+  "gloss_ko": "(주먹을) 쥐다, 뭉치다",
+  "example_de": "Vor Wut ballte er die Fäuste.",
+  "example_ko": "그는 화가 나서 주먹을 꽉 쥐었어요.",
+  "scene_en": "Borti clenches both paws into tight fists, trembling with anger."
+ },
+ {
+  "key": "aufhetzen|verb",
+  "keep": true,
+  "gloss_ko": "선동하다, 부추기다",
+  "example_de": "Er hetzte die Arbeiter gegen die Geschäftsleitung auf.",
+  "example_ko": "그는 노동자들이 경영진에 맞서게 부추겼어요.",
+  "scene_en": "Borti frowns as a sly fox whispers into dogs' ears, turning them angrily against each other."
+ },
+ {
+  "key": "übermenschlich|adj",
+  "keep": true,
+  "gloss_ko": "초인적인",
+  "example_de": "Mit übermenschlicher Kraft hob er das Auto an.",
+  "example_ko": "그는 초인적인 힘으로 차를 들어 올렸어요.",
+  "scene_en": "Borti lifts a whole car above his head with superhuman strength, muscles bulging."
+ },
+ {
+  "key": "Kaiserschnitt|noun",
+  "keep": true,
+  "gloss_ko": "제왕절개",
+  "example_de": "Das Baby kam per Kaiserschnitt zur Welt.",
+  "example_ko": "아기는 제왕절개로 태어났어요.",
+  "scene_en": "Borti peeks through a hospital nursery window at a newborn baby wrapped in a blanket."
+ },
+ {
+  "key": "Lakai|noun",
+  "keep": true,
+  "gloss_ko": "하인, 앞잡이",
+  "example_de": "Er ist nur ein Lakai des Konzernchefs.",
+  "example_ko": "그는 회장의 앞잡이일 뿐이에요.",
+  "scene_en": "Borti in a powdered wig and livery bows low, holding a silver tray for a pompous lord."
+ },
+ {
+  "key": "Depot|noun",
+  "keep": true,
+  "gloss_ko": "창고, 보관소, 증권 계좌",
+  "example_de": "Sie hat ihr Depot bei einer Online-Bank.",
+  "example_ko": "그녀는 온라인 은행에 증권 계좌가 있어요.",
+  "scene_en": "Borti stands in a big warehouse full of neatly stacked crates and boxes."
+ },
+ {
+  "key": "Vergaser|noun",
+  "keep": true,
+  "gloss_ko": "기화기, 카뷰레터",
+  "example_de": "Der Mechaniker hat den Vergaser gereinigt.",
+  "example_ko": "정비사가 기화기를 청소했어요.",
+  "scene_en": "Borti in overalls cleans a small greasy engine part under the hood of an old car."
+ },
+ {
+  "key": "Wunderkind|noun",
+  "keep": true,
+  "gloss_ko": "신동",
+  "example_de": "Mozart galt als musikalisches Wunderkind.",
+  "example_ko": "모차르트는 음악 신동으로 불렸어요.",
+  "scene_en": "Borti as a tiny puppy plays a grand piano brilliantly while adults gasp in amazement."
+ },
+ {
+  "key": "Erbschaft|noun",
+  "keep": true,
+  "gloss_ko": "상속, 유산",
+  "example_de": "Mit der Erbschaft hat sie eine Wohnung gekauft.",
+  "example_ko": "그녀는 유산으로 집을 샀어요.",
+  "scene_en": "Borti opens grandpa's old chest and finds gold coins and a pocket watch left to him."
+ },
+ {
+  "key": "Rauschgift|noun",
+  "keep": true,
+  "gloss_ko": "마약",
+  "example_de": "Der Zoll beschlagnahmte zwei Kilo Rauschgift.",
+  "example_ko": "세관이 마약 2킬로그램을 압수했어요.",
+  "scene_en": "Borti in a customs officer's cap sniffs a suitcase and points at it with his nose."
+ },
+ {
+  "key": "abrupt|adj",
+  "keep": true,
+  "gloss_ko": "갑작스러운, 돌연한",
+  "example_de": "Das Gespräch endete ziemlich abrupt.",
+  "example_ko": "대화가 꽤 갑작스럽게 끝났어요.",
+  "scene_en": "Borti skids to a sudden stop at a cliff edge, dust flying, eyes wide."
+ },
+ {
+  "key": "Regenmantel|noun",
+  "keep": true,
+  "gloss_ko": "비옷, 레인코트",
+  "example_de": "Vergiss deinen Regenmantel nicht!",
+  "example_ko": "비옷 잊지 마세요!",
+  "scene_en": "Borti splashes through puddles in a bright yellow raincoat with the hood up."
+ },
+ {
+  "key": "Lebensretter|noun",
+  "keep": true,
+  "gloss_ko": "생명의 은인, 구조원",
+  "example_de": "Der Defibrillator im Büro war ein echter Lebensretter.",
+  "example_ko": "사무실의 제세동기가 생명을 구했어요.",
+  "scene_en": "Borti in a lifeguard vest pulls a struggling kitten out of the water to safety."
+ },
+ {
+  "key": "jeweilig|adj",
+  "keep": true,
+  "gloss_ko": "각각의, 해당하는",
+  "example_de": "Die Regeln richten sich nach dem jeweiligen Land.",
+  "example_ko": "규정은 나라마다 달라요.",
+  "scene_en": "Borti hands each puppy its own matching colored bowl, one by one."
+ },
+ {
+  "key": "Kapazität|noun",
+  "keep": true,
+  "gloss_ko": "수용력, 용량, 권위자",
+  "example_de": "Die Klinik hat ihre Kapazitäten voll ausgeschöpft.",
+  "example_ko": "그 병원은 수용 능력이 한계에 달했어요.",
+  "scene_en": "Borti tries to squeeze one more ball into a jar already filled to the brim."
+ },
+ {
+  "key": "Polizeiauto|noun",
+  "keep": true,
+  "gloss_ko": "경찰차",
+  "example_de": "Vor dem Haus parkt seit Stunden ein Polizeiauto.",
+  "example_ko": "집 앞에 몇 시간째 경찰차가 서 있어요.",
+  "scene_en": "Borti peeks out of a police car window as its blue lights flash."
+ },
+ {
+  "key": "Nachrichtendienst|noun",
+  "keep": true,
+  "gloss_ko": "정보기관",
+  "example_de": "Der Nachrichtendienst soll Telefone abgehört haben.",
+  "example_ko": "정보기관이 전화를 도청했다고 해요.",
+  "scene_en": "Borti in a trench coat and sunglasses listens through headphones in a dim room."
+ },
+ {
+  "key": "Nelke|noun",
+  "keep": true,
+  "gloss_ko": "카네이션, 정향",
+  "example_de": "Zum Muttertag schenkte er ihr rote Nelken.",
+  "example_ko": "어머니날에 그는 빨간 카네이션을 선물했어요.",
+  "scene_en": "Borti offers a bouquet of red carnations held carefully in his mouth."
+ },
+ {
+  "key": "Schnittwunde|noun",
+  "keep": true,
+  "gloss_ko": "베인 상처",
+  "example_de": "Die tiefe Schnittwunde musste genäht werden.",
+  "example_ko": "깊이 베인 상처를 꿰매야 했어요.",
+  "scene_en": "Borti holds out a paw with a thin cut while a nurse applies a bandage."
+ },
+ {
+  "key": "vollstrecken|verb",
+  "keep": true,
+  "gloss_ko": "집행하다",
+  "example_de": "Das Urteil wurde noch nicht vollstreckt.",
+  "example_ko": "판결은 아직 집행되지 않았어요.",
+  "scene_en": "Borti in a bailiff's uniform firmly stamps an official document at a courthouse desk."
+ },
+ {
+  "key": "Unze|noun",
+  "keep": true,
+  "gloss_ko": "온스",
+  "example_de": "Der Goldpreis stieg auf über 2.000 Dollar je Unze.",
+  "example_ko": "금값이 온스당 2,000달러를 넘었어요.",
+  "scene_en": "Borti weighs a small gold bar on a tiny brass scale with great care."
+ },
+ {
+  "key": "Beschlag|noun",
+  "keep": true,
+  "gloss_ko": "쇠 장식, (in ~) 독차지",
+  "example_de": "Die Kinder nahmen den neuen Spielplatz sofort in Beschlag.",
+  "example_ko": "아이들이 새 놀이터를 바로 차지했어요.",
+  "scene_en": "Borti sprawls across an entire sofa, claiming every cushion for himself."
+ },
+ {
+  "key": "gesellig|adj",
+  "keep": true,
+  "gloss_ko": "사교적인, 어울리기 좋은",
+  "example_de": "Es war ein geselliger Abend unter Kollegen.",
+  "example_ko": "동료들과 함께한 즐거운 저녁이었어요.",
+  "scene_en": "Borti laughs at a cozy table crowded with friends, glasses raised in a toast."
+ },
+ {
+  "key": "Wertschätzung|noun",
+  "keep": true,
+  "gloss_ko": "존중, 높은 평가",
+  "example_de": "Viele Mitarbeiter wünschen sich mehr Wertschätzung.",
+  "example_ko": "많은 직원이 더 많은 인정을 원해요.",
+  "scene_en": "Borti beams as his boss gives him a warm pat and a gold medal for his work."
+ },
+ {
+  "key": "Vandalismus|noun",
+  "keep": true,
+  "gloss_ko": "기물 파손",
+  "example_de": "Die Bushaltestelle wurde Opfer von Vandalismus.",
+  "example_ko": "버스 정류장이 기물 파손을 당했어요.",
+  "scene_en": "Borti stares sadly at a smashed bus shelter with broken glass and paint splashed everywhere."
+ },
+ {
+  "key": "andersherum|adv",
+  "keep": true,
+  "gloss_ko": "반대로, 거꾸로",
+  "example_de": "Du hältst die Karte andersherum.",
+  "example_ko": "지도를 거꾸로 들고 있어요.",
+  "scene_en": "Borti holds a map upside down, confused, while a friend turns it the right way round."
+ },
+ {
+  "key": "Fete|noun",
+  "keep": true,
+  "gloss_ko": "(구어) 파티",
+  "example_de": "Am Samstag steigt bei uns eine große Fete.",
+  "example_ko": "토요일에 우리 집에서 큰 파티가 열려요.",
+  "scene_en": "Borti dances under colorful balloons and streamers at a lively house party."
+ },
+ {
+  "key": "Camper|noun",
+  "keep": true,
+  "gloss_ko": "캠핑객",
+  "example_de": "Im Sommer ist der Platz voller Camper.",
+  "example_ko": "여름엔 캠핑장이 캠핑객으로 꽉 차요.",
+  "scene_en": "Borti roasts a marshmallow beside his tent among other campers at a busy campsite."
+ },
+ {
+  "key": "Tapete|noun",
+  "keep": true,
+  "gloss_ko": "벽지",
+  "example_de": "Wir haben im Wohnzimmer neue Tapeten angebracht.",
+  "example_ko": "거실에 새 벽지를 발랐어요.",
+  "scene_en": "Borti smooths a long strip of flowery wallpaper onto a wall with a wide brush."
+ },
+ {
+  "key": "Taler|noun",
+  "keep": true,
+  "gloss_ko": "탈러(옛 은화)",
+  "example_de": "Früher bezahlte man in vielen deutschen Ländern mit Talern.",
+  "example_ko": "예전엔 독일 여러 나라에서 탈러를 썼어요.",
+  "scene_en": "Borti holds up a large shiny old silver coin with a royal portrait, admiring it."
+ },
+ {
+  "key": "Attrappe|noun",
+  "keep": true,
+  "gloss_ko": "모형, 가짜",
+  "example_de": "Die Kamera am Eingang ist nur eine Attrappe.",
+  "example_ko": "입구 카메라는 그냥 가짜예요.",
+  "scene_en": "Borti taps a security camera and discovers it's a hollow plastic dummy with no wires."
+ },
+ {
+  "key": "anschreiben|verb",
+  "keep": true,
+  "gloss_ko": "편지를 보내다, 외상 달다",
+  "example_de": "Wir haben alle Kunden per E-Mail angeschrieben.",
+  "example_ko": "고객 모두에게 메일을 보냈어요.",
+  "scene_en": "Borti seals a tall stack of envelopes one by one at his desk, ready to mail them."
+ },
+ {
+  "key": "hochhalten|verb",
+  "keep": true,
+  "gloss_ko": "높이 들다, 지켜 나가다",
+  "example_de": "Die Fans hielten ihre Schals hoch.",
+  "example_ko": "팬들이 목도리를 높이 들었어요.",
+  "scene_en": "Borti holds a trophy high above his head with both paws, triumphant."
+ },
+ {
+  "key": "naschen|verb",
+  "keep": true,
+  "gloss_ko": "군것질하다, 몰래 먹다",
+  "example_de": "Die Kinder haben heimlich Schokolade genascht.",
+  "example_ko": "아이들이 몰래 초콜릿을 집어 먹었어요.",
+  "scene_en": "Borti sneaks a chocolate from a box, chocolate smeared on his lips."
+ },
+ {
+  "key": "fungieren|verb",
+  "keep": true,
+  "gloss_ko": "~의 역할을 하다",
+  "example_de": "Das alte Rathaus fungiert heute als Museum.",
+  "example_ko": "옛 시청은 지금 박물관으로 쓰여요.",
+  "scene_en": "Borti paddles across a pond sitting in a cardboard box that serves as his boat."
+ },
+ {
+  "key": "aussenden|verb",
+  "keep": true,
+  "gloss_ko": "내보내다, 방출하다",
+  "example_de": "Das Schiff sendete ein Notsignal aus.",
+  "example_ko": "배가 조난 신호를 보냈어요.",
+  "scene_en": "Borti at a radio transmitter sends out signals as rings of waves ripple from the antenna."
+ },
+ {
+  "key": "Pathologe|noun",
+  "keep": true,
+  "gloss_ko": "병리학자",
+  "example_de": "Der Pathologe untersuchte die Gewebeproben.",
+  "example_ko": "병리학자가 조직 샘플을 검사했어요.",
+  "scene_en": "Borti in a white coat peers into a microscope at tissue slides in a quiet lab."
+ },
+ {
+  "key": "Strähne|noun",
+  "keep": true,
+  "gloss_ko": "(머리) 가닥",
+  "example_de": "Sie strich sich eine Strähne aus dem Gesicht.",
+  "example_ko": "그녀는 얼굴에 흘러내린 머리를 넘겼어요.",
+  "scene_en": "Borti blows a single dyed blue strand of fur out of his eyes."
+ },
+ {
+  "key": "verspäten|verb",
+  "keep": true,
+  "gloss_ko": "늦다, 지각하다",
+  "example_de": "Der Zug hat sich um zwanzig Minuten verspätet.",
+  "example_ko": "기차가 20분 늦었어요.",
+  "scene_en": "Borti runs panting onto a platform just as the train pulls away without him."
+ },
+ {
+  "key": "Stripperin|noun",
+  "keep": false,
+  "reason": "성적 표현"
+ },
+ {
+  "key": "wurscht|adj",
+  "keep": true,
+  "gloss_ko": "(구어) 상관없는",
+  "example_de": "Was die anderen denken, ist mir völlig wurscht.",
+  "example_ko": "남들이 어떻게 생각하든 전혀 상관없어요.",
+  "scene_en": "Borti shrugs with a careless face while munching a sausage, totally indifferent."
+ },
+ {
+  "key": "Ebenbild|noun",
+  "keep": true,
+  "gloss_ko": "꼭 닮은 모습",
+  "example_de": "Der Sohn ist das Ebenbild seines Vaters.",
+  "example_ko": "아들은 아버지를 쏙 빼닮았어요.",
+  "scene_en": "Borti stands beside his father, an older identical dachshund, both striking the same pose."
+ },
+ {
+  "key": "Gerichtsgebäude|noun",
+  "keep": true,
+  "gloss_ko": "법원 청사",
+  "example_de": "Vor dem Gerichtsgebäude warteten viele Journalisten.",
+  "example_ko": "법원 앞에서 기자들이 많이 기다렸어요.",
+  "scene_en": "Borti stands on the steps of a grand columned courthouse as reporters crowd below."
+ },
+ {
+  "key": "Ernennung|noun",
+  "keep": true,
+  "gloss_ko": "임명",
+  "example_de": "Die Ernennung der neuen Ministerin sorgte für Kritik.",
+  "example_ko": "새 장관 임명이 비판을 불렀어요.",
+  "scene_en": "Borti bows proudly as a golden chain of office is placed around his neck at a formal ceremony."
+ },
+ {
+  "key": "Zuchthaus|noun",
+  "keep": true,
+  "gloss_ko": "(옛) 중죄수 교도소",
+  "example_de": "Er musste für zehn Jahre ins Zuchthaus.",
+  "example_ko": "그는 10년간 교도소에 가야 했어요.",
+  "scene_en": "Borti peers out through the bars of a gloomy old stone prison."
+ },
+ {
+  "key": "Strafverfolgung|noun",
+  "keep": true,
+  "gloss_ko": "형사 소추",
+  "example_de": "Als Diplomat ist er vor Strafverfolgung geschützt.",
+  "example_ko": "그는 외교관이라 형사 소추를 면해요.",
+  "scene_en": "Borti in a detective coat follows paw prints with a magnifying glass toward a hiding raccoon."
+ },
+ {
+  "key": "Kruste|noun",
+  "keep": true,
+  "gloss_ko": "(빵) 껍질, 딱지",
+  "example_de": "Das Brot hat eine schöne knusprige Kruste.",
+  "example_ko": "그 빵은 겉껍질이 바삭해요.",
+  "scene_en": "Borti bites into a loaf with a thick crunchy golden crust, crumbs flying."
+ },
+ {
+  "key": "verlernen|verb",
+  "keep": true,
+  "gloss_ko": "(배운 것을) 잊다",
+  "example_de": "Ich habe mein Französisch fast völlig verlernt.",
+  "example_ko": "프랑스어를 거의 다 잊어버렸어요.",
+  "scene_en": "Borti tries to ride a bicycle again but wobbles awkwardly, having forgotten how."
+ },
+ {
+  "key": "Magistrat|noun",
+  "keep": true,
+  "gloss_ko": "(오) 시 당국, 시청",
+  "example_de": "Der Wiener Magistrat hat neue Regeln beschlossen.",
+  "example_ko": "빈 시청이 새 규정을 정했어요.",
+  "scene_en": "Borti sits at a long council table with officials in a grand city hall chamber."
+ },
+ {
+  "key": "Plastiktüte|noun",
+  "keep": true,
+  "gloss_ko": "비닐봉지",
+  "example_de": "Im Supermarkt gibt es keine Plastiktüten mehr.",
+  "example_ko": "슈퍼마켓에서 이제 비닐봉지를 안 줘요.",
+  "scene_en": "Borti carries an overstuffed plastic bag in his mouth, its handles stretching thin."
+ },
+ {
+  "key": "verantwortungsbewusst|adj",
+  "keep": true,
+  "gloss_ko": "책임감 있는",
+  "example_de": "Sie ist eine sehr verantwortungsbewusste Mitarbeiterin.",
+  "example_ko": "그녀는 아주 책임감 있는 직원이에요.",
+  "scene_en": "Borti carefully leads a line of ducklings across a street, looking both ways."
+ }
+]

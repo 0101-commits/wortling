@@ -12,3 +12,4 @@ scripts/gates/shots
 dist-mock
 backup/
 .data
+seed/words.json

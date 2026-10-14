@@ -1,4 +1,4 @@
-// Wortling 단어장 씨앗 빌더: B1(괴테 목록) + B2(WordHoard → DWDS 대조) → kaikki 보강 + 한국어 내용 파일 → seed/seed.sql + seed/report.md
+// Wortling 단어장 씨앗 빌더: B1(괴테 목록) + B2·C1(WordHoard → DWDS 대조) → kaikki 보강 + 한국어 내용 파일 → seed/seed.sql + seed/words.json + seed/report.md
 // 실행: npm run seed:build   (node 24 표준 라이브러리만 사용)
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -10,9 +10,9 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..');
 const DATA = path.join(HERE, 'data');
 const OUT_DIR = path.join(ROOT, 'seed');
-// kaikki 원본은 저장소 밖(세션 scratchpad)에 둔다. 환경변수로 바꿀 수 있다.
+// 원본 자료는 저장소 안 .data/(git 제외)에 둔다(scripts/words/update.mjs 가 내려받음). 환경변수로 바꿀 수 있다.
 const KAIKKI_DIR = process.env.KAIKKI_DIR
-  || 'C:/Users/cgpar/AppData/Local/Temp/claude/C--Users-cgpar/1561df6f-275c-411d-9ce1-8c6f26ff3064/scratchpad/vocab/kaikki';
+  || path.join(ROOT, '.data', 'kaikki');
 const DUE = '2026-10-13T00:00:00Z';
 const BATCH = 100;
 const POS4 = { NOUN: 'noun', VERB: 'verb', ADJ: 'adj', ADV: 'adv' }; // WordHoard(UPOS) → 우리 pos
@@ -46,7 +46,8 @@ function parseCsvLine(line) {
   return out;
 }
 const freqRank = new Map();        // 'lemma|pos' → 순위 (B1 에도 적용)
-const b2Raw = [];                  // B2 후보 원본
+const rawBy = { B2: [], C1: [] };  // 수준별 후보 원본(WordHoard cefr_estimate)
+const b2Raw = rawBy.B2;
 {
   const lines = fs.readFileSync(path.join(DATA, 'wordhoard-de.csv'), 'utf8').split(/\r?\n/);
   const head = parseCsvLine(lines[0]);
@@ -60,12 +61,12 @@ const b2Raw = [];                  // B2 후보 원본
     const rank = Number(c[col.frequency_rank]) || null;
     const k = key(lemma, pos);
     if (!freqRank.has(k)) freqRank.set(k, rank);
-    if (c[col.cefr_estimate] === 'B2') b2Raw.push({ lemma, pos, rank });
+    rawBy[c[col.cefr_estimate]]?.push({ lemma, pos, rank });
   }
 }
 
 // ── 3. kaikki 스트리밍 (후보 단어만 파싱) ───────────────────────────────────
-const candidates = new Set([...b1.map((w) => lower(w.lemma)), ...b2Raw.map((w) => lower(w.lemma))]);
+const candidates = new Set([...b1, ...rawBy.B2, ...rawBy.C1].map((w) => lower(w.lemma)));
 const kaikki = new Map(); // 'lemma|pos' → [{word, gender, plural, ipa, glosses[], vulgar}]
 const WORD_RE = /"word": "((?:[^"\\]|\\.)*)", "lang": "German"/;
 
@@ -137,7 +138,7 @@ function lookup(lemma, pos) {
 // ── 4. B2 선별 ───────────────────────────────────────────────────────────────
 // DWDS 표제어 목록(lemma,url,wortklasse,artikeldatum,artikeltyp,frequenzklasse). 저장소 밖에 두고 환경변수로 바꿀 수 있다.
 const DWDS_CSV = process.env.DWDS_LEMMA_CSV
-  || 'C:/Users/cgpar/AppData/Local/Temp/claude/C--Users-cgpar/1561df6f-275c-411d-9ce1-8c6f26ff3064/scratchpad/vocab/dwds_lemma.csv';
+  || path.join(ROOT, '.data', 'dwds_lemma.csv');
 // 없으면 B2 가 조용히 달라지고 id 가 밀리므로 멈춘다.
 if (!fs.existsSync(DWDS_CSV)) throw new Error(`DWDS 표제어 목록이 없다: ${DWDS_CSV} (DWDS_LEMMA_CSV 로 경로 지정)`);
 const WK = { Substantiv: 'noun', Verb: 'verb', Adjektiv: 'adj', 'partizipiales Adjektiv': 'adj', Adverb: 'adv', Pronominaladverb: 'adv' };
@@ -153,44 +154,54 @@ for (const line of fs.readFileSync(DWDS_CSV, 'utf8').split(/\r?\n/).slice(1)) {
   dwds.set(lemma, m);
 }
 
-const dropped = {}; // 사유 → 탈락 표제어 목록
-const drop = (why, w) => { (dropped[why] ||= []).push(w.lemma); };
-const retagged = []; // 품사 고침 기록
-const b2 = [];
-const b2Keys = new Set();
-for (const w of b2Raw) {
-  if (b1Keys.has(key(w.lemma, w.pos))) { drop('B1 목록에 이미 있음', w); continue; }
-  if (!LETTERS.test(w.lemma)) { drop('글자 아닌 문자 포함', w); continue; }
-  if (w.lemma.length < 3) { drop('3글자 미만', w); continue; }
-  const k = lookup(w.lemma, w.pos);
-  if (!k) { drop('kaikki 에 없음(자막 잡음·고유명사)', w); continue; }
-  if (k.vulgar) { drop('kaikki 비속어 태그', w); continue; }
-  // DWDS 대조: 표제어 → 품사 → 빈도 → 중복 순서
-  const lemma = k.word;
-  let pos = w.pos;
-  const d = dwds.get(lemma);
-  if (!d) { drop('DWDS 없음', { lemma }); continue; }
-  if (!d.has(pos)) {
-    if (d.size !== 1) { drop('품사 불일치', { lemma }); continue; }
-    pos = [...d.keys()][0];
-    // 명사로 고칠 때는 성이 꼭 있어야 한다(kaikki 에 없으면 뺀다)
-    if (pos === 'noun' && !lookup(lemma, 'noun')?.gender) { drop('품사 불일치', { lemma }); continue; }
-    retagged.push({ lemma, from: w.pos, to: pos });
+// B2 와 C1 에 같은 규칙을 쓴다. 고른 (lemma,pos)는 taken 에 쌓여, C1 은 B1·B2(사람 판정 전) 와 겹치면 「중복」으로 빠진다.
+const dropped = { B2: {}, C1: {} }; // 수준 → 사유 → 탈락 표제어 목록
+const retagged = { B2: [], C1: [] }; // 수준 → 품사 고침 기록
+const taken = new Set(b1Keys);
+function select(rawList, level) {
+  const drop = (why, lemma) => { (dropped[level][why] ||= []).push(lemma); };
+  const out = [];
+  for (const w of rawList) {
+    if (b1Keys.has(key(w.lemma, w.pos))) { drop('B1 목록에 이미 있음', w.lemma); continue; }
+    if (!LETTERS.test(w.lemma)) { drop('글자 아닌 문자 포함', w.lemma); continue; }
+    if (w.lemma.length < 3) { drop('3글자 미만', w.lemma); continue; }
+    const k = lookup(w.lemma, w.pos);
+    if (!k) { drop('kaikki 에 없음(자막 잡음·고유명사)', w.lemma); continue; }
+    if (k.vulgar) { drop('kaikki 비속어 태그', w.lemma); continue; }
+    // DWDS 대조: 표제어 → 품사 → 빈도 → 중복 순서
+    const lemma = k.word;
+    let pos = w.pos;
+    const d = dwds.get(lemma);
+    if (!d) { drop('DWDS 없음', lemma); continue; }
+    let re = null; // 고친 뒤 빠지면 표시해 둔다
+    if (!d.has(pos)) {
+      if (d.size !== 1) { drop('품사 불일치', lemma); continue; }
+      pos = [...d.keys()][0];
+      // 명사로 고칠 때는 성이 꼭 있어야 한다(kaikki 에 없으면 뺀다)
+      if (pos === 'noun' && !lookup(lemma, 'noun')?.gender) { drop('품사 불일치', lemma); continue; }
+      re = { lemma, from: w.pos, to: pos };
+      retagged[level].push(re);
+    }
+    if (d.get(pos).every((f) => f === '0' || f === '1')) { drop('드문 단어', lemma); if (re) re.lost = '드문 단어'; continue; }
+    const u = key(lemma, pos);
+    if (taken.has(u)) { drop('중복', lemma); if (re) re.lost = '중복'; continue; }
+    taken.add(u);
+    // 품사를 고쳤으면 성·복수·발음·영어 뜻은 5단계에서 새 품사로 kaikki 를 다시 찾는다(없으면 비움). 빈도는 원래 순위를 그대로 둔다.
+    out.push({ lemma, pos, gender: null, level, level_src: 'wordhoard', freq_rank: re ? w.rank : undefined });
   }
-  const re = pos === w.pos ? null : retagged.at(-1); // 고친 뒤 빠지면 표시해 둔다
-  if (d.get(pos).every((f) => f === '0' || f === '1')) { drop('드문 단어', { lemma }); if (re) re.lost = '드문 단어'; continue; }
-  const u = key(lemma, pos);
-  if (b1Keys.has(u) || b2Keys.has(u)) { drop('중복', { lemma }); if (re) re.lost = '중복'; continue; }
-  b2Keys.add(u);
-  // 품사를 고쳤으면 성·복수·발음·영어 뜻은 5단계에서 새 품사로 kaikki 를 다시 찾는다(없으면 비움). 빈도는 원래 순위를 그대로 둔다.
-  b2.push({ lemma, pos, gender: null, level: 'B2', level_src: 'wordhoard', freq_rank: pos === w.pos ? undefined : w.rank });
+  return out;
 }
+const b2 = select(rawBy.B2, 'B2');
+const c1 = select(rawBy.C1, 'C1');
 
 // ── 5. 보강 + 정렬 + id ───────────────────────────────────────────────────────
 const content = new Map(); // 'lemma|pos'(표기 그대로) → {keep?, gloss_ko, example_de, example_ko, scene_en, reason?}
-// content_b1_1.json ~ content_b2_6.json 만 읽는다(나눠 쓰는 중인 content_b2_1_a.json 같은 조각은 읽지 않음).
+// content_<b1|b2|c1>_<번호>.json 과 정기 업데이트가 쓰는 content_auto_<날짜>.json 만 읽는다
+// (나눠 쓰는 중인 content_b2_1_a.json 같은 조각은 읽지 않음). 이름순으로 읽어 같은 key 는 뒤 파일이 이긴다:
+// auto(날짜순) < b1 < b2 < c1 — 사람이 검수한 묶음 파일이 자동 생성보다 앞선다.
 // 쓰는 중인 파일(깨진 JSON)은 경고만 하고 건너뜀.
-const contentFiles = fs.readdirSync(DATA).filter((f) => /^content_b[12]_[1-6]\.json$/.test(f)).sort();
+const CONTENT_RE = [/^content_(b1|b2|c1)_\d+\.json$/, /^content_auto_\d{4}-\d{2}-\d{2}\.json$/];
+const contentFiles = fs.readdirSync(DATA).filter((f) => CONTENT_RE.some((re) => re.test(f))).sort();
 const contentBroken = [];
 for (const f of contentFiles) {
   try { for (const c of readJson(path.join(DATA, f))) if (c?.key) content.set(c.key, c); }
@@ -216,10 +227,11 @@ const sortWords = (a, b) =>
 const dups = [];
 const seen = new Set();
 const words = [];
-const humanOut = []; // 내용 파일에서 keep:false 로 사람이 뺀 단어 {level, key, reason}
-for (const w of [...b1, ...b2]) {
+const humanOut = []; // 내용 파일에서 keep:false 로 뺀 단어 {level, key, lemma, pos, reason}
+for (const w of [...b1, ...b2, ...c1]) {
   const c = content.get(`${w.lemma}|${w.pos}`);
-  if (c?.keep === false) { humanOut.push({ level: w.level, key: c.key, reason: c.reason || '(사유 없음)' }); continue; }
+  if (c?.keep === false) { humanOut.push({ level: w.level, key: c.key, lemma: w.lemma, pos: w.pos, reason: c.reason || '(사유 없음)' }); continue; }
+  w.keep = c ? true : null; // null = 아직 판정 전(내용 파일 없음) → 정기 업데이트가 claude 로 판정·채움
   const k = lookup(w.lemma, w.pos);
   w.gender = w.pos === 'noun' ? (w.gender || k?.gender || null) : null;
   w.plural = k?.plural || null;
@@ -242,8 +254,21 @@ for (const w of [...b1, ...b2]) {
 }
 const b1Words = words.filter((w) => w.level === 'B1').sort(sortWords);
 const b2Words = words.filter((w) => w.level === 'B2').sort(sortWords);
-const all = [...b1Words, ...b2Words];
+const c1Words = words.filter((w) => w.level === 'C1').sort(sortWords);
+// B1 → B2 → C1 순서. C1 을 뒤에 붙이므로 B1·B2 의 id·seq(w0001~)는 C1 이 생겨도 그대로다.
+const all = [...b1Words, ...b2Words, ...c1Words];
 all.forEach((w, i) => { w.seq = i + 1; w.id = 'w' + String(i + 1).padStart(4, '0'); });
+
+// C1 내용 작업용 묶음 8개: node scripts/seed/build.mjs --chunks 일 때만 쓴다(정기 빌드가 작업 중인 묶음을 흔들지 않도록).
+// ponytail: 사람 판정(keep:false)으로 빠진 C1 은 묶음에도 없다 — 내용 파일이 생기기 전에 한 번 쓰는 용도.
+if (process.argv.includes('--chunks')) {
+  const size = Math.ceil(c1Words.length / 8);
+  for (let i = 0; i < 8; i++) {
+    const part = c1Words.slice(i * size, (i + 1) * size).map((w) => ({ key: `${w.lemma}|${w.pos}`, lemma: w.lemma, pos: w.pos, gender: w.gender }));
+    fs.writeFileSync(path.join(DATA, `chunk_c1_${i + 1}.json`), JSON.stringify(part));
+  }
+  console.log(`chunk_c1_1..8.json: ${c1Words.length}건, 묶음당 ${size}건`);
+}
 
 // 리드가 같은 규칙으로 따로 만든 b2_dwds_keep.json 과 DWDS 선별 결과(사람 판정 제외 전)를 표기 그대로 비교
 const keepPath = path.join(DATA, 'b2_dwds_keep.json');
@@ -256,7 +281,7 @@ const onlyRef = keepRef ? [...keepRef].filter((x) => !mine.has(x)) : [];
 const q = (v) => (v == null ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
 const COLS = ['id', 'lemma', 'pos', 'gender', 'plural', 'ipa', 'level', 'level_src', 'gloss_en', 'gloss_ko',
   'gloss_status', 'example_de', 'example_ko', 'example_src', 'scene_en', 'image_id', 'image_status', 'freq_rank', 'seq'];
-const sql = [`-- Wortling 씨앗 · ${new Date().toISOString()} · words ${all.length}건 (B1 ${b1Words.length} / B2 ${b2Words.length})`];
+const sql = [`-- Wortling 씨앗 · ${new Date().toISOString()} · words ${all.length}건 (B1 ${b1Words.length} / B2 ${b2Words.length} / C1 ${c1Words.length})`];
 for (let i = 0; i < all.length; i += BATCH) {
   const rows = all.slice(i, i + BATCH).map((w) =>
     `(${COLS.map((c) => q(c === 'image_status' ? 'none' : c === 'image_id' ? null : w[c])).join(',')})`);
@@ -269,10 +294,17 @@ for (let i = 0; i < all.length; i += BATCH) {
 // 자체 점검: 고유성·id 형식·문장 크기(wrangler 한도 100KB)
 assert.strictEqual(new Set(all.map((w) => `${w.lemma}|${w.pos}`)).size, all.length, 'lemma|pos 중복');
 assert.ok(all.every((w, i) => w.id === 'w' + String(i + 1).padStart(4, '0') && w.seq === i + 1), 'id/seq 어긋남');
-assert.ok(all.every((w) => ['B1', 'B2'].includes(w.level) && (w.pos !== 'noun' || !w.gender || /^(der|die|das)$/.test(w.gender))), 'level/gender 값');
+assert.ok(all.every((w) => ['B1', 'B2', 'C1'].includes(w.level) && (w.pos !== 'noun' || !w.gender || /^(der|die|das)$/.test(w.gender))), 'level/gender 값');
 assert.ok(sql.every((s) => Buffer.byteLength(s) < 100_000), 'INSERT 문이 100KB 를 넘음');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 fs.writeFileSync(path.join(OUT_DIR, 'seed.sql'), sql.join('\n') + '\n');
+// words.json: 정기 업데이트(scripts/words/update.mjs)가 읽는다. 모든 단어의 전체 칸 + keep(true·null=판정 전),
+// 그리고 keep:false 로 빠진 단어(id 없음)도 넣어 다시 채우지 않게 한다. id·seq 는 이 빌드 안의 자리 번호다(DB id 와 다를 수 있음).
+const WCOLS = COLS.filter((c) => c !== 'image_id' && c !== 'image_status');
+fs.writeFileSync(path.join(OUT_DIR, 'words.json'), JSON.stringify([
+  ...all.map((w) => ({ ...Object.fromEntries(WCOLS.map((c) => [c, w[c] ?? null])), keep: w.keep })),
+  ...humanOut.map((h) => ({ lemma: h.lemma, pos: h.pos, level: h.level, keep: false, reason: h.reason })),
+]));
 
 // ── 7. report.md ──────────────────────────────────────────────────────────────
 const pct = (n, d) => (d ? `${n} (${Math.round((n / d) * 100)}%)` : '0');
@@ -297,49 +329,60 @@ const byPos = (list) => posList.map((p) => count(list, (w) => w.pos === p));
 const sample = (list) => table(['id', 'lemma', 'pos', 'gender', 'plural', 'ipa', 'gloss_en', 'gloss_ko', 'example_src', 'freq_rank'],
   list.slice(0, 10).map((w) => [w.id, w.lemma, w.pos, w.gender ?? '', w.plural ?? '', w.ipa ?? '', w.gloss_en ?? '', w.gloss_ko ?? '', w.example_src ?? '', w.freq_rank ?? ''].map((v) => String(v).replace(/\|/g, '\\|'))));
 const contentRead = contentFiles.filter((f) => !contentBroken.includes(f));
-const nFiles = (lv) => contentRead.filter((f) => f.startsWith(`content_${lv}_`)).length;
+const nFiles = (pre) => contentRead.filter((f) => f.startsWith(`content_${pre}_`)).length;
+const LEVELS = [['B1', b1Words], ['B2', b2Words], ['C1', c1Words]];
 const DWDS_WHY = ['DWDS 없음', '품사 불일치', '드문 단어', '중복'];
-const dwdsDropN = DWDS_WHY.reduce((n, why) => n + (dropped[why]?.length || 0), 0);
-const retagLost = retagged.filter((r) => r.lost).length;
 const humanBy = Object.entries(Object.groupBy(humanOut, (h) => h.reason)).sort((a, b) => b[1].length - a[1].length);
+// 수준 하나의 선별 과정(WordHoard 후보 → 기존 규칙 → DWDS → 사람 판정)
+function selectionSection(level, picked, kept) {
+  const dr = dropped[level];
+  const rt = retagged[level];
+  const dwdsDropN = DWDS_WHY.reduce((n, why) => n + (dr[why]?.length || 0), 0);
+  return `## ${level} 후보 선별
+WordHoard cefr_estimate=${level} 이면서 NOUN/VERB/ADJ/ADV ${rawBy[level].length}건
+→ 기존 규칙(B1 중복·글자·kaikki·비속어) 통과 ${picked.length + dwdsDropN}건
+→ DWDS 대조 뒤 ${picked.length}건
+→ 사람 판정 제외 뒤 ${kept.length}건
+
+${table(['탈락 사유', '건수', '예(앞 15개)'], Object.entries(dr).sort((a, b) => b[1].length - a[1].length)
+  .map(([why, list]) => [why, list.length, list.slice(0, 15).join(', ')]))}
+
+품사 고침 ${rt.length}건(그중 고친 뒤 빈도·중복으로 빠진 것 ${rt.filter((r) => r.lost).length}건): ${rt.map((r) => `${r.lemma} ${r.from}→${r.to}${r.lost ? `(빠짐: ${r.lost})` : ''}`).join(', ')}`;
+}
 const report = `# Wortling 씨앗 보고 (${new Date().toISOString().slice(0, 10)})
 
 > **빈 DB 에만 넣는다.** id(w0001…)는 정렬 순서대로 매기는 자리 번호다. 단어가 하나만 늘거나 빠져도 그 뒤 id 가 전부 밀린다.
 > 이미 씨앗이 든 DB 에 새 seed.sql 을 넣으면 다른 단어가 같은 id 를 받아, 쌓인 학습 기록(cards)이 엉뚱한 단어에 붙는다.
 > 다시 넣을 때는 D1 을 새로 만들고 이주(migrations) → seed.sql 순서로 넣는다.
+> 이미 쓰는 DB 에 새 단어를 더할 때는 seed.sql 이 아니라 \`npm run words:update\`(scripts/words/update.mjs)를 쓴다. (lemma,pos)로 비교해 없는 것만 서버가 id 를 이어 매겨 넣는다.
 
-빌드 명령: \`npm run seed:build\` → seed/seed.sql (words ${all.length}건, cards ${all.length}건, INSERT ${sql.length - 1}문)
-빌드 때 읽은 한국어 내용 파일: B1 ${nFiles('b1')}/6개 · B2 ${nFiles('b2')}/6개 — ${contentRead.length ? contentRead.join(', ') : '없음'}${contentBroken.length ? ` (깨져서 건너뜀: ${contentBroken.join(', ')})` : ''}
-gloss_ko 채워진 단어: B1 ${count(b1Words, (w) => w.gloss_ko)}건 · B2 ${count(b2Words, (w) => w.gloss_ko)}건
-내용 파일은 content_b[12]_[1-6].json 이름만 읽는다(쓰는 중인 조각 파일은 무시). 더 들어오면 같은 명령을 다시 돌리면 된다.
+빌드 명령: \`npm run seed:build\` → seed/seed.sql (words ${all.length}건, cards ${all.length}건, INSERT ${sql.length - 1}문) + seed/words.json(정기 업데이트용, keep:false 포함 ${all.length + humanOut.length}건)
+순서: B1 → B2 → C1, 수준 안에서는 빈도 순위 오름차순(없으면 맨 뒤) → 표제어. C1 을 뒤에 붙이므로 B1·B2 의 id 는 C1 과 상관없이 그대로다.
+빌드 때 읽은 한국어 내용 파일: B1 ${nFiles('b1')}개 · B2 ${nFiles('b2')}개 · C1 ${nFiles('c1')}개 · 자동 ${nFiles('auto')}개 — ${contentRead.length ? contentRead.join(', ') : '없음'}${contentBroken.length ? ` (깨져서 건너뜀: ${contentBroken.join(', ')})` : ''}
+gloss_ko 채워진 단어: ${LEVELS.map(([lv, l]) => `${lv} ${count(l, (w) => w.gloss_ko)}건`).join(' · ')}
+내용 파일은 content_<b1|b2|c1>_<번호>.json 과 content_auto_<날짜>.json 이름만 읽는다(쓰는 중인 조각 파일은 무시). 같은 단어는 auto < b1 < b2 < c1 순으로 뒤 파일이 이긴다.
 
 ## 수준·품사별 수
-${table(['level', '합계', ...posList], [['B1', b1Words.length, ...byPos(b1Words)], ['B2', b2Words.length, ...byPos(b2Words)]])}
+${table(['level', '합계', ...posList], LEVELS.map(([lv, l]) => [lv, l.length, ...byPos(l)]))}
 
 ## 채움 비율
-${table(['항목', 'B1', 'B2'], fillRows(b1Words).map((r, i) => [r[0], r[1], fillRows(b2Words)[i][1]]))}
+${table(['항목', ...LEVELS.map(([lv]) => lv)], fillRows(b1Words).map((r, i) => [r[0], ...LEVELS.map(([, l]) => fillRows(l)[i][1])]))}
 
-## B2 후보 선별
-WordHoard cefr_estimate=B2 이면서 NOUN/VERB/ADJ/ADV ${b2Raw.length}건
-→ 기존 규칙(B1 중복·글자·kaikki·비속어) 통과 ${b2.length + dwdsDropN}건
-→ DWDS 대조 뒤 ${b2.length}건
-→ 사람 판정 제외 뒤 ${b2Words.length}건
-
-DWDS 대조 순서(파일: DWDS 표제어 목록, 환경변수 DWDS_LEMMA_CSV 로 바꿈):
+## DWDS 대조 규칙 (B2·C1 공통)
+파일: DWDS 표제어 목록(.data/dwds_lemma.csv, 환경변수 DWDS_LEMMA_CSV 로 바꿈). 순서대로 적용한다.
 1. DWDS 에 명사·동사·형용사·부사 항목이 없으면 뺀다(「DWDS 없음」, 접속사·서수·고유명사로만 있는 표제어 포함).
 2. 품사가 DWDS 품사에 없으면, DWDS 품사가 하나뿐일 때만 그 품사로 고친다(「품사 고침」). 성·복수·발음·영어 뜻은 새 품사로 kaikki 를 다시 찾는다. 여럿이면 뺀다(「품사 불일치」).
 3. DWDS 빈도 등급이 그 (표제어,품사)의 모든 항목에서 0 또는 1 이면 뺀다(「드문 단어」).
-4. (표제어,품사)가 B1 이나 앞선 B2 와 같으면 뺀다(「중복」). 같은 표기 반복(예전엔 5단계에서 지우던 것)과 품사를 고친 뒤 겹친 것이 함께 들어간다.
+4. (표제어,품사)가 B1 이나 앞서 고른 단어(B2 는 앞선 B2, C1 은 B2 전체와 앞선 C1, 사람 판정 전 기준)와 같으면 뺀다(「중복」).
 
-${table(['탈락 사유', '건수', '예(앞 15개)'], Object.entries(dropped).sort((a, b) => b[1].length - a[1].length)
-  .map(([why, list]) => [why, list.length, list.slice(0, 15).join(', ')]))}
-
-품사 고침 ${retagged.length}건(그중 고친 뒤 빈도·중복으로 빠진 것 ${retagLost}건): ${retagged.map((r) => `${r.lemma} ${r.from}→${r.to}${r.lost ? `(빠짐: ${r.lost})` : ''}`).join(', ')}
+${selectionSection('B2', b2, b2Words)}
 
 리드 대조(b2_dwds_keep.json, 같은 규칙으로 따로 만든 목록 ${keepRef ? keepRef.size : '없음'}건): ${!keepRef ? '파일 없음' : !onlyMine.length && !onlyRef.length ? '차이 없음' : `이 빌드에만 ${onlyMine.length}건(${onlyMine.join(', ')}) · 목록에만 ${onlyRef.length}건(${onlyRef.join(', ')})`}
 
-## B2 사람 판정 제외
-내용 파일에서 keep:false 로 뺀 단어 ${humanOut.length}건(B2 ${count(humanOut, (h) => h.level === 'B2')} · B1 ${count(humanOut, (h) => h.level === 'B1')}). words·cards 에 넣지 않는다.
+${selectionSection('C1', c1, c1Words)}
+
+## 사람 판정 제외 (내용 파일 keep:false)
+${humanOut.length}건(${LEVELS.map(([lv]) => `${lv} ${count(humanOut, (h) => h.level === lv)}`).join(' · ')}). words·cards 에 넣지 않는다(words.json 에는 keep:false 로 남겨 다시 채우지 않음).
 ${humanOut.length ? table(['사유', '건수', '예(앞 10개)'], humanBy.slice(0, 15).map(([why, list]) => [why.replaceAll('|', '/'), list.length, list.slice(0, 10).map((h) => h.key.replace('|', '/')).join(', ')]))
   + (humanBy.length > 15 ? `\n그 밖의 사유 ${humanBy.length - 15}가지 ${humanBy.slice(15).reduce((n, [, l]) => n + l.length, 0)}건` : '')
   + `\n\n제외 단어 전체(${humanOut.length}): ${humanOut.map((h) => h.key.replace('|', '/')).join(', ')}` : '없음'}
@@ -351,23 +394,20 @@ ${(() => { const l = b1Words.filter((w) => w.pos in { noun: 1, verb: 1, adj: 1, 
 ${dups.length ? dups.map((d) => `- ${d}`).join('\n') : '없음'}
 
 ## Tatoeba 예문
-짝 ${tatoeba.length}건(독일어 70자 이하) 중 표제어가 낱말 그대로 들어간 문장을 씀. 적용: B1 ${count(b1Words, (w) => w.example_src?.startsWith('tatoeba'))}건 · B2 ${count(b2Words, (w) => w.example_src?.startsWith('tatoeba'))}건 (생성 예문보다 우선)
+기본 끔(TATOEBA=1 일 때만 빈 예문 자리에 씀). 적용: ${LEVELS.map(([lv, l]) => `${lv} ${count(l, (w) => w.example_src?.startsWith('tatoeba'))}건`).join(' · ')}
 
-## 표본 B1 (앞 10건)
-${sample(b1Words)}
-
-## 표본 B2 (앞 10건)
-${sample(b2Words)}
+${LEVELS.map(([lv, l]) => `## 표본 ${lv} (앞 10건)\n${sample(l)}`).join('\n\n')}
 
 ## 자료 출처·라이선스
 - Goethe-Zertifikat B1 단어 목록(DWDS 제공): 표제어·품사·성 목록으로만 사용.
+- DWDS 표제어 목록: B2·C1 표제어·품사·빈도 등급 대조에만 사용.
 - kaikki.org (Wiktextract, English Wiktionary 추출): 성·복수·IPA·영어 뜻. CC BY-SA 4.0 — "Wiktionary contributors, via kaikki.org (Tatu Ylonen, Wiktextract)".
-- WordHoard German (wordhoard-de.csv): 빈도 순위·B2 후보. CC BY-SA 4.0 — "WordHoard German frequency list".
-- Tatoeba (tatoeba.org): 독·한 예문 쌍. CC BY 2.0 FR — 문장마다 example_src 에 tatoeba:<id> 로 출처 표기.
+- WordHoard German (wordhoard-de.csv): 빈도 순위·B2·C1 후보. CC BY-SA 4.0 — "WordHoard German frequency list".
+- Tatoeba (tatoeba.org): 독·한 예문 쌍. CC BY 2.0 FR — 쓸 때는 example_src 에 tatoeba:<id> 로 출처 표기.
 `;
 const g1 = path.join(OUT_DIR, 'g1.md'); // node scripts/seed/verify.mjs 가 남긴 게이트 결과가 있으면 뒤에 붙인다
 fs.writeFileSync(path.join(OUT_DIR, 'report.md'), report + (fs.existsSync(g1) ? '\n' + fs.readFileSync(g1, 'utf8') : ''));
-console.log(`words ${all.length} (B1 ${b1Words.length}, B2 ${b2Words.length}) → seed/seed.sql, seed/report.md`);
-console.log('B2 탈락:', Object.fromEntries(Object.entries(dropped).map(([k, v]) => [k, v.length])), '품사 고침:', retagged.length, '중복:', dups.length);
+console.log(`words ${all.length} (B1 ${b1Words.length}, B2 ${b2Words.length}, C1 ${c1Words.length}) → seed/seed.sql, seed/words.json, seed/report.md`);
+for (const lv of ['B2', 'C1']) console.log(`${lv} 탈락:`, Object.fromEntries(Object.entries(dropped[lv]).map(([k, v]) => [k, v.length])), '품사 고침:', retagged[lv].length);
 console.log(`b2_dwds_keep.json 대조: 나만 ${onlyMine.length} [${onlyMine.slice(0, 20)}] · 목록만 ${onlyRef.length} [${onlyRef.slice(0, 20)}]`);
-console.log(`사람 판정 제외 ${humanOut.length}건 · 내용 파일 읽음 ${contentRead.length}개 · 깨짐 ${contentBroken.length}개`);
+console.log(`사람 판정 제외 ${humanOut.length}건 · 내용 파일 읽음 ${contentRead.length}개 · 깨짐 ${contentBroken.length}개 · B1 안 중복 ${dups.length}`);
