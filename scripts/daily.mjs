@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
 import { STYLE_INTRO, BORTI, STYLE } from './style.mjs';
+import { checkFile } from './imgcheck.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 loadEnv(path.join(ROOT, '.env'));
@@ -32,6 +33,8 @@ const REDO = (process.argv.find((a) => a.startsWith('--redo=')) || '').slice(7).
 const PROMPT_MAX = 780;
 // 그림체를 바꾼 뒤 예전 그림 id 목록(PC 에만, git 제외). 그림 없는 새 단어보다 먼저 다시 그리고, 다 그리면 빈다
 const RESTYLE_FILE = path.join(ROOT, '.data', 'restyle.json');
+// 검사용 원본 png(올리기 전). git 제외 폴더
+const TMP_DIR = path.join(ROOT, '.data', 'img-tmp');
 function imagePrompt(scene) {
   const tail = ` ${BORTI} Other animals in the same style. Key action and objects large and clear. ${STYLE}`;
   const head = `${STYLE_INTRO} Scene: `;
@@ -68,14 +71,27 @@ try {
   // 2) 그림 만들기
   if (!NO_IMAGE) {
     const status = higgs(['account', 'status', '--json']);
-    let credits = Number(status.credits || 0);
+    // --dry 에서 DAILY_DRY_CREDITS=2 를 주면 그 크레딧이 있는 셈 치고 그릴 차례만 본다
+    let credits = DRY && process.env.DAILY_DRY_CREDITS ? Number(process.env.DAILY_DRY_CREDITS) : Number(status.credits || 0);
     log.credits.before = credits;
     const budget = Math.min(IMAGE_MAX, Math.floor((credits - RESERVE) / COST_PER_IMAGE + 1e-9));
-    // --redo=w0001,w0002 : 이미 있는 그림을 새 장면으로 다시 그림(상태 무관). 없으면 예전 그림체 목록 → 그림 없는 단어를 학습 순서대로
+    // 그릴 차례(기획안 v7 C4). --redo 면 그것만. 아니면
+    //   ① 오늘 덱(복습·새 카드) 가운데 그림 없는 단어 → 07:30 알림·덱에서 바로 보임
+    //   ② 예전 그림체(3D 클레이) 목록 .data/restyle.json
+    //   ③ 그림 없는 단어(공부 중인 카드 먼저, 그다음 학습 순서)
     const restyle = existsSync(RESTYLE_FILE) ? JSON.parse(readFileSync(RESTYLE_FILE, 'utf8')) : [];
     const redo = new Set(REDO.length ? REDO : restyle);
-    const ids = [...redo].slice(0, budget);
-    if (!REDO.length && budget > ids.length) ids.push(...(await api(`/api/admin/runway?text=0&image=${budget - ids.length}`)).need_image.map((w) => w.id));
+    const ids = [];
+    const add = (list) => {
+      for (const id of list) if (ids.length < budget && !ids.includes(id)) ids.push(id);
+    };
+    if (REDO.length) add(REDO);
+    else if (budget > 0) {
+      const t = await api('/api/today');
+      add([...t.due, ...t.fresh].filter((i) => !i.word.image).map((i) => i.word.id));
+      add(restyle);
+      if (budget > ids.length) add((await api(`/api/admin/runway?text=0&image=${budget - ids.length + 5}`)).need_image.map((w) => w.id));
+    }
     if (DRY) console.log(`[dry] 그릴 차례(다시 그리기 ${ids.filter((id) => redo.has(id)).length}): ${ids.join(',')}`);
     const need = [];
     for (const id of ids) need.push((await api(`/api/word/${id}`)).word);
@@ -83,41 +99,63 @@ try {
     const briefs = need.length && !DRY ? writeScenesWithClaude(need) : new Map();
     if (briefs.size) await api('/api/admin/words', { method: 'POST', body: { items: [...briefs].map(([id, scene_en]) => ({ id, scene_en })) } });
     console.log(`크레딧 ${credits} → 오늘 그림 ${need.length}장(상한 ${budget}), 새 장면 ${briefs.size}`);
+    mkdirSync(TMP_DIR, { recursive: true });
+    // 한 번 그리기(생성 실패면 한 번 더 요청). 요청할 때마다 크레딧이 깎인다
+    const drawOnce = async (prompt) => {
+      const gen = () => higgs(['generate', 'create', 'z_image', '--aspect_ratio', '4:3', '--prompt', prompt, '--wait', '--wait-timeout', '5m', '--json']);
+      let job;
+      try {
+        job = gen();
+      } catch (e) {
+        if (/credit|balance|insufficient/i.test(String(e.message))) throw e;
+        console.error(`다시 요청: ${String(e.message || e).slice(0, 120)}`); // 실측: 가끔 job 이 「failed」로 끝남(실패는 크레딧 안 깎임)
+        job = gen();
+      }
+      credits -= COST_PER_IMAGE;
+      const j = Array.isArray(job) ? job[0] : job;
+      const url = j?.result_url || j?.min_result_url;
+      if (!url) throw new Error('result_url 없음');
+      return Buffer.from(await (await fetch(url)).arrayBuffer());
+    };
+    let checked = 0;
     for (const w of need) {
+      if (credits - RESERVE < COST_PER_IMAGE - 1e-9) break;
       const scene = briefs.get(w.id) || w.scene_en;
       if (!scene) continue;
       const prompt = imagePrompt(scene);
       if (DRY) { console.log(`[dry] ${w.id} ${w.lemma}: ${scene}`); continue; }
       const t0 = Date.now();
-      let job;
-      const gen = () => higgs(['generate', 'create', 'z_image', '--aspect_ratio', '4:3', '--prompt', prompt, '--wait', '--wait-timeout', '5m', '--json']);
+      // 자동 검사(C5) 탈락이면 한 번만 다시 그림. 두 번째도 탈락이면 올리지 않는다
+      let png = null;
+      let check = null;
+      let why = [];
       try {
-        try { job = gen(); } catch (e) {
-          if (/credit|balance|insufficient/i.test(String(e.message))) throw e;
-          console.error(`다시 시도 ${w.id}: ${String(e.message || e).slice(0, 120)}`); // 실측: 가끔 job 이 「failed」로 끝남
-          job = gen();
+        for (let attempt = 1; attempt <= 2 && !png; attempt++) {
+          if (attempt > 1 && credits - RESERVE < COST_PER_IMAGE - 1e-9) break;
+          const p = await drawOnce(prompt);
+          checked++;
+          // 실측: 가끔 새까만 그림이 온다(w0010, 편차 0)
+          const { channels } = await sharp(p).stats();
+          if (channels.every((c) => c.stdev < 4)) { why = ['blank_image']; continue; }
+          const tmp = path.join(TMP_DIR, `${w.id}-${attempt}.png`);
+          writeFileSync(tmp, p);
+          check = await checkFile(tmp, p);
+          if (check.ok) png = p;
+          else {
+            why = check.why;
+            console.log(`그림 ${w.id} ${w.lemma} 검사 탈락(${why.join(', ')})${attempt === 1 ? ' → 한 번 더' : ''}`);
+          }
         }
       } catch (e) {
         log.failed.push({ id: w.id, error: String(e.message || e).slice(0, 300) });
-        // 다시 그리기(--redo)면 있던 그림을 지킨다. 새 단어만 실패 표시(머리글자 칸)
+        // 다시 그리기면 있던 그림을 지킨다. 새 단어만 실패 표시(머리글자 칸)
         if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
         if (/credit|balance|insufficient/i.test(String(e.message))) break;
         continue;
       }
-      const j = Array.isArray(job) ? job[0] : job;
-      const url = j?.result_url || j?.min_result_url;
-      if (!url) {
-        log.failed.push({ id: w.id, error: 'result_url 없음' });
+      if (!png) {
+        log.failed.push({ id: w.id, error: why.join(', ') || 'no_image', check });
         if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
-        continue;
-      }
-      const png = Buffer.from(await (await fetch(url)).arrayBuffer());
-      // 실측: 가끔 새까만 그림이 온다(w0010, 편차 0) → 올리지 않고 실패로 표시(카드는 머리글자 칸)
-      const { channels } = await sharp(png).stats();
-      if (channels.every((c) => c.stdev < 4)) {
-        log.failed.push({ id: w.id, error: 'blank_image' });
-        if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
-        console.log(`그림 ${w.id} ${w.lemma} 단색 → 실패 처리`);
         continue;
       }
       const webp = await toWebp(png);
@@ -126,10 +164,12 @@ try {
         restyle.splice(restyle.indexOf(w.id), 1);
         writeFileSync(RESTYLE_FILE, JSON.stringify(restyle));
       }
-      credits -= COST_PER_IMAGE;
-      log.images.push({ id: w.id, lemma: w.lemma, kb: +(webp.length / 1024).toFixed(1), sec: +((Date.now() - t0) / 1000).toFixed(1) });
+      const { edgeWhite, top4, black, chars } = check;
+      log.images.push({ id: w.id, lemma: w.lemma, kb: +(webp.length / 1024).toFixed(1), sec: +((Date.now() - t0) / 1000).toFixed(1), check: { edgeWhite, top4, black, chars } });
       console.log(`그림 ${w.id} ${w.lemma} ${(webp.length / 1024).toFixed(1)}KB ${((Date.now() - t0) / 1000).toFixed(0)}초`);
     }
+    // G15: 검사 통과율(생성 1번 = 1건)
+    log.checks = { drawn: checked, passed: log.images.length, rate: checked ? +(log.images.length / checked).toFixed(2) : null };
     try { log.credits.after = Number(higgs(['account', 'status', '--json']).credits); } catch { log.credits.after = credits; }
   }
 
@@ -170,7 +210,7 @@ try {
 function writeTextWithClaude(words) {
   const list = words.map((w) => ({ id: w.id, lemma: w.lemma, pos: w.pos, gender: w.gender, level: w.level, gloss_en: w.gloss_en }));
   const prompt = `You write Korean learning content for German vocabulary (learner: Korean speaker, level B1~B2). For EACH item below return one object:
-{"id": "<same id>", "gloss_ko": "짧은 한국어 뜻 1~3개, 쉼표 구분, 20자 이내(명사는 관사 없이 명사형, 동사는 ~하다 형)", "example_de": "B1~B2 수준의 자연스러운 독일어 예문 1문장, 70자 이내, 표제어(활용형 가능) 포함", "example_ko": "예문의 자연스러운 한국어 번역, 40자 이내, ~해요체", "scene_en": "ONE English line (max 25 words) starting with 'Borti ' — a concrete visual scene where the mascot Borti (a chubby cream dachshund puppy with brown floppy ears) acts out the word's meaning with a concrete prop or action; no text, letters, numbers, signs or logos; only Borti unless a second character is required"}
+{"id": "<same id>", "gloss_ko": "짧은 한국어 뜻 1~3개, 쉼표 구분, 20자 이내(명사는 관사 없이 명사형, 동사는 ~하다 형)", "example_de": "B1~B2 수준의 자연스러운 독일어 예문 1문장, 70자 이내, 표제어(활용형 가능) 포함", "example_ko": "예문의 자연스러운 한국어 번역, 40자 이내, ~해요체", "scene_en": "ONE English line (max 25 words) starting with 'Borti ' — a concrete visual scene where the mascot Borti (a chubby white dachshund puppy with light-brown droopy ears) acts out the word's meaning with a concrete prop or action; no text, letters, numbers, signs or logos; only Borti unless a second character is required"}
 Output ONLY a JSON array (no prose, no code fence) with exactly ${list.length} objects in the same order.
 Items: ${JSON.stringify(list)}`;
   const r = spawnSync(CLAUDE_EXE, ['-p', '--output-format', 'json', '--model', 'sonnet', '--max-turns', '1', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}'], {
@@ -206,7 +246,7 @@ function writeScenesWithClaude(words) {
   const list = words.map((w) => ({ id: w.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, pos: w.pos, meaning_ko: w.gloss_ko, example_de: w.example_de, example_ko: w.example_ko }));
   const prompt = `You write image scenes for German vocabulary flashcards. Each card shows: the German word, its Korean meaning, one example sentence, and a simple doodle picture. The picture must show THE SAME MOMENT as the example sentence, so the word, the sentence and the picture obviously belong together.
 Rules for each scene (ONE English line, max 35 words and 230 characters, start with "Borti"):
-- Borti (a chubby cream dachshund puppy) plays the speaker or main person of the example sentence. Other people in the sentence become other cute puppies or kittens.
+- Borti (a chubby white dachshund puppy) plays the speaker or main person of the example sentence. Other people in the sentence become other cute puppies or kittens.
 - The WORD must be recognizable from the picture alone, then the sentence confirms it:
   · noun → the thing itself, big and central, in its typical use (Kühlschrank: Borti opens a big fridge full of food).
   · verb → Borti doing the action at its most typical, unmistakable moment (springen: mid-air jump over a puddle).
