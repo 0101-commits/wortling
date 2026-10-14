@@ -1,8 +1,9 @@
 // 매일 아침 PC 에서 한 번 도는 스크립트(작업 스케줄러 → scripts/register-task.ps1).
 // 하는 일 둘:
 //   1) 글 채우기 — 다가오는 단어(학습 순서 앞쪽) 가운데 한국어 뜻·예문·장면이 빈 것을 claude -p 로 채운다.
-//   2) 그림 만들기 — 무료 플랜 크레딧(하루 2 = Z Image 13장, 장당 0.15)으로 장면이 있는 단어의 그림을 만들어 올린다.
-// Worker 관리 API 만 쓴다(wrangler 불필요). 준비물: .env(APP_URL · API_TOKEN), higgsfield 로그인, claude 로그인.
+//   2) 그림 만들기 — Worker 의 POST /api/admin/draw(Cloudflare Workers AI FLUX.2 klein 4b, 무료 하루 10,000 뉴런 ≈ 120장)로
+//      장면이 있는 단어의 그림을 만들어 올린다. 무료 몫을 다 쓰면 429(quota) → 그날은 멈춤.
+// Worker 관리 API 만 쓴다(그림은 wrangler 불필요). 준비물: .env(APP_URL · API_TOKEN), claude 로그인.
 // 되풀이해도 안전하다 — 이미 채워진 단어·그림은 다시 하지 않는다.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'node:fs';
@@ -20,16 +21,15 @@ loadEnv(path.join(ROOT, '.env'));
 const APP_URL = (process.env.APP_URL || '').replace(/\/$/, '');
 const TOKEN = process.env.API_TOKEN || '';
 const TEXT_AHEAD = Number(process.env.DAILY_TEXT_AHEAD || 60); // 글을 미리 채워 둘 단어 수
-const IMAGE_MAX = Number(process.env.DAILY_IMAGE_MAX || 13); // 하루 그림 상한(무료 2크레딧 ÷ 0.15)
-const COST_PER_IMAGE = 0.15; // Z Image 실측(2026-10-13)
-const RESERVE = Number(process.env.DAILY_CREDIT_RESERVE || 0); // 남겨 둘 크레딧
+// 하루 그림 상한. 10,000 뉴런 ÷ 78 ≈ 128번 그리기 — 검사 탈락 다시 그리기·이모티콘 몫을 남김
+const IMAGE_MAX = Number(process.env.DAILY_IMAGE_MAX || 100);
 const DRY = process.argv.includes('--dry');
 const NO_IMAGE = process.argv.includes('--no-image');
 const NO_TEXT = process.argv.includes('--no-text');
 
 // 장면이 앞, 보르티 설명이 뒤. 장면을 뒤에 두었더니 마스코트만 크게 나오고 뜻이 안 보였다(2026-10-13 사용자 지적).
 const REDO = (process.argv.find((a) => a.startsWith('--redo=')) || '').slice(7).split(',').filter(Boolean);
-// 실측: 프롬프트가 800자를 넘으면 job 이 사유 없이 failed(835자 3건 실패, 641자 이하 전부 성공) → 780자 상한
+// 장면이 길어 그림체 문장이 묻히지 않게 780자 상한(힉스필드 시절 실측 한도, FLUX.2 klein 에서도 그대로 씀)
 const PROMPT_MAX = 780;
 // 그림체를 바꾼 뒤 예전 그림 id 목록(PC 에만, git 제외). 그림 없는 새 단어보다 먼저 다시 그리고, 다 그리면 빈다
 const RESTYLE_FILE = path.join(ROOT, '.data', 'restyle.json');
@@ -44,13 +44,12 @@ function imagePrompt(scene) {
   return head + sc + tail;
 }
 
-const HIGGS_JS = path.join(npmGlobalRoot(), '@higgsfield', 'cli', 'bin', 'higgsfield.js');
 const CLAUDE_EXE =
   process.platform === 'win32'
     ? path.join(npmGlobalRoot(), '@anthropic-ai', 'claude-code', 'bin', 'claude.exe')
     : 'claude';
 
-const log = { day: kstDay(), started: new Date().toISOString(), text: 0, images: [], failed: [], credits: {} };
+const log = { day: kstDay(), started: new Date().toISOString(), text: 0, images: [], failed: [], quota: null };
 
 try {
   if (!APP_URL || !TOKEN) throw new Error('.env 에 APP_URL · API_TOKEN 이 없다');
@@ -70,11 +69,8 @@ try {
 
   // 2) 그림 만들기
   if (!NO_IMAGE) {
-    const status = higgs(['account', 'status', '--json']);
-    // --dry 에서 DAILY_DRY_CREDITS=2 를 주면 그 크레딧이 있는 셈 치고 그릴 차례만 본다
-    let credits = DRY && process.env.DAILY_DRY_CREDITS ? Number(process.env.DAILY_DRY_CREDITS) : Number(status.credits || 0);
-    log.credits.before = credits;
-    const budget = Math.min(IMAGE_MAX, Math.floor((credits - RESERVE) / COST_PER_IMAGE + 1e-9));
+    const budget = IMAGE_MAX;
+    let quotaOut = false; // 무료 하루 몫을 다 씀(429)
     // 그릴 차례(기획안 v7 C4). --redo 면 그것만. 아니면
     //   ① 오늘 덱(복습·새 카드) 가운데 그림 없는 단어 → 07:30 알림·덱에서 바로 보임
     //   ② 예전 그림체(3D 클레이) 목록 .data/restyle.json
@@ -96,31 +92,27 @@ try {
     const need = [];
     for (const id of ids) need.push((await api(`/api/word/${id}`)).word);
     // 그리기 직전에 「카드 예문 장면」 으로 장면을 새로 쓴다 → 그림 · 단어 · 예문이 같은 순간을 가리킴
-    const briefs = need.length && !DRY ? writeScenesWithClaude(need) : new Map();
+    // claude 한 번에 25단어씩(하루 100장이면 4번)
+    const briefs = new Map();
+    for (let i = 0; i < need.length && !DRY; i += 25) for (const [k, v] of writeScenesWithClaude(need.slice(i, i + 25))) briefs.set(k, v);
     if (briefs.size) await api('/api/admin/words', { method: 'POST', body: { items: [...briefs].map(([id, scene_en]) => ({ id, scene_en })) } });
-    console.log(`크레딧 ${credits} → 오늘 그림 ${need.length}장(상한 ${budget}), 새 장면 ${briefs.size}`);
+    console.log(`오늘 그림 ${need.length}장(상한 ${budget}), 새 장면 ${briefs.size}`);
     mkdirSync(TMP_DIR, { recursive: true });
-    // 한 번 그리기(생성 실패면 한 번 더 요청). 요청할 때마다 크레딧이 깎인다
+    // 한 번 그리기(생성 실패면 한 번 더 요청). 무료 몫을 다 쓰면(429) 다시 요청하지 않고 그대로 던진다
     const drawOnce = async (prompt) => {
-      const gen = () => higgs(['generate', 'create', 'z_image', '--aspect_ratio', '4:3', '--prompt', prompt, '--wait', '--wait-timeout', '5m', '--json']);
-      let job;
+      const gen = () => api('/api/admin/draw', { method: 'POST', body: { prompt, width: 1024, height: 768 }, bin: true });
       try {
-        job = gen();
+        return await gen();
       } catch (e) {
-        if (/credit|balance|insufficient/i.test(String(e.message))) throw e;
-        console.error(`다시 요청: ${String(e.message || e).slice(0, 120)}`); // 실측: 가끔 job 이 「failed」로 끝남(실패는 크레딧 안 깎임)
-        job = gen();
+        if (/→ 429/.test(String(e.message))) throw e;
+        console.error(`다시 요청: ${String(e.message || e).slice(0, 120)}`);
+        return gen();
       }
-      credits -= COST_PER_IMAGE;
-      const j = Array.isArray(job) ? job[0] : job;
-      const url = j?.result_url || j?.min_result_url;
-      if (!url) throw new Error('result_url 없음');
-      return Buffer.from(await (await fetch(url)).arrayBuffer());
     };
     let checked = 0;
     let ocrSkipped = 0;
     for (const w of need) {
-      if (credits - RESERVE < COST_PER_IMAGE - 1e-9) break;
+      if (quotaOut) break;
       const scene = briefs.get(w.id) || w.scene_en;
       if (!scene) continue;
       const prompt = imagePrompt(scene);
@@ -132,13 +124,12 @@ try {
       let why = [];
       try {
         for (let attempt = 1; attempt <= 2 && !png; attempt++) {
-          if (attempt > 1 && credits - RESERVE < COST_PER_IMAGE - 1e-9) break;
           const p = await drawOnce(prompt);
           checked++;
           // 실측: 가끔 새까만 그림이 온다(w0010, 편차 0)
           const { channels } = await sharp(p).stats();
           if (channels.every((c) => c.stdev < 4)) { why = ['blank_image']; continue; }
-          const tmp = path.join(TMP_DIR, `${w.id}-${attempt}.png`);
+          const tmp = path.join(TMP_DIR, `${w.id}-${attempt}.jpg`);
           writeFileSync(tmp, p);
           check = await checkFile(tmp, p);
           try { unlinkSync(tmp); } catch { /* 지우기 실패는 무시 */ }
@@ -151,16 +142,16 @@ try {
         }
       } catch (e) {
         log.failed.push({ id: w.id, error: String(e.message || e).slice(0, 300) });
-        const noCredit = /credit|balance|insufficient/i.test(String(e.message));
-        // 다시 그리기면 있던 그림을 지킨다. 새 단어만 실패 표시(머리글자 칸). 크레딧 부족은 단어 탓이 아니라 표시 안 함(다음에 다시)
-        if (!redo.has(w.id) && !noCredit) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
-        if (noCredit) break;
+        quotaOut = /→ 429/.test(String(e.message));
+        // 다시 그리기면 있던 그림을 지킨다. 새 단어만 실패 표시(머리글자 칸). 무료 몫 소진은 단어 탓이 아니라 표시 안 함(내일 다시)
+        if (quotaOut) { log.failed.pop(); log.quota = 'out'; break; }
+        if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
         continue;
       }
       if (!png) {
         log.failed.push({ id: w.id, error: why.join(', ') || 'no_image', check });
         if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
-        // 예전 그림체 목록에서 두 번 탈락한 단어는 맨 뒤로 — 매일 같은 단어에 크레딧을 쓰며 새 단어를 막지 않게
+        // 예전 그림체 목록에서 두 번 탈락한 단어는 맨 뒤로 — 매일 같은 단어에 그리기 몫을 쓰며 새 단어를 막지 않게
         if (restyle.includes(w.id)) {
           restyle.splice(restyle.indexOf(w.id), 1);
           restyle.push(w.id);
@@ -180,7 +171,8 @@ try {
     }
     // G15: 검사 통과율(생성 1번 = 1건)
     log.checks = { drawn: checked, passed: log.images.length, rate: checked ? +(log.images.length / checked).toFixed(2) : null, ocr_skipped: ocrSkipped };
-    try { log.credits.after = Number(higgs(['account', 'status', '--json']).credits); } catch { log.credits.after = credits; }
+    // 뉴런 어림(1024×768 한 장 ≈ 78, 실패 요청은 안 셈)
+    log.neurons_est = checked * 78;
   }
 
   // 3) D1 백업 — PC 의 wrangler 로그인으로 내려받아 backup/ 에 30개 보관(공개 저장소엔 올리지 않음)
@@ -213,7 +205,7 @@ try {
   const dir = path.join(ROOT, 'backup', 'daily');
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, `${log.day}.json`), JSON.stringify(log, null, 2));
-  console.log(JSON.stringify({ text: log.text, images: log.images.length, failed: log.failed.length, credits: log.credits }));
+  console.log(JSON.stringify({ text: log.text, images: log.images.length, failed: log.failed.length, quota: log.quota, neurons_est: log.neurons_est }));
 }
 
 // ── claude -p 로 글 채우기 ──────────────────────────────────────────────
@@ -279,14 +271,6 @@ Items: ${JSON.stringify(list)}`;
   return out;
 }
 
-// ── 힉스필드 CLI ──────────────────────────────────────────────────────────
-function higgs(args) {
-  const out = execFileSync(process.execPath, [HIGGS_JS, ...args], { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, timeout: 6 * 60 * 1000, windowsHide: true });
-  const s = out.trim();
-  const i = s.search(/[\[{]/);
-  return JSON.parse(i >= 0 ? s.slice(i) : s);
-}
-
 async function toWebp(png) {
   for (const quality of [82, 70, 60, 50]) {
     const buf = await sharp(png).resize(640, 480, { fit: 'cover' }).webp({ quality }).toBuffer();
@@ -296,7 +280,7 @@ async function toWebp(png) {
 }
 
 // ── Worker 관리 API ──────────────────────────────────────────────────────
-async function api(p, { method = 'GET', body, raw, headers = {} } = {}) {
+async function api(p, { method = 'GET', body, raw, headers = {}, bin = false } = {}) {
   const init = {
     method,
     headers: { authorization: `Bearer ${TOKEN}`, ...(body ? { 'content-type': 'application/json' } : {}), ...headers },
@@ -306,11 +290,12 @@ async function api(p, { method = 'GET', body, raw, headers = {} } = {}) {
   try {
     res = await fetch(APP_URL + p, init);
   } catch (e) {
-    // claude·힉스필드를 기다리는 사이 서버가 묵은 연결을 닫으면 「fetch failed」 → 한 번 다시
+    // claude 를 기다리는 사이 서버가 묵은 연결을 닫으면 「fetch failed」 → 한 번 다시
     console.error(`재시도 ${method} ${p}: ${e.cause?.code || e.message}`);
     await new Promise((r) => setTimeout(r, 2000));
     res = await fetch(APP_URL + p, init);
   }
+  if (bin && res.ok) return Buffer.from(await res.arrayBuffer());
   const text = await res.text();
   if (!res.ok) throw new Error(`${method} ${p} → ${res.status} ${text.slice(0, 300)}`);
   return text ? JSON.parse(text) : null;

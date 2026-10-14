@@ -583,6 +583,36 @@ const putImage: Handler = async ({ req, env, url, params: [id] }) => {
   return json({ ok: true, status: 'ok', image_id: key });
 };
 
+/**
+ * 관리: 그림 한 장 그리기 → jpeg 바이트. 매일 작업(scripts/daily.mjs)·이모티콘(scripts/make-emoji.mjs)이 부른다.
+ * Workers AI FLUX.2 klein 4b — 무료 하루 10,000 뉴런, 1024×768 = 출력 3칸 × 26.05 ≈ 78 뉴런 → 하루 ≈ 120장.
+ * 2026-10-14 같은 장면으로 비교: Leonardo Phoenix 는 글자·회색 바탕, Lucid Origin 은 장당 ≈ 2,000 뉴런, FLUX.1 schnell 은 정사각만.
+ */
+const DRAW_MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
+const draw: Handler = async ({ req, env }) => {
+  const b = await readJson<{ prompt?: unknown; width?: unknown; height?: unknown }>(req);
+  if (typeof b.prompt !== 'string' || !b.prompt.trim() || b.prompt.length > 2000) throw bad('prompt');
+  // 16 의 배수, 256~1536
+  const side = (v: unknown, d: number) => Math.min(1536, Math.max(256, Math.round((Number(v) || d) / 16) * 16));
+  const form = new FormData();
+  form.append('prompt', b.prompt);
+  form.append('width', String(side(b.width, 1024)));
+  form.append('height', String(side(b.height, 768)));
+  const body = new Response(form);
+  let out: { image?: string } | null;
+  try {
+    out = (await env.AI.run(DRAW_MODEL, { multipart: { body: body.body, contentType: body.headers.get('content-type') } })) as { image?: string } | null;
+  } catch (e) {
+    const msg = String((e as Error)?.message ?? e);
+    // 무료 하루 몫을 다 쓰면 4006(daily free allocation) → 429 로 돌려 매일 작업이 멈추게
+    if (/4006|free allocation/i.test(msg)) throw new HttpError(429, 'quota');
+    throw new HttpError(502, msg.slice(0, 300));
+  }
+  if (!out?.image) throw new HttpError(502, 'no_image');
+  const bytes = Uint8Array.from(atob(out.image), (c) => c.charCodeAt(0));
+  return new Response(bytes, { headers: { 'content-type': 'image/jpeg' } });
+};
+
 /** 공개: KV 그림. _default.webp 도 같은 길. */
 const getImage: Handler = async ({ env, params: [name] }) => {
   // cacheTtl: 같은 그림을 엣지에 1시간 붙잡아 KV 읽기를 줄인다
@@ -623,6 +653,7 @@ const routes: Route[] = [
   ['GET', /^\/api\/admin\/runway$/, runway],
   ['POST', /^\/api\/admin\/words$/, adminWords],
   ['PUT', /^\/api\/admin\/image\/([\w-]+)$/, putImage],
+  ['POST', /^\/api\/admin\/draw$/, draw],
   ['GET', /^\/api\/admin\/keys$/, adminKeys],
   ['POST', /^\/api\/admin\/words\/insert$/, adminInsert],
 ];

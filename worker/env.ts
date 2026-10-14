@@ -5,6 +5,8 @@ export interface Env {
   IMG: KVNamespace;
   /** 알림 시계(Durable Object 알람, worker/alarm.ts) */
   SCHED: DurableObjectNamespace<import('./alarm.ts').Scheduler>;
+  /** 그림 생성(Workers AI, 무료 하루 10,000 뉴런). 모델 이름이 타입 목록에 없을 수 있어 좁게 둠 */
+  AI: { run(model: string, input: unknown): Promise<unknown> };
   APP_URL: string;
   API_TOKEN: string;
   DISCORD_WEBHOOK?: string;

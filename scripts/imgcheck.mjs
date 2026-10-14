@@ -1,7 +1,7 @@
 // 그림 자동 검사(기획안 v7 C5). 매일 작업(daily.mjs)이 올리기 전에 부른다.
 //   흰 바탕   : 가장자리 10% 띠에서 밝기 ≥ 245 화소 비율 ≥ 0.90
 //   색 수     : 64단계로 줄인 색 가운데 상위 4색이 차지하는 비율 ≥ 0.90 (평면 색 몇 개로 된 그림인지)
-//   선        : 검정(밝기 < 60) 화소 비율 0.02 ~ 0.12 (선이 없거나 시커먼 그림 거르기)
+//   선        : 검정(밝기 < 60) 화소 비율 0.015 ~ 0.12 (선이 없거나 시커먼 그림 거르기. FLUX.2 klein 은 선이 가늘어 0.019 도 나옴)
 //   글자      : Windows 내장 OCR(scripts/winocr.ps1)로 읽은 글자 수 0 — OCR 이 없는 PC 면 건너뜀(null)
 // 사용: node scripts/imgcheck.mjs a.png b.png …  → 줄마다 결과 JSON
 import { execFileSync } from 'node:child_process';
@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
-export const LIMITS = { edgeWhite: 0.9, top4: 0.9, blackMin: 0.02, blackMax: 0.12 };
+export const LIMITS = { edgeWhite: 0.9, top4: 0.9, blackMin: 0.015, blackMax: 0.12 };
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 /** 화소 통계 3개(빠름, 순수 계산) */

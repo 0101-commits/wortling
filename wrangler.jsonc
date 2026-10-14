@@ -18,6 +18,8 @@
     }
   ],
   "kv_namespaces": [{ "binding": "IMG", "id": "9a581668b2d8427395dbe4b86186f11f" }],
+  // 그림 생성 = Workers AI FLUX.2 klein 4b(POST /api/admin/draw). 무료 하루 10,000 뉴런, 1024×768 한 장 ≈ 78 뉴런
+  "ai": { "binding": "AI", "remote": true },
   // 알림은 cron 대신 Durable Object 알람(계정 cron 5칸이 다 참) — worker/alarm.ts
   "triggers": { "crons": [] },
   "durable_objects": { "bindings": [{ "name": "SCHED", "class_name": "Scheduler" }] },

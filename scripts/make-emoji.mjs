@@ -1,15 +1,19 @@
-// 보르티 이모티콘 8개 + 앱 아이콘을 Higgsfield Z Image 로 만든다(카드 그림과 같은 그림체, scripts/style.mjs).
+// 보르티 이모티콘 8개 + 앱 아이콘을 Worker 의 POST /api/admin/draw(Workers AI FLUX.2 klein 4b, 무료)로 만든다
+// (카드 그림과 같은 그림체, scripts/style.mjs). 준비물: .env(APP_URL · API_TOKEN).
 // 실행: node scripts/make-emoji.mjs [이름…]   → public/emoji/<이름>.webp(256, 둥근 흰 원) · public/icons/*.png
-// 장당 0.15크레딧. 이름을 주면 그것만 다시 만든다.
-import { mkdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+// 768×768 한 장 = 2.25칸 × 26.05 ≈ 59 뉴런. 이름을 주면 그것만 다시 만든다. 만든 뒤 배포해야 앱에 보인다.
+import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
 import { STYLE_INTRO, BORTI, STYLE } from './style.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const HIGGS_JS = path.join(process.env.APPDATA || '', 'npm', 'node_modules', '@higgsfield', 'cli', 'bin', 'higgsfield.js');
+const env = Object.fromEntries(
+  readFileSync(path.join(ROOT, '.env'), 'utf8').split(/\r?\n/).map((l) => l.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/)).filter(Boolean).map((m) => [m[1], m[2].replace(/^["']|["']$/g, '')]),
+);
+const APP_URL = (process.env.APP_URL || env.APP_URL || '').replace(/\/$/, '');
+const TOKEN = process.env.API_TOKEN || env.API_TOKEN;
 
 const POSES = {
   hello: 'waving one front paw hello with a big friendly smile',
@@ -31,13 +35,16 @@ mkdirSync(path.join(ROOT, 'public', 'icons'), { recursive: true });
 
 for (const name of names) {
   const p = prompt(POSES[name]);
-  if (p.length > 780) throw new Error(`${name} 프롬프트 ${p.length}자 > 780(넘으면 job 이 실패함)`);
   let png;
   for (let i = 0; i < 2 && !png; i++) {
     try {
-      const out = execFileSync(process.execPath, [HIGGS_JS, 'generate', 'create', 'z_image', '--aspect_ratio', '1:1', '--prompt', p, '--wait', '--wait-timeout', '5m', '--json'], { encoding: 'utf8', windowsHide: true, timeout: 6 * 60 * 1000 });
-      const j = [JSON.parse(out.slice(out.search(/[\[{]/)))].flat()[0];
-      png = Buffer.from(await (await fetch(j.result_url || j.min_result_url)).arrayBuffer());
+      const res = await fetch(`${APP_URL}/api/admin/draw`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ prompt: p, width: 768, height: 768 }),
+      });
+      if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
+      png = Buffer.from(await res.arrayBuffer());
     } catch (e) {
       console.error(`${name} 다시 시도: ${String(e.message).slice(0, 120)}`);
     }
