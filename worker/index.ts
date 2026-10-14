@@ -591,7 +591,7 @@ const putImage: Handler = async ({ req, env, url, params: [id] }) => {
 const DRAW_MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
 const draw: Handler = async ({ req, env }) => {
   const b = await readJson<{ prompt?: unknown; width?: unknown; height?: unknown }>(req);
-  if (typeof b.prompt !== 'string' || !b.prompt.trim() || b.prompt.length > 2000) throw bad('prompt');
+  if (!b || typeof b.prompt !== 'string' || !b.prompt.trim() || b.prompt.length > 2000) throw bad('prompt');
   // 16 의 배수, 256~1536
   const side = (v: unknown, d: number) => Math.min(1536, Math.max(256, Math.round((Number(v) || d) / 16) * 16));
   const form = new FormData();
@@ -605,11 +605,14 @@ const draw: Handler = async ({ req, env }) => {
   } catch (e) {
     const msg = String((e as Error)?.message ?? e);
     // 무료 하루 몫을 다 쓰면 4006(daily free allocation) → 429 로 돌려 매일 작업이 멈추게
-    if (/4006|free allocation/i.test(msg)) throw new HttpError(429, 'quota');
+    if (/\b4006\b|free allocation/i.test(msg)) throw new HttpError(429, 'quota');
     throw new HttpError(502, msg.slice(0, 300));
   }
   if (!out?.image) throw new HttpError(502, 'no_image');
-  const bytes = Uint8Array.from(atob(out.image), (c) => c.charCodeAt(0));
+  // 콜백 없는 반복문 — Uint8Array.from(…, cb) 는 300KB 에 ≈ 17ms 라 무료 플랜 CPU 10ms 를 넘을 수 있음
+  const s = atob(out.image);
+  const bytes = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
   return new Response(bytes, { headers: { 'content-type': 'image/jpeg' } });
 };
 

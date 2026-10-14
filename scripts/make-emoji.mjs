@@ -2,18 +2,20 @@
 // (카드 그림과 같은 그림체, scripts/style.mjs). 준비물: .env(APP_URL · API_TOKEN).
 // 실행: node scripts/make-emoji.mjs [이름…]   → public/emoji/<이름>.webp(256, 둥근 흰 원) · public/icons/*.png
 // 768×768 한 장 = 2.25칸 × 26.05 ≈ 59 뉴런. 이름을 주면 그것만 다시 만든다. 만든 뒤 배포해야 앱에 보인다.
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
 import { STYLE_INTRO, BORTI, STYLE } from './style.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ENV_FILE = path.join(ROOT, '.env');
 const env = Object.fromEntries(
-  readFileSync(path.join(ROOT, '.env'), 'utf8').split(/\r?\n/).map((l) => l.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/)).filter(Boolean).map((m) => [m[1], m[2].replace(/^["']|["']$/g, '')]),
+  (existsSync(ENV_FILE) ? readFileSync(ENV_FILE, 'utf8') : '').split(/\r?\n/).map((l) => l.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/)).filter(Boolean).map((m) => [m[1], m[2].replace(/^["']|["']$/g, '')]),
 );
 const APP_URL = (process.env.APP_URL || env.APP_URL || '').replace(/\/$/, '');
 const TOKEN = process.env.API_TOKEN || env.API_TOKEN;
+if (!APP_URL || !TOKEN) throw new Error('.env 에 APP_URL · API_TOKEN 이 없다');
 
 const POSES = {
   hello: 'waving one front paw hello with a big friendly smile',
@@ -30,6 +32,8 @@ const prompt = (pose) =>
   `${STYLE_INTRO} Emoticon sticker of Borti ${pose}. Full body, centered, filling most of the frame. ${BORTI} ${STYLE}`;
 
 const names = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(POSES);
+const unknown = names.filter((n) => !POSES[n]);
+if (unknown.length) throw new Error(`모르는 이름: ${unknown.join(', ')} (있는 것: ${Object.keys(POSES).join(', ')})`);
 mkdirSync(path.join(ROOT, 'public', 'emoji'), { recursive: true });
 mkdirSync(path.join(ROOT, 'public', 'icons'), { recursive: true });
 

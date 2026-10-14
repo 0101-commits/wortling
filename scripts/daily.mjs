@@ -29,8 +29,8 @@ const NO_TEXT = process.argv.includes('--no-text');
 
 // 장면이 앞, 보르티 설명이 뒤. 장면을 뒤에 두었더니 마스코트만 크게 나오고 뜻이 안 보였다(2026-10-13 사용자 지적).
 const REDO = (process.argv.find((a) => a.startsWith('--redo=')) || '').slice(7).split(',').filter(Boolean);
-// 장면이 길어 그림체 문장이 묻히지 않게 780자 상한(힉스필드 시절 실측 한도, FLUX.2 klein 에서도 그대로 씀)
-const PROMPT_MAX = 780;
+// 고정 문장(그림체·보르티)이 ≈ 677자 → 장면 230자까지 들어가게 920자 상한(Worker 는 2,000자까지 받음)
+const PROMPT_MAX = 920;
 // 그림체를 바꾼 뒤 예전 그림 id 목록(PC 에만, git 제외). 그림 없는 새 단어보다 먼저 다시 그리고, 다 그리면 빈다
 const RESTYLE_FILE = path.join(ROOT, '.data', 'restyle.json');
 // 검사용 원본 png(올리기 전). git 제외 폴더
@@ -91,17 +91,18 @@ try {
     if (DRY) console.log(`[dry] 그릴 차례(다시 그리기 ${ids.filter((id) => redo.has(id)).length}): ${ids.join(',')}`);
     const need = [];
     for (const id of ids) {
-      const d = await api(`/api/word/${id}`);
+      let d;
+      try {
+        d = await api(`/api/word/${id}`);
+      } catch (e) {
+        if (/→ 404/.test(String(e.message))) continue; // 카드 행이 없는 단어는 건너뜀
+        throw e;
+      }
       need.push({ ...d.word, scene_en: d.scene_en }); // 새 장면을 못 쓰면 이 장면으로
     }
-    // 그리기 직전에 「카드 예문 장면」 으로 장면을 새로 쓴다 → 그림 · 단어 · 예문이 같은 순간을 가리킴
-    // claude 한 번에 25단어씩(하루 100장이면 4번)
-    const briefs = new Map();
-    for (let i = 0; i < need.length && !DRY; i += 25) for (const [k, v] of writeScenesWithClaude(need.slice(i, i + 25))) briefs.set(k, v);
-    if (briefs.size) await api('/api/admin/words', { method: 'POST', body: { items: [...briefs].map(([id, scene_en]) => ({ id, scene_en })) } });
-    console.log(`오늘 그림 ${need.length}장(상한 ${budget}), 새 장면 ${briefs.size}`);
+    console.log(`오늘 그림 ${need.length}장(상한 ${budget})`);
     mkdirSync(TMP_DIR, { recursive: true });
-    // 한 번 그리기(생성 실패면 한 번 더 요청). 무료 몫을 다 쓰면(429) 다시 요청하지 않고 그대로 던진다
+    // 한 번 그리기(생성 실패면 5초 뒤 한 번 더 요청). 무료 몫을 다 쓰면(429) 다시 요청하지 않고 그대로 던진다
     const drawOnce = async (prompt) => {
       const gen = () => api('/api/admin/draw', { method: 'POST', body: { prompt, width: 1024, height: 768 }, bin: true });
       try {
@@ -109,13 +110,24 @@ try {
       } catch (e) {
         if (/→ 429/.test(String(e.message))) throw e;
         console.error(`다시 요청: ${String(e.message || e).slice(0, 120)}`);
+        await new Promise((r) => setTimeout(r, 5000));
         return gen();
       }
     };
+    // 그리기 직전에 「카드 예문 장면」 으로 장면을 새로 쓴다 → 그림 · 단어 · 예문이 같은 순간을 가리킴.
+    // claude 한 번에 25단어씩, 그 25장을 그리기 직전에 — 무료 몫이 바닥이면 헛쓰는 장면이 한 묶음뿐
+    const briefs = new Map();
     let checked = 0;
     let ocrSkipped = 0;
-    for (const w of need) {
-      if (quotaOut) break;
+    let errStreak = 0; // 단어 탓이 아닌 오류(용량 부족·서버 오류)가 잇따르면 그날은 멈춤
+    for (const [i, w] of need.entries()) {
+      if (quotaOut || errStreak >= 3) break;
+      if (i % 25 === 0 && !DRY) {
+        const b = writeScenesWithClaude(need.slice(i, i + 25));
+        if (b.size) await api('/api/admin/words', { method: 'POST', body: { items: [...b].map(([id, scene_en]) => ({ id, scene_en })) } });
+        for (const [k, v] of b) briefs.set(k, v);
+        console.log(`새 장면 ${b.size}/${Math.min(25, need.length - i)}`);
+      }
       const scene = briefs.get(w.id) || w.scene_en;
       if (!scene) continue;
       const prompt = imagePrompt(scene);
@@ -144,16 +156,18 @@ try {
           }
         }
       } catch (e) {
-        log.failed.push({ id: w.id, error: String(e.message || e).slice(0, 300) });
+        // 그리기 오류는 단어 탓이 아니라 실패 표시 안 함(내일 다시). 무료 몫 소진(429)이면 그날 멈춤
         quotaOut = /→ 429/.test(String(e.message));
-        // 다시 그리기면 있던 그림을 지킨다. 새 단어만 실패 표시(머리글자 칸). 무료 몫 소진은 단어 탓이 아니라 표시 안 함(내일 다시)
-        if (quotaOut) { log.failed.pop(); log.quota = 'out'; break; }
-        if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        if (quotaOut) { log.quota = 'out'; break; }
+        log.failed.push({ id: w.id, error: String(e.message || e).slice(0, 300) });
+        errStreak++;
         continue;
       }
+      errStreak = 0;
       if (!png) {
         log.failed.push({ id: w.id, error: why.join(', ') || 'no_image', check });
-        if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        // 다시 그리기면 있던 그림을 지킨다. 새 단어만 실패 표시(머리글자 칸)
+        if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' }).catch((e) => console.error(String(e.message).slice(0, 200)));
         // 예전 그림체 목록에서 두 번 탈락한 단어는 맨 뒤로 — 매일 같은 단어에 그리기 몫을 쓰며 새 단어를 막지 않게
         if (restyle.includes(w.id)) {
           restyle.splice(restyle.indexOf(w.id), 1);
@@ -163,7 +177,13 @@ try {
         continue;
       }
       const webp = await toWebp(png);
-      await api(`/api/admin/image/${w.id}`, { method: 'PUT', raw: webp, headers: { 'content-type': 'image/webp' } });
+      try {
+        await api(`/api/admin/image/${w.id}`, { method: 'PUT', raw: webp, headers: { 'content-type': 'image/webp' } });
+      } catch (e) {
+        // 올리기 하나가 실패해도 나머지는 계속
+        log.failed.push({ id: w.id, error: `upload: ${String(e.message || e).slice(0, 200)}` });
+        continue;
+      }
       if (restyle.includes(w.id)) {
         restyle.splice(restyle.indexOf(w.id), 1);
         writeFileSync(RESTYLE_FILE, JSON.stringify(restyle));

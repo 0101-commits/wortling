@@ -38,7 +38,7 @@ curl -X POST -H "Authorization: Bearer $API_TOKEN" https://wortling.e-hcg.worker
 
 1. PC 에 `claude` 로그인이 되어 있어야 한다(장면 글쓰기). 그림은 Worker 의 `POST /api/admin/draw`(Workers AI 바인딩 `AI`)가 그려서 따로 로그인할 것 없음.
 2. `.env` 에 `APP_URL` · `API_TOKEN`(`.env.example` 참고).
-3. `powershell -ExecutionPolicy Bypass -File scripts\register-task.ps1` → 매일 06:40(놓치면 PC 켜질 때 바로). 지우기는 `-Remove`.
+3. `powershell -ExecutionPolicy Bypass -File scripts\register-task.ps1` → 매일 09:10(그림 무료 몫이 09:00 에 초기화, 놓치면 PC 켜질 때 바로). 지우기는 `-Remove`.
 4. 손으로: `npm run daily` (`-- --dry` 미리보기, `-- --no-image` 글만, `-- --no-text` 그림만).
 
 하루 흐름: 학습 순서 앞쪽 60단어 중 빈 뜻·예문·장면을 `claude -p` 로 채움 → 그릴 단어(오늘 덱 → 예전 그림체 → 학습 순서) 장면을 `claude -p` 로 새로 쓰고 하루 100장까지 생성(무료 몫을 다 쓰면 429 → 그날 멈춤) → 자동 검사(흰 바탕·색 수·선·글자 0, 탈락이면 한 번 더) → 640×480 webp ≤ 60KB → Worker 관리 API 로 KV 에 올림 → D1 을 `backup/YYYY-MM-DD.sql.gz` 로 내려받아 30개 보관(공개 저장소엔 안 올림) → `backup/daily/YYYY-MM-DD.json` 기록. 실패하면 디스코드(AI_CLI 알림)로 오류 한 통. 그림이 아직 없는 카드는 머리글자 칸으로 보인다. 8,347장을 무료로 다 채우려면 약 85일.
