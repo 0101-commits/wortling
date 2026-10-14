@@ -226,7 +226,7 @@ const artikel: Handler = async ({ env, url }) => {
 
 const wordDetail: Handler = async ({ env, params: [id] }) => {
   const [row, revs] = await env.DB.batch([
-    env.DB.prepare(`SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id WHERE w.id = ?`).bind(id),
+    env.DB.prepare(`SELECT ${ITEM_SELECT}, w.scene_en FROM words w JOIN cards c ON c.word_id = w.id WHERE w.id = ?`).bind(id),
     env.DB.prepare(
       'SELECT id, rating, reviewed_at, scheduled_days FROM reviews WHERE word_id = ? ORDER BY reviewed_at DESC LIMIT 20',
     ).bind(id),
@@ -234,7 +234,7 @@ const wordDetail: Handler = async ({ env, params: [id] }) => {
   const r = row.results[0];
   if (!r) throw new HttpError(404, 'not_found');
   const item = rowToItem(r as Record<string, unknown>);
-  return json({ ...item, reviews: revs.results } as WordDetailResponse);
+  return json({ ...item, scene_en: ((r as Record<string, unknown>).scene_en as string | null) ?? null, reviews: revs.results } as WordDetailResponse);
 };
 
 const stats: Handler = async ({ env }) => {

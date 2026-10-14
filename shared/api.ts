@@ -109,7 +109,9 @@ export interface WordsResponse {
 
 /** GET /api/word/:id */
 export interface WordDetailResponse extends DeckItem {
-  reviews: Array<{ id: number; rating: Rating; reviewed_at: string; scheduled_days: number }>;
+  /** 그림 장면(영어 한 줄). 매일 작업이 새 장면을 못 쓰면 이것으로 그린다 */
+  scene_en: string | null;
+  reviews:Array<{ id: number; rating: Rating; reviewed_at: string; scheduled_days: number }>;
 }
 
 /** GET /api/stats */

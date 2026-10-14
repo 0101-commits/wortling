@@ -90,7 +90,10 @@ try {
     }
     if (DRY) console.log(`[dry] 그릴 차례(다시 그리기 ${ids.filter((id) => redo.has(id)).length}): ${ids.join(',')}`);
     const need = [];
-    for (const id of ids) need.push((await api(`/api/word/${id}`)).word);
+    for (const id of ids) {
+      const d = await api(`/api/word/${id}`);
+      need.push({ ...d.word, scene_en: d.scene_en }); // 새 장면을 못 쓰면 이 장면으로
+    }
     // 그리기 직전에 「카드 예문 장면」 으로 장면을 새로 쓴다 → 그림 · 단어 · 예문이 같은 순간을 가리킴
     // claude 한 번에 25단어씩(하루 100장이면 4번)
     const briefs = new Map();
@@ -264,7 +267,10 @@ Items: ${JSON.stringify(list)}`;
   const out = new Map();
   try {
     const arr = JSON.parse(String(JSON.parse(r.stdout).result ?? '').trim().replace(/^```(?:json)?\s*|\s*```$/g, ''));
-    for (const o of arr) if (o?.id && typeof o.scene_en === 'string' && /^Borti\b/.test(o.scene_en.trim())) out.set(o.id, o.scene_en.trim().slice(0, 400));
+    const ids = new Set(list.map((w) => w.id));
+    // 「Borti」로 시작하라 했지만 「In a kitchen, Borti …」 처럼 와도 받는다
+    for (const o of arr) if (ids.has(o?.id) && typeof o.scene_en === 'string' && /\bBorti\b/.test(o.scene_en)) out.set(o.id, o.scene_en.trim().slice(0, 400));
+    if (out.size < list.length) console.error(`장면 ${list.length}개 중 ${out.size}개만 받음(나머지는 예전 장면) — 받은 원문 ${Array.isArray(arr) ? arr.length : 0}개: ${JSON.stringify(arr).slice(0, 300)}`);
   } catch (e) {
     console.error(`장면 쓰기 실패 — 예전 장면으로 그림: ${String(e.message || e).slice(0, 200)}`);
   }
