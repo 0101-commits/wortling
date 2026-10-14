@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { Button, Skeleton } from '@montage-ui/core'
 import { IconFlipBackward } from '@montage-ui/icon'
-import type { TodayResponse } from '../../shared/api.ts'
+import type { Settings, TodayResponse } from '../../shared/api.ts'
 import { api, errorText, sendReviews } from '../api.ts'
 import { buildSession, deckReducer, firstUp, initDeck } from '../deck.ts'
 import { fmtDay } from '../format.ts'
@@ -11,8 +11,14 @@ import { navigate } from '../router.ts'
 import { SwipeDeck } from '../SwipeDeck.tsx'
 import { CountUp, Emoji, ErrorBox, Top, useToaster } from '../ui.tsx'
 
-export default function Today() {
+export default function Today({ onSettings }: { onSettings: (p: Partial<Settings>) => Promise<void> }) {
   const today = useAsync(() => api.today(), [])
+  // 오늘은 복습만(B6): 이 학습일만 새 카드 0. 다음 학습일엔 저절로 풀린다
+  const setReviewOnly = async (on: boolean) => {
+    if (!today.data) return
+    await onSettings({ review_only_day: on ? today.data.date : '' })
+    today.reload()
+  }
   // 아침 알림 빈칸 문제의 정답 카드(?first=w0002)를 덱 맨 앞으로(A1). 처음 연 순간의 값만 쓴다
   const [first] = useState(readFirst)
   return (
@@ -20,7 +26,12 @@ export default function Today() {
       <Top title="오늘" actions />
       <main className="page deck-page">
         {today.data ? (
-          <Session key={today.data.date} data={today.data} first={first} />
+          <Session
+            key={today.data.date + today.data.settings.review_only_day}
+            data={today.data}
+            first={first}
+            onReviewOnly={setReviewOnly}
+          />
         ) : today.error ? (
           <ErrorBox error={today.error} onRetry={today.reload} />
         ) : (
@@ -39,7 +50,16 @@ function readFirst(): string | null {
   return new URLSearchParams(location.hash.split('?')[1] ?? '').get('first')
 }
 
-function Session({ data, first }: { data: TodayResponse; first: string | null }) {
+function Session({
+  data,
+  first,
+  onReviewOnly,
+}: {
+  data: TodayResponse
+  first: string | null
+  onReviewOnly: (on: boolean) => void
+}) {
+  const reviewOnly = data.settings.review_only_day === data.date
   const toast = useToaster()
   const [s, dispatch] = useReducer(deckReducer, data, (d) => initDeck(firstUp(buildSession(d), first)))
   const [sid] = useState(() => Date.now().toString(36) + Math.random().toString(36).slice(2, 8))
@@ -88,7 +108,8 @@ function Session({ data, first }: { data: TodayResponse; first: string | null })
     }
   }, [flush])
 
-  if (s.queue.length === 0) return <Rest vacation={data.settings.vacation_until} date={data.date} />
+  if (s.queue.length === 0)
+    return <Rest vacation={data.settings.vacation_until} date={data.date} reviewOnly={reviewOnly} onReviewOnly={onReviewOnly} />
 
   if (s.finished) {
     const good = s.pending.filter((p) => p.rating >= 3).length
@@ -132,6 +153,12 @@ function Session({ data, first }: { data: TodayResponse; first: string | null })
         </button>
         <span className="mix">
           새 {mix.fresh} · 복습 {mix.review}
+          {/* 덱을 시작하기 전에만: 새 카드를 오늘 빼거나 되돌림 */}
+          {s.index === 0 && (mix.fresh > 0 || reviewOnly) && (
+            <button type="button" className={'revonly' + (reviewOnly ? ' on' : '')} aria-pressed={reviewOnly} onClick={() => onReviewOnly(!reviewOnly)}>
+              {reviewOnly ? '복습만 · 끄기' : '오늘은 복습만'}
+            </button>
+          )}
         </span>
         <span className="counter num" data-testid="progress" aria-live="polite">
           {s.index + 1} / {s.queue.length}
@@ -147,13 +174,34 @@ function Session({ data, first }: { data: TodayResponse; first: string | null })
   )
 }
 
-function Rest({ vacation, date }: { vacation: string; date: string }) {
+function Rest({
+  vacation,
+  date,
+  reviewOnly,
+  onReviewOnly,
+}: {
+  vacation: string
+  date: string
+  reviewOnly: boolean
+  onReviewOnly: (on: boolean) => void
+}) {
   const away = vacation && vacation >= date
   return (
     <section className="empty">
       <Emoji name="sleep" size={160} />
       <h2>오늘은 쉬어도 돼요</h2>
-      <p>{away ? `휴가 모드 · ${fmtDay(vacation)}까지 알림을 쉬어요.` : '복습할 카드도 새 단어도 없어요.'}</p>
+      <p>
+        {away
+          ? `휴가 모드 · ${fmtDay(vacation)}까지 알림을 쉬어요.`
+          : reviewOnly
+            ? '오늘은 복습만 하기로 했고, 복습할 카드가 없어요.'
+            : '복습할 카드도 새 단어도 없어요.'}
+      </p>
+      {reviewOnly && (
+        <Button variant="outlined" color="primary" onClick={() => onReviewOnly(false)}>
+          새 단어 오늘 받기
+        </Button>
+      )}
       <Button variant="outlined" color="assistive" onClick={() => navigate('/words')}>
         단어 보기
       </Button>

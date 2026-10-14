@@ -6,6 +6,7 @@ import { ContentBadge } from '@montage-ui/core'
 import type { DeckItem, Rating } from '../shared/api.ts'
 import { RATING_LABEL, SWIPE, decideSwipe, intervals } from './deck.ts'
 import { Emoji, Example, LevelBadge, Lemma, POS_LABEL, WordImage } from './ui.tsx'
+import { seenLabel } from './format.ts'
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
@@ -176,7 +177,12 @@ function Stamps({ x, y }: { x: MotionValue<number>; y: MotionValue<number> }) {
   )
 }
 
-function CardFace({ item: { word }, back }: { item: DeckItem; back: boolean }) {
+function SeenChip({ card }: { card: DeckItem['card'] }) {
+  const s = seenLabel(card)
+  return <span className={'dk-seen ' + s.tone}>{s.text}</span>
+}
+
+function CardFace({ item: { word, card }, back }: { item: DeckItem; back: boolean }) {
   return (
     <>
       <div className="dk-ill">
@@ -204,6 +210,7 @@ function CardFace({ item: { word }, back }: { item: DeckItem; back: boolean }) {
         </div>
       ) : (
         <div className="dk-txt" key="front">
+          <SeenChip card={card} />
           <Lemma word={word} className="dk-wd" />
           <div className="dk-meta">
             <ContentBadge size="xsmall" variant="outlined" color="neutral">{POS_LABEL[word.pos] ?? word.pos}</ContentBadge>

@@ -2,8 +2,10 @@
 import type { Env } from './env.ts';
 import type { DeckItem, Settings } from '../shared/api.ts';
 import { clozeOf } from '../shared/cloze.ts';
+import { eveningTitle, morningTitle, quiet, restOf, seedOf } from '../shared/copy.ts';
+import type { Rest } from '../shared/copy.ts';
 import { buildToday, loadSettings } from './deck.ts';
-import { studyDay, studyDayStartUtc } from './time.ts';
+import { DAY_START_H, monthDay, studyDay, studyDayStartUtc } from './time.ts';
 import { eveningPayload, minutesFor, morningPayload, send, summarize, testPayload } from './discord.ts';
 import type { Cloze, Payload } from './discord.ts';
 import { pushAll, pushMessage } from './push.ts';
@@ -91,10 +93,20 @@ export function pickCloze(items: DeckItem[]): Cloze | null {
   return null;
 }
 
+/** 채점한 학습일 최근 2개 → 쉰 날(A3). 휴가 기간은 세지 않는다 */
+async function restNow(env: Env, day: string, settings: Settings): Promise<Rest> {
+  const { results } = await env.DB.prepare(
+    `SELECT strftime('%Y-%m-%d', reviewed_at, '+${9 - DAY_START_H} hours') AS d FROM reviews WHERE undone = 0 GROUP BY d ORDER BY d DESC LIMIT 2`,
+  ).all<{ d: string }>();
+  return restOf(results.map((r) => r.d), day, settings.vacation_until);
+}
+
 export async function runMorning(env: Env, now: Date = new Date()): Promise<RunResult> {
   const day = studyDay(now);
   const settings = await loadSettings(env.DB);
   if (settings.vacation_until && settings.vacation_until >= day) return { skipped: 'vacation' };
+  const rest = await restNow(env, day, settings);
+  if (quiet('morning', rest.rest, day)) return { skipped: 'quiet' };
   const today = await buildToday(env.DB, settings, now);
   const items = [...today.due, ...today.fresh];
   if (items.length === 0) return { skipped: 'empty' };
@@ -102,7 +114,8 @@ export async function runMorning(env: Env, now: Date = new Date()): Promise<RunR
   // 그림: 빈칸 단어의 그림이 있으면 그것(그림이 힌트), 없으면 덱에서 그림 있는 첫 장
   const withImage = items.find((i) => i.word.image && i.word.id === cloze?.id) ?? items.find((i) => i.word.image);
   const imageUrl = withImage ? `${env.APP_URL}/img/${withImage.word.id}.webp` : null;
-  return dispatch(env, 'morning', day, (n) => morningPayload({ day, items, total: items.length, appUrl: env.APP_URL, imageUrl, cloze, n }), now);
+  const title = morningTitle({ n: items.length, md: monthDay(day), ...rest, seed: seedOf(day) });
+  return dispatch(env, 'morning', day, (n) => morningPayload({ day, items, total: items.length, appUrl: env.APP_URL, imageUrl, cloze, n, title }), now);
 }
 
 /** 저녁 알림 조건(A2). null = 보냄, 문자열 = 건너뛴 이유 */
@@ -132,15 +145,19 @@ export async function runEvening(env: Env, now: Date = new Date(), kind: 'evenin
     env.DB.prepare("SELECT status FROM notifications WHERE kind = 'morning' AND day = ?").bind(day),
   ]);
   const remaining = (rem.results[0] as { n: number }).n;
+  const reviewedToday = (reviewed.results[0] as { n: number }).n;
   const skip = eveningSkip({
     remaining,
-    reviewedToday: (reviewed.results[0] as { n: number }).n,
+    reviewedToday,
     morningSent: (morning.results[0] as { status: string } | undefined)?.status === 'sent',
     mode: settings.evening_mode,
     min: settings.evening_min,
   });
   if (skip) return { skipped: skip };
-  return dispatch(env, kind, day, (n) => eveningPayload({ remaining, minutes: minutesFor(remaining), appUrl: env.APP_URL, n }), now);
+  const rest = await restNow(env, day, settings);
+  if (quiet('evening', rest.rest, day)) return { skipped: 'quiet' };
+  const title = eveningTitle({ n: remaining, rest: rest.rest, studiedToday: reviewedToday > 0, seed: seedOf(day) });
+  return dispatch(env, kind, day, (n) => eveningPayload({ remaining, minutes: minutesFor(remaining), appUrl: env.APP_URL, n, title }), now);
 }
 
 /** 「1시간 뒤」 를 받을 수 있는지: 그날(학습일) 저녁 통이고, 미룬 통이 아직 없고, 1시간 뒤가 23:30 KST 를 넘지 않을 때 */

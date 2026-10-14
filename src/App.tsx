@@ -142,7 +142,7 @@ export default function App() {
       screen = <Setup />
       break
     default:
-      screen = <Today />
+      screen = <Today onSettings={save} />
   }
   const tab = page === 'word' ? 'words' : TABS.some((t) => t.value === page) ? page : ['onboarding', 'inbox', 'settings', 'setup'].includes(page) ? '' : 'today'
 

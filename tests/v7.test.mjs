@@ -103,3 +103,48 @@ test('firstUp: 정답 카드를 맨 앞으로, 없으면 그대로', () => {
   assert.equal(firstUp(q, null), q);
   assert.equal(firstUp(q, 'a'), q);
 });
+
+// ---------- 2단계 ----------
+import { restOf, morningTitle, eveningTitle, quiet, seedOf } from '../shared/copy.ts';
+import { assertNoStats } from '../worker/discord.ts';
+import { seenLabel } from '../src/format.ts';
+
+test('A3 restOf: 어제 했으면 0 · 사흘 비면 3 · 휴가는 안 셈 · 돌아온 날', () => {
+  assert.deepEqual(restOf([], '2026-10-15'), { rest: 0, returning: false });
+  assert.deepEqual(restOf(['2026-10-15'], '2026-10-15'), { rest: 0, returning: false });
+  assert.deepEqual(restOf(['2026-10-14'], '2026-10-15'), { rest: 0, returning: false });
+  assert.equal(restOf(['2026-10-11'], '2026-10-15').rest, 3);
+  assert.equal(restOf(['2026-10-01'], '2026-10-15', '2026-10-13').rest, 1, '휴가 끝(13일) 다음 날부터 셈');
+  assert.deepEqual(restOf(['2026-10-14', '2026-10-09'], '2026-10-15'), { rest: 0, returning: true });
+  assert.equal(restOf(['2026-10-14', '2026-10-12'], '2026-10-15').returning, false, '하루 쉰 건 반기지 않음');
+});
+
+test('A3 문구: 단계별 제목 · 4일부터 저녁 끔·아침 월요일만 · 금지어 없음(G14)', () => {
+  const md = '10/15';
+  const titles = [];
+  for (const rest of [0, 1, 2, 3, 4]) for (const seed of [0, 1]) {
+    titles.push(morningTitle({ n: 5, md, rest, returning: false, seed }));
+    titles.push(eveningTitle({ n: 6, rest, studiedToday: false, seed }));
+  }
+  titles.push(morningTitle({ n: 5, md, rest: 0, returning: true, seed: 0 }), eveningTitle({ n: 6, rest: 0, studiedToday: true, seed: 0 }));
+  for (const t of titles) assert.doesNotThrow(() => assertNoStats(t), t);
+  assert.equal(morningTitle({ n: 5, md, rest: 0, returning: false, seed: 0 }), '오늘 카드 5 · 10/15');
+  assert.equal(morningTitle({ n: 5, md, rest: 3, returning: false, seed: 0 }), '오늘이 마지막으로 조르는 날이에요 · 10/15');
+  assert.equal(eveningTitle({ n: 6, rest: 0, studiedToday: true, seed: 0 }), '카드 6장 남았어요');
+  assert.equal(quiet('evening', 3, '2026-10-15'), false);
+  assert.equal(quiet('evening', 4, '2026-10-15'), true);
+  assert.equal(quiet('morning', 4, '2026-10-15'), true, '목요일');
+  assert.equal(quiet('morning', 9, '2026-10-19'), false, '월요일은 보냄');
+  assert.equal(seedOf('2026-10-15'), 20261015);
+});
+
+test('B2 seenLabel: 새 단어 · 다시 익히는 중 · 오늘 또 · 어제 · N일 · N개월', () => {
+  const now = new Date('2026-10-15T03:00:00Z'); // 12:00 KST
+  const c = (state, last) => ({ state, last_review: last });
+  assert.deepEqual(seenLabel(c(0, null), now), { text: '새 단어', tone: 'new' });
+  assert.equal(seenLabel(c(3, '2026-10-14T00:00:00Z'), now).text, '다시 익히는 중');
+  assert.equal(seenLabel(c(2, '2026-10-15T00:30:00Z'), now).text, '오늘 또');
+  assert.equal(seenLabel(c(2, '2026-10-14T03:00:00Z'), now).text, '어제 본 단어');
+  assert.deepEqual(seenLabel(c(2, '2026-10-03T03:00:00Z'), now), { text: '12일 만에 다시', tone: 'again' });
+  assert.equal(seenLabel(c(2, '2026-08-01T03:00:00Z'), now).text, '2개월 만에 다시');
+});

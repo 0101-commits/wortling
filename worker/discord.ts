@@ -89,8 +89,10 @@ export function morningPayload(p: {
   cloze?: Cloze | null;
   /** notifications.id — 링크에 붙여 앱이 열림을 적는다(A4) */
   n?: number;
+  /** 쉰 날에 따른 제목(shared/copy.ts morningTitle). 없으면 「오늘 카드 N · 월/일」 */
+  title?: string;
 }): Payload {
-  const head = `**오늘 카드 ${p.total} · ${monthDay(p.day)}**`;
+  const head = `**${p.title ?? `오늘 카드 ${p.total} · ${monthDay(p.day)}`}**`;
   let content: string;
   let button: string;
   if (p.cloze) {
@@ -117,9 +119,9 @@ export function minutesFor(remaining: number): number {
   return Math.max(1, Math.ceil((remaining * 6) / 60));
 }
 
-export function eveningPayload(p: { remaining: number; minutes: number; appUrl: string; n?: number }): Payload {
+export function eveningPayload(p: { remaining: number; minutes: number; appUrl: string; n?: number; title?: string }): Payload {
   return wrap([
-    text(`**카드 ${p.remaining}장 남았어요**\n약 ${p.minutes}분이면 끝나요. 내일로 넘기면 복습이 쌓여요.`),
+    text(`**${p.title ?? `카드 ${p.remaining}장 남았어요`}**\n약 ${p.minutes}분이면 끝나요. 내일로 넘기면 복습이 쌓여요.`),
     separator(),
     linkButton('이어서', todayLink(p.appUrl, { n: p.n })),
   ]);
