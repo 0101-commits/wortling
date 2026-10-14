@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
-import { STYLE_INTRO, BORTI, STYLE } from './style.mjs';
+import { STYLE_INTRO, BORTI, STYLE, REF_NOTE, REF_FILE } from './style.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ENV_FILE = path.join(ROOT, '.env');
@@ -29,7 +29,9 @@ const POSES = {
 };
 
 const prompt = (pose) =>
-  `${STYLE_INTRO} Emoticon sticker of Borti ${pose}. Full body, centered, filling most of the frame. ${BORTI} ${STYLE}`;
+  `${STYLE_INTRO} ${REF_NOTE} Emoticon sticker of Borti ${pose}. Full body, centered, filling most of the frame. ${BORTI} ${STYLE}`;
+// 카드 그림과 같은 보르티(참고 그림 = 이모티콘 think 에서 뜸)
+const ref = readFileSync(REF_FILE).toString('base64');
 
 const names = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(POSES);
 const unknown = names.filter((n) => !POSES[n]);
@@ -45,7 +47,7 @@ for (const name of names) {
       const res = await fetch(`${APP_URL}/api/admin/draw`, {
         method: 'POST',
         headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ prompt: p, width: 768, height: 768 }),
+        body: JSON.stringify({ prompt: p, width: 768, height: 768, ref }),
       });
       if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
       png = Buffer.from(await res.arrayBuffer());

@@ -590,11 +590,19 @@ const putImage: Handler = async ({ req, env, url, params: [id] }) => {
  */
 const DRAW_MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
 const draw: Handler = async ({ req, env }) => {
-  const b = await readJson<{ prompt?: unknown; width?: unknown; height?: unknown }>(req);
+  const b = await readJson<{ prompt?: unknown; width?: unknown; height?: unknown; ref?: unknown }>(req);
   if (!b || typeof b.prompt !== 'string' || !b.prompt.trim() || b.prompt.length > 2000) throw bad('prompt');
+  // ref = 참고 그림(png base64, 512² 이하) → input_image_0. 보르티 생김새·그림체를 장마다 같게 묶는다
+  if (b.ref !== undefined && (typeof b.ref !== 'string' || b.ref.length > 400_000)) throw bad('ref');
   // 16 의 배수, 256~1536
   const side = (v: unknown, d: number) => Math.min(1536, Math.max(256, Math.round((Number(v) || d) / 16) * 16));
   const form = new FormData();
+  if (typeof b.ref === 'string') {
+    const s = atob(b.ref);
+    const ref = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) ref[i] = s.charCodeAt(i);
+    form.append('input_image_0', new Blob([ref], { type: 'image/png' }));
+  }
   form.append('prompt', b.prompt);
   form.append('width', String(side(b.width, 1024)));
   form.append('height', String(side(b.height, 768)));

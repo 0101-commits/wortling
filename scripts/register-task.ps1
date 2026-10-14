@@ -20,7 +20,7 @@ if ($Remove) {
 
 $action = New-ScheduledTaskAction -Execute $node -Argument "scripts\daily.mjs" -WorkingDirectory $root
 $trigger = New-ScheduledTaskTrigger -Daily -At $At
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 3) -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskName $daily -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
 Write-Output "registered: $daily at $At ($root)"
 

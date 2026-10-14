@@ -2,7 +2,7 @@
 //   흰 바탕   : 가장자리 10% 띠에서 밝기 ≥ 245 화소 비율 ≥ 0.90
 //   색 수     : 64단계로 줄인 색 가운데 상위 4색이 차지하는 비율 ≥ 0.90 (평면 색 몇 개로 된 그림인지)
 //   선        : 검정(밝기 < 60) 화소 비율 0.015 ~ 0.12 (선이 없거나 시커먼 그림 거르기. FLUX.2 klein 은 선이 가늘어 0.019 도 나옴)
-//   글자      : Windows 내장 OCR(scripts/winocr.ps1)로 읽은 글자 수 0 — OCR 이 없는 PC 면 건너뜀(null)
+//   글자      : Windows 내장 OCR(scripts/winocr.ps1)로 읽은 글자·숫자 수 1 이하(기호 제외) — OCR 이 없는 PC 면 건너뜀(null)
 // 사용: node scripts/imgcheck.mjs a.png b.png …  → 줄마다 결과 JSON
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -53,7 +53,8 @@ export function ocrChars(files) {
       timeout: 120_000,
     });
     const texts = JSON.parse(out.replace(/^﻿/, '').trim());
-    return files.map((_, i) => (typeof texts[i] === 'string' ? texts[i].replace(/\s+/g, '').length : null));
+    // 글자·숫자만 센다 — ? ! 같은 기호는 추상어 그림에 허용(2026-10-14 장면 규칙)
+    return files.map((_, i) => (typeof texts[i] === 'string' ? texts[i].replace(/[^\p{L}\p{N}]/gu, '').length : null));
   } catch {
     return files.map(() => null);
   } finally {
@@ -67,7 +68,8 @@ export function verdict(s, chars) {
   if (s.edgeWhite < LIMITS.edgeWhite) why.push(`edge_white ${s.edgeWhite}`);
   if (s.top4 < LIMITS.top4) why.push(`colors ${s.top4}`);
   if (s.black < LIMITS.blackMin || s.black > LIMITS.blackMax) why.push(`black ${s.black}`);
-  if (chars) why.push(`text ${chars}`);
+  // 한 글자는 봐준다 — 그려 넣은 ? ! 를 OCR 이 I·l·1·2 로 읽는 일이 있다
+  if (chars > 1) why.push(`text ${chars}`);
   return why;
 }
 
