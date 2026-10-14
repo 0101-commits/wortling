@@ -4,10 +4,10 @@ import { Button, SegmentedControl, SegmentedControlItem, Skeleton } from '@monta
 import { IconFlipBackward } from '@montage-ui/icon'
 import type { DrillScope, Settings, TodayResponse } from '../../shared/api.ts'
 import { api, errorText, sendReviews } from '../api.ts'
-import { buildSession, deckReducer, firstUp, initDeck } from '../deck.ts'
+import { buildSession, deckReducer, initDeck } from '../deck.ts'
 import { fmtDay } from '../format.ts'
 import { useAsync } from '../hooks.ts'
-import { navigate } from '../router.ts'
+import { navigate, useRoute } from '../router.ts'
 import { SwipeDeck } from '../SwipeDeck.tsx'
 import { CountUp, Emoji, ErrorBox, Top, useToaster } from '../ui.tsx'
 
@@ -19,15 +19,15 @@ export default function Today({ onSettings }: { onSettings: (p: Partial<Settings
     await onSettings({ review_only_day: on ? today.data.date : '' })
     today.reload()
   }
-  // 아침 알림 빈칸 문제의 정답 카드(?first=w0002)를 덱 맨 앞으로(A1). 처음 연 순간의 값만 쓴다
-  const [first] = useState(readFirst)
+  // 아침 알림 빈칸 문제의 정답 카드(?first=w0002)를 덱 맨 앞으로(A1). 이미 열린 앱에서 해시만 바뀌어도 따라간다
+  const first = useRoute().query.get('first')
   return (
     <>
       <Top title="오늘" actions />
       <main className="page deck-page">
         {today.data ? (
           <Session
-            key={today.data.date + today.data.settings.review_only_day}
+            key={today.data.date + today.data.settings.review_only_day + (first ?? '')}
             data={today.data}
             first={first}
             onReviewOnly={setReviewOnly}
@@ -45,11 +45,6 @@ export default function Today({ onSettings }: { onSettings: (p: Partial<Settings
   )
 }
 
-/** 주소의 ?first= (첫 렌더에서 한 번 읽음) */
-function readFirst(): string | null {
-  return new URLSearchParams(location.hash.split('?')[1] ?? '').get('first')
-}
-
 function Session({
   data,
   first,
@@ -61,7 +56,7 @@ function Session({
 }) {
   const reviewOnly = data.settings.review_only_day === data.date
   const toast = useToaster()
-  const [s, dispatch] = useReducer(deckReducer, data, (d) => initDeck(firstUp(buildSession(d), first)))
+  const [s, dispatch] = useReducer(deckReducer, data, (d) => initDeck(buildSession(d, first)))
   const [sid] = useState(() => Date.now().toString(36) + Math.random().toString(36).slice(2, 8))
   const [tomorrow, setTomorrow] = useState<number | null>(null)
   const [mix] = useState(() => {

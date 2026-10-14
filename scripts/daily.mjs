@@ -118,6 +118,7 @@ try {
       return Buffer.from(await (await fetch(url)).arrayBuffer());
     };
     let checked = 0;
+    let ocrSkipped = 0;
     for (const w of need) {
       if (credits - RESERVE < COST_PER_IMAGE - 1e-9) break;
       const scene = briefs.get(w.id) || w.scene_en;
@@ -140,6 +141,8 @@ try {
           const tmp = path.join(TMP_DIR, `${w.id}-${attempt}.png`);
           writeFileSync(tmp, p);
           check = await checkFile(tmp, p);
+          try { unlinkSync(tmp); } catch { /* 지우기 실패는 무시 */ }
+          if (check.chars === null) ocrSkipped++;
           if (check.ok) png = p;
           else {
             why = check.why;
@@ -148,14 +151,21 @@ try {
         }
       } catch (e) {
         log.failed.push({ id: w.id, error: String(e.message || e).slice(0, 300) });
-        // 다시 그리기면 있던 그림을 지킨다. 새 단어만 실패 표시(머리글자 칸)
-        if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
-        if (/credit|balance|insufficient/i.test(String(e.message))) break;
+        const noCredit = /credit|balance|insufficient/i.test(String(e.message));
+        // 다시 그리기면 있던 그림을 지킨다. 새 단어만 실패 표시(머리글자 칸). 크레딧 부족은 단어 탓이 아니라 표시 안 함(다음에 다시)
+        if (!redo.has(w.id) && !noCredit) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        if (noCredit) break;
         continue;
       }
       if (!png) {
         log.failed.push({ id: w.id, error: why.join(', ') || 'no_image', check });
         if (!redo.has(w.id)) await api(`/api/admin/image/${w.id}?status=failed`, { method: 'PUT' });
+        // 예전 그림체 목록에서 두 번 탈락한 단어는 맨 뒤로 — 매일 같은 단어에 크레딧을 쓰며 새 단어를 막지 않게
+        if (restyle.includes(w.id)) {
+          restyle.splice(restyle.indexOf(w.id), 1);
+          restyle.push(w.id);
+          writeFileSync(RESTYLE_FILE, JSON.stringify(restyle));
+        }
         continue;
       }
       const webp = await toWebp(png);
@@ -169,7 +179,7 @@ try {
       console.log(`그림 ${w.id} ${w.lemma} ${(webp.length / 1024).toFixed(1)}KB ${((Date.now() - t0) / 1000).toFixed(0)}초`);
     }
     // G15: 검사 통과율(생성 1번 = 1건)
-    log.checks = { drawn: checked, passed: log.images.length, rate: checked ? +(log.images.length / checked).toFixed(2) : null };
+    log.checks = { drawn: checked, passed: log.images.length, rate: checked ? +(log.images.length / checked).toFixed(2) : null, ocr_skipped: ocrSkipped };
     try { log.credits.after = Number(higgs(['account', 'status', '--json']).credits); } catch { log.credits.after = credits; }
   }
 

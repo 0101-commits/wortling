@@ -1,6 +1,6 @@
 // 관사 1분(B5): der · die · das 만 빠르게. 1분 또는 20문제. 틀린 단어는 끝에 모아 보여 준다.
 // 일정(FSRS)은 안 바꾼다(D5). 순위표 없음(개인용).
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Skeleton } from '@montage-ui/core'
 import type { DeckItem } from '../../shared/api.ts'
 import { api } from '../api.ts'
@@ -23,7 +23,7 @@ export default function Artikel() {
       <main className="page">
         {r.error ? (
           <ErrorBox error={r.error} onRetry={r.reload} />
-        ) : !r.data ? (
+        ) : !r.data || r.loading ? (
           <Skeleton variant="rectangle" width="100%" height={320} radius={20} />
         ) : r.data.items.length === 0 ? (
           <section className="empty">
@@ -45,7 +45,12 @@ function Game({ items, onAgain }: { items: DeckItem[]; onAgain: () => void }) {
   const [right, setRight] = useState(0)
   const [wrong, setWrong] = useState<DeckItem[]>([])
   const [flash, setFlash] = useState<{ pick: Art; ok: boolean } | null>(null)
-  const over = left <= 0 || i >= list.length
+  // 시간이 다 돼도 정답 반짝임이 끝난 뒤에 결과로(점수와 문제 수가 어긋나지 않게)
+  const over = (left <= 0 && !flash) || i >= list.length
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current)
+  }, [])
 
   // 1초 시계 — 끝나면 멈춤
   useEffect(() => {
@@ -55,14 +60,14 @@ function Game({ items, onAgain }: { items: DeckItem[]; onAgain: () => void }) {
   }, [over])
 
   const answer = (pick: Art) => {
-    if (over || flash) return
+    if (over || flash || left <= 0) return
     const it = list[i]
     const ok = it.word.gender === pick
     setFlash({ pick, ok })
     if (ok) setRight((n) => n + 1)
     else setWrong((w) => [...w, it])
     // 맞으면 바로, 틀리면 정답 색을 잠깐 보여 주고 다음
-    setTimeout(() => {
+    timer.current = setTimeout(() => {
       setFlash(null)
       setI((n) => n + 1)
     }, ok ? 250 : 700)

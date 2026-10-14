@@ -20,8 +20,13 @@ export interface Payload {
   components: Component[];
 }
 
+/** 금지어가 들었는지(빈칸 문제 고를 때 뜻 힌트 거르기 — 예: Seifenoper 「연속극」) */
+export function hasStats(text: string): boolean {
+  return FORBIDDEN.test(text);
+}
+
 export function assertNoStats(text: string): void {
-  if (FORBIDDEN.test(text)) throw new Error(`알림 글에 통계 표현 금지(G6): ${text}`);
+  if (hasStats(text)) throw new Error(`알림 글에 통계 표현 금지(G6): ${text}`);
 }
 
 export function countComponents(payload: Payload): number {
@@ -151,7 +156,8 @@ export function summarize(payload: Payload): { title: string; body: string; imag
       if (c.components) walk(c.components);
     }
   };
-  walk(payload.components);
+  // 글 만들기 전(queued, '{}')이거나 깨진 행이어도 받은편지함이 죽지 않게
+  walk(Array.isArray(payload?.components) ? payload.components : []);
   return { title, body, image, link };
 }
 

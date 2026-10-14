@@ -29,12 +29,27 @@ self.addEventListener('notificationclick', (e) => {
   e.notification.close()
   const data = e.notification.data || {}
   if (e.action === 'later') {
+    const WHY = {
+      too_late: '23:30 이 넘어서 오늘은 더 미룰 수 없어요.',
+      already: '이미 1시간 뒤로 미뤄 뒀어요.',
+      not_tonight: '지난 알림이라 미룰 수 없어요.',
+    }
+    const ack = (title, body) => self.registration.showNotification(title, { body, icon: '/mascot/_default.webp', tag: 'later-ack', silent: true })
     e.waitUntil(
       fetch('/api/notify/later', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id: data.nid, key: data.key }),
-      }).catch(() => undefined),
+      })
+        .then((r) => r.json().catch(() => ({ ok: r.ok })))
+        .then((j) => {
+          if (j && j.ok) {
+            const t = j.next ? new Date(j.next).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Seoul' }) : ''
+            return ack('1시간 뒤에 다시 알려 드릴게요', t ? `${t} 쯤` : '')
+          }
+          return ack('미루지 못했어요', WHY[j && j.error] || '잠시 뒤 앱에서 해 주세요.')
+        })
+        .catch(() => ack('미루지 못했어요', '연결이 안 돼요. 앱을 열어 주세요.')),
     )
     return
   }

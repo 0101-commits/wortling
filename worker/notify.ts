@@ -6,7 +6,7 @@ import { eveningTitle, morningTitle, quiet, restOf, seedOf } from '../shared/cop
 import type { Rest } from '../shared/copy.ts';
 import { buildToday, loadSettings } from './deck.ts';
 import { DAY_START_H, monthDay, studyDay, studyDayStartUtc } from './time.ts';
-import { eveningPayload, minutesFor, morningPayload, send, summarize, testPayload } from './discord.ts';
+import { eveningPayload, hasStats, minutesFor, morningPayload, send, summarize, testPayload } from './discord.ts';
 import type { Cloze, Payload } from './discord.ts';
 import { pushAll, pushMessage } from './push.ts';
 import type { PushResult } from './push.ts';
@@ -51,7 +51,17 @@ async function dispatch(env: Env, kind: string, day: string, build: (n: number) 
     if (/UNIQUE/i.test(String(e))) return { skipped: 'dup' };
     throw e;
   }
-  const payload = build(id);
+  let payload: Payload;
+  try {
+    payload = build(id);
+  } catch (e) {
+    // 글을 못 만들면(금지어 등) 행을 실패로 남긴다 — 「대기」 로 남은 빈 행이 받은편지함을 막지 않게
+    const error = `build: ${String(e).slice(0, 300)}`;
+    await env.DB.prepare('UPDATE notifications SET status = ?, sent_at = ?, discord_message_id = ?, error = ?, payload_json = ? WHERE id = ?')
+      .bind('failed', null, null, error, '{"flags":32768,"components":[]}', id)
+      .run();
+    return { ok: false, id, status: 'failed', error, discord: { ok: false, error: 'not_sent' }, push: { ok: false, sent: 0, failed: 0, gone: 0, error: 'not_sent' } };
+  }
   const hook = await webhookUrl(env);
   const fail = (e: unknown): PushResult => ({ ok: false, sent: 0, failed: 0, gone: 0, error: String(e) });
   const [d, push] = await Promise.all([
@@ -79,15 +89,25 @@ async function dispatch(env: Env, kind: string, day: string, build: (n: number) 
   return { ok, id, status: ok ? 'sent' : 'failed', error, discord, push };
 }
 
-/** 아침 빈칸 문제 고르기(A1): 덱 순서(복습 먼저)대로, 예문에 그 단어가 보이고 빈칸 뒤 정답 글자가 남지 않는 첫 카드. 110자 넘는 예문은 건너뜀 */
+/** 움라우트·ß 를 풀어 소문자로(어간 비교용) */
+const fold = (s: string) => s.toLowerCase().replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 'ss');
+
+/**
+ * 아침 빈칸 문제 고르기(A1): 덱 순서(복습 먼저)대로, 예문에 그 단어가 보이고 빈칸 뒤 정답이 새지 않는 첫 카드.
+ * 거르는 것: 110자 넘는 예문 · 같은 낱말이 또 나옴 · 같은 어간(앞 5글자)이 남음(Bürgerin ↔ Bürger) · 뜻 힌트에 금지어(G6)
+ */
 export function pickCloze(items: DeckItem[]): Cloze | null {
   for (const { word } of items) {
     const de = word.example_de;
     if (!de || de.length > 110) continue;
     const line = clozeOf(de, word.lemma);
     if (!line) continue;
-    const base = word.lemma.replace(/^sich\s+/i, '').toLowerCase();
-    if (line.toLowerCase().includes(base)) continue; // 같은 낱말이 두 번 나오면 정답이 새어 나감(G11)
+    const base = fold(word.lemma.replace(/^sich\s+/i, ''));
+    const rest = fold(line);
+    if (rest.includes(base)) continue; // 같은 낱말이 두 번 나오면 정답이 새어 나감(G11)
+    const stem = base.length >= 5 ? base.slice(0, 5) : null;
+    if (stem && (rest.match(/[a-z]+/g) ?? []).some((t) => t.startsWith(stem))) continue;
+    if (word.gloss_ko && hasStats(word.gloss_ko)) continue;
     return { id: word.id, line, hint: word.gloss_ko };
   }
   return null;

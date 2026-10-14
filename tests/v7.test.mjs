@@ -172,3 +172,28 @@ test('shuffle: 원소 그대로, 원본 안 건드림', () => {
   assert.deepEqual([...r].sort(), [1, 2, 3, 4, 5]);
   assert.deepEqual(a, [1, 2, 3, 4, 5]);
 });
+
+// ---------- 검토 반영 ----------
+import { alarmDue } from '../worker/time.ts';
+
+test('검토 1: 남은(늦은) 미룬 값이 있어도 아침 칸은 돈다 · 미룬 통만 버림', () => {
+  const slot = Date.parse('2026-10-15T22:30:00Z');
+  const staleLater = Date.parse('2026-10-15T13:00:00Z');
+  assert.deepEqual(alarmDue(slot, slot, staleLater), { later: true, laterStale: true, slot: true });
+  // 미룬 시각에 울림: 칸은 아직
+  const later = Date.parse('2026-10-15T13:00:00Z');
+  assert.deepEqual(alarmDue(later, slot, later), { later: true, laterStale: false, slot: false });
+  // 예전 상태(slot_at 없음): 미룬 통이 아니면 칸
+  assert.equal(alarmDue(slot, undefined, undefined).slot, true);
+  assert.equal(alarmDue(later, undefined, later).slot, false);
+});
+
+test('검토 2·10: 금지어 든 뜻 · 같은 어간이 남는 예문은 빈칸 후보에서 빠진다 · 빈 글도 받은편지함이 안 죽는다', () => {
+  const soap = it('w8343', 'Seifenoper', 'Sie schaut jeden Abend eine Seifenoper.', '연속극, 막장 드라마');
+  const citizen = it('w9', 'Bürgerin', 'Die Bürgerin und der Bürger wählen.', '시민');
+  const ok = it('w5', 'Umzug', 'Der Umzug nach Hamburg war anstrengend.', '이사');
+  assert.equal(pickCloze([soap, citizen, ok]).id, 'w5');
+  assert.equal(pickCloze([soap, citizen]), null);
+  assert.deepEqual(summarize({}), { title: '', body: '', image: null, link: null });
+  assert.deepEqual(summarize(JSON.parse('{}')).title, '');
+});

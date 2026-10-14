@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Button, Chip, ContentBadge, SearchField, SegmentedControl, SegmentedControlItem, Skeleton } from '@montage-ui/core'
 import type { DeckItem, WordsQuery } from '../../shared/api.ts'
 import { api, errorText } from '../api.ts'
-import { STATE_LABEL, dueText, fmtDay, num } from '../format.ts'
+import { STATE_LABEL, dueText, fmtDay, num, studyDay } from '../format.ts'
 import { useDebounced } from '../hooks.ts'
 import { linkTo, navigate } from '../router.ts'
 import { Emoji, ErrorBox, LevelBadge, Lemma, Top, WordImage } from '../ui.tsx'
@@ -165,7 +165,7 @@ export default function Words() {
                       <ContentBadge size="xsmall" variant="solid" color={it.card.state === 0 ? 'neutral' : 'accent'} accentColor="semantic.foreground.brand.primary">
                         {STATE_LABEL[it.card.state]}
                       </ContentBadge>
-                      <span>{sort === 'learned' && it.card.introduced_at ? `${fmtDay(it.card.introduced_at)} 배움` : dueText(it)}</span>
+                      <span>{sort === 'learned' && it.card.introduced_at ? `${fmtDay(studyDay(new Date(it.card.introduced_at)))} 배움` : dueText(it)}</span>
                     </div>
                   </a>
                 </li>

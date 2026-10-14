@@ -55,6 +55,20 @@ export function nextSlot(now: Date): { kind: SlotKind; at: Date } {
   return best!;
 }
 
+/**
+ * 알람이 울렸을 때 할 일(worker/alarm.ts). 시각이 된 쪽만: 미룬 통(later) · 정규 칸(slot).
+ * slotAt 이 없던 예전 상태면 미룬 통이 아닌 한 칸으로 본다. 30분 넘게 늦은 미룬 통은 버린다(stale) — 그래도 칸은 칸대로 돈다.
+ */
+export function alarmDue(now: number, slotAt: number | undefined, laterAt: number | undefined) {
+  const EARLY = 1000;
+  const laterDue = laterAt !== undefined && now >= laterAt - EARLY;
+  return {
+    later: laterDue,
+    laterStale: laterDue && now - laterAt! > 30 * 60_000,
+    slot: slotAt === undefined ? !laterDue : now >= slotAt - EARLY,
+  };
+}
+
 /** 다음 알람: 다음 칸과 「1시간 뒤」로 미룬 시각 중 이른 것(worker/alarm.ts) */
 export function nextAlarm(slotAt: number, laterAt: number | undefined): number {
   return laterAt !== undefined && laterAt < slotAt ? laterAt : slotAt;

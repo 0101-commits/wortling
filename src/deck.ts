@@ -59,9 +59,9 @@ export function decideSwipe(dx: number, dy: number, vx: number, vy: number, mode
   return past(dx, vx, SWIPE.COMMIT_X) ? (dx > 0 ? 3 : 1) : null
 }
 
-/** 오늘 세션 = 복습 + 새 단어, session_max 까지 */
-export function buildSession(today: TodayResponse): DeckItem[] {
-  return [...today.due, ...today.fresh].slice(0, today.settings.session_max)
+/** 오늘 세션 = 복습 + 새 단어, session_max 까지. first(아침 알림 빈칸 정답)는 자르기 전에 맨 앞으로 */
+export function buildSession(today: TodayResponse, first: string | null = null): DeckItem[] {
+  return firstUp([...today.due, ...today.fresh], first).slice(0, today.settings.session_max)
 }
 
 /** 섞기(추가 연습·관사). rand 를 넣으면 시험에서 같은 결과 */

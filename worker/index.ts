@@ -171,7 +171,7 @@ const words: Handler = async ({ env, url }) => {
     sort === 'learned'
       ? 'c.introduced_at DESC, w.seq'
       : sort === 'alpha'
-        ? "CASE WHEN lower(w.lemma) LIKE 'sich %' THEN substr(lower(w.lemma), 6) ELSE lower(w.lemma) END, w.seq"
+        ? `${ALPHA_KEY}, w.seq`
         : 'w.seq';
   const from = `FROM words w JOIN cards c ON c.word_id = w.id${where.length ? ' WHERE ' + where.join(' AND ') : ''}`;
   const [cnt, rows] = await env.DB.batch([
@@ -180,6 +180,13 @@ const words: Handler = async ({ env, url }) => {
   ]);
   return json({ total: count(cnt), page, size, items: sqlRows(rows).map(rowToItem) } satisfies WordsResponse);
 };
+
+/** 가나다 정렬 열쇠: sich 빼고, 움라우트·ß 를 풀고, 소문자(lower 는 ASCII 만이라 Ä 등은 직접) */
+const ALPHA_KEY = (() => {
+  let e = "CASE WHEN lower(w.lemma) LIKE 'sich %' THEN substr(w.lemma, 6) ELSE w.lemma END";
+  for (const [a, b] of [['Ä', 'a'], ['Ö', 'o'], ['Ü', 'u'], ['ä', 'a'], ['ö', 'o'], ['ü', 'u'], ['ß', 'ss']]) e = `replace(${e}, '${a}', '${b}')`;
+  return `lower(${e})`;
+})();
 
 /** 추가 연습 묶음(B4): 범위 안 배운 카드에서 무작위 n장. today = 오늘 학습일에 본 카드 · week = 최근 7학습일 · all = 배운 카드 전체 */
 const drill: Handler = async ({ env, url }) => {
@@ -318,17 +325,17 @@ const openedNotification: Handler = async ({ env, params: [id] }) => {
 const notifyLater: Handler = async ({ req, env }) => {
   const b = await readJson<{ id?: unknown; key?: unknown }>(req);
   if (!Number.isInteger(b?.id) || typeof b?.key !== 'string') throw bad('bad_request');
-  const row = await env.DB.prepare('SELECT kind, day, action_key FROM notifications WHERE id = ?')
+  const row = await env.DB.prepare('SELECT kind, day, status, action_key FROM notifications WHERE id = ?')
     .bind(b.id)
-    .first<{ kind: string; day: string; action_key: string | null }>();
+    .first<{ kind: string; day: string; status: string; action_key: string | null }>();
   if (!row || !row.action_key || row.action_key !== b.key) throw new HttpError(403, 'forbidden');
   const now = new Date();
-  if (row.kind !== 'evening' || row.day !== studyDay(now)) return json({ ok: false, error: 'not_tonight' });
+  if (row.kind !== 'evening' || row.status !== 'sent' || row.day !== studyDay(now)) return json({ ok: false, error: 'not_tonight' });
   const dup = await env.DB.prepare("SELECT id FROM notifications WHERE kind = 'evening_later' AND day = ?").bind(row.day).first();
   if (dup) return json({ ok: false, error: 'already' });
   if (!laterAllowed(now)) return json({ ok: false, error: 'too_late' });
   const at = now.getTime() + LATER_MS;
-  return json({ ok: true, ...(await scheduler(env).later(at)) });
+  return json(await scheduler(env).later(at));
 };
 
 const getSettings: Handler = async ({ env }) => json(await loadSettings(env.DB));

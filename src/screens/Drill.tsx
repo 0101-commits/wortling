@@ -1,6 +1,6 @@
 // 추가 연습(B4): 오늘 몫 뒤 「범위 × 분량」, 또는 단어 목록에서 「이 목록으로 연습」.
 // 한 판 안에서만 돈다 — 다시·어려움은 줄 뒤로, 좋음·쉬움은 빼기. 서버에 채점을 보내지 않아 일정(FSRS)은 그대로(D5, G17).
-import { useReducer } from 'react'
+import { useReducer, useState } from 'react'
 import { Button, Skeleton } from '@montage-ui/core'
 import type { DeckItem, DrillScope, Settings, WordsQuery } from '../../shared/api.ts'
 import { api } from '../api.ts'
@@ -34,14 +34,15 @@ async function load(q: URLSearchParams): Promise<{ title: string; items: DeckIte
 export default function Drill({ mode }: { mode: Settings['swipe_mode'] }) {
   const route = useRoute()
   const key = route.query.toString()
-  const r = useAsync(() => load(route.query), [key])
+  const [round, setRound] = useState(0)
+  const r = useAsync(() => load(route.query), [key, round])
   return (
     <>
       <Top title={r.data ? `추가 연습 · ${r.data.title}` : '추가 연습'} back="/today" />
       <main className="page deck-page">
         {r.error ? (
           <ErrorBox error={r.error} onRetry={r.reload} />
-        ) : !r.data ? (
+        ) : !r.data || r.loading ? (
           <Skeleton variant="rectangle" width="100%" height={420} radius={20} />
         ) : r.data.items.length === 0 ? (
           <section className="empty">
@@ -53,7 +54,7 @@ export default function Drill({ mode }: { mode: Settings['swipe_mode'] }) {
             </Button>
           </section>
         ) : (
-          <Run key={key + ':' + r.data.items.length} items={r.data.items} mode={mode} onAgain={r.reload} />
+          <Run key={key + ':' + round} items={r.data.items} mode={mode} onAgain={() => setRound((n) => n + 1)} />
         )}
       </main>
     </>
