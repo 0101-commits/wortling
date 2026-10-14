@@ -148,3 +148,27 @@ test('B2 seenLabel: 새 단어 · 다시 익히는 중 · 오늘 또 · 어제 �
   assert.deepEqual(seenLabel(c(2, '2026-10-03T03:00:00Z'), now), { text: '12일 만에 다시', tone: 'again' });
   assert.equal(seenLabel(c(2, '2026-08-01T03:00:00Z'), now).text, '2개월 만에 다시');
 });
+
+// ---------- 3단계 ----------
+import { initDeck, deckReducer, shuffle } from '../src/deck.ts';
+
+test('B4 추가 연습 줄: 다시·어려움은 뒤로(최대 2번), 좋음·쉬움은 빼기 · 오늘 덱은 다시만 뒤로', () => {
+  const q = ['a', 'b'].map((id) => ({ word: { id }, card: {} }));
+  let s = initDeck(q, 2);
+  s = deckReducer(s, { type: 'grade', rating: 2, at: '1' }); // a 어려움 → 뒤로
+  assert.equal(s.queue.length, 3);
+  s = deckReducer(s, { type: 'grade', rating: 3, at: '2' }); // b 좋음 → 빼기
+  s = deckReducer(s, { type: 'grade', rating: 4, at: '3' }); // a 쉬움
+  assert.equal(s.finished, true);
+  let t = initDeck(q); // 오늘 덱 기본 = 다시(1)만
+  t = deckReducer(t, { type: 'grade', rating: 2, at: '1' });
+  assert.equal(t.queue.length, 2, '어려움은 오늘 덱에서 다시 안 나온다');
+});
+
+test('shuffle: 원소 그대로, 원본 안 건드림', () => {
+  const a = [1, 2, 3, 4, 5];
+  let k = 0;
+  const r = shuffle(a, () => [0.1, 0.9, 0.5, 0.3][k++ % 4]);
+  assert.deepEqual([...r].sort(), [1, 2, 3, 4, 5]);
+  assert.deepEqual(a, [1, 2, 3, 4, 5]);
+});

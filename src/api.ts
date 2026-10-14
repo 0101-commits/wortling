@@ -1,5 +1,7 @@
 // fetch 감싸기 + 접속 키. VITE_MOCK=1 이면 src/mock.ts 가 대신 답한다.
 import type {
+  DeckListResponse,
+  DrillScope,
   InboxResponse,
   ReviewsRequest,
   ReviewsResponse,
@@ -122,6 +124,10 @@ export const api = {
   today: () => inflight.then(() => request<TodayResponse>('GET', '/api/today')),
   words: (q: WordsQuery) => request<WordsResponse>('GET', '/api/words?' + qs({ ...q })),
   word: (id: string) => request<WordDetailResponse>('GET', `/api/word/${encodeURIComponent(id)}`),
+  /** 추가 연습 묶음(B4) — 일정은 안 바뀐다 */
+  drill: (scope: DrillScope, n: number) => request<DeckListResponse>('GET', '/api/drill?' + qs({ scope, n })),
+  /** 관사 1분(B5) */
+  artikel: (n: number) => request<DeckListResponse>('GET', '/api/artikel?' + qs({ n })),
   stats: () => inflight.then(() => request<StatsResponse>('GET', '/api/stats')),
   inbox: () => request<InboxResponse>('GET', '/api/inbox'),
   /** 알림 링크(?n=)로 열었을 때 한 번(A4) */

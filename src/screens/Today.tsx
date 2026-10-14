@@ -1,8 +1,8 @@
 // 오늘 = 덱. 채점은 쌓았다가 세션 끝(또는 탭을 떠날 때) 한 번에 보낸다.
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { Button, Skeleton } from '@montage-ui/core'
+import { Button, SegmentedControl, SegmentedControlItem, Skeleton } from '@montage-ui/core'
 import { IconFlipBackward } from '@montage-ui/icon'
-import type { Settings, TodayResponse } from '../../shared/api.ts'
+import type { DrillScope, Settings, TodayResponse } from '../../shared/api.ts'
 import { api, errorText, sendReviews } from '../api.ts'
 import { buildSession, deckReducer, firstUp, initDeck } from '../deck.ts'
 import { fmtDay } from '../format.ts'
@@ -137,7 +137,8 @@ function Session({
             <div className="l">오늘 채점 · 카드 {new Set(s.pending.map((p) => p.word_id)).size}장</div>
           </div>
         </div>
-        <Button fullWidth size="large" onClick={() => navigate('/words')}>
+        <ExtraPractice />
+        <Button fullWidth size="large" variant="outlined" color="assistive" onClick={() => navigate('/words')}>
           단어 보기
         </Button>
       </section>
@@ -171,6 +172,39 @@ function Session({
         onUndo={() => dispatch({ type: 'undo' })}
       />
     </>
+  )
+}
+
+/** 오늘 몫 뒤 추가 연습(B4): 범위 × 분량. 일정은 안 바뀐다 */
+const SCOPES: Array<[DrillScope, string]> = [
+  ['today', '오늘 본 단어'],
+  ['week', '최근 7일'],
+  ['all', '배운 전체'],
+]
+function ExtraPractice() {
+  const [scope, setScope] = useState<DrillScope>('today')
+  const [n, setN] = useState('10')
+  return (
+    <div className="box wh extra">
+      <b>조금 더 할까요?</b>
+      <SegmentedControl size="small" value={scope} onValueChange={(v) => setScope(v as DrillScope)}>
+        {SCOPES.map(([v, l]) => (
+          <SegmentedControlItem key={v} value={v}>{l}</SegmentedControlItem>
+        ))}
+      </SegmentedControl>
+      <SegmentedControl size="small" value={n} onValueChange={setN}>
+        {['10', '30', '50'].map((v) => (
+          <SegmentedControlItem key={v} value={v}>{v}장</SegmentedControlItem>
+        ))}
+      </SegmentedControl>
+      <p className="small muted">일정은 안 바뀌어요. 모르면 줄 뒤로 가요.</p>
+      <Button fullWidth onClick={() => navigate(`/drill?scope=${scope}&n=${n}`)}>
+        추가 연습 시작
+      </Button>
+      <Button fullWidth variant="outlined" color="primary" onClick={() => navigate('/artikel')}>
+        관사만 1분
+      </Button>
+    </div>
   )
 }
 

@@ -20,9 +20,14 @@ interface Props {
   mode: 2 | 4
   onGrade: (r: Rating) => void
   onUndo: () => void
+  /** 채점 칸의 「다음 복습까지」 글자. 추가 연습은 일정이 안 바뀌어 끈다 */
+  hint?: 'interval' | 'drill'
 }
 
-export function SwipeDeck({ cards, mode, onGrade, onUndo }: Props) {
+/** 추가 연습(B4) 채점 칸 글자 — 일정 대신 한 판 안에서 일어나는 일 */
+const DRILL_HINT: Record<Rating, string> = { 1: '줄 뒤로', 2: '줄 뒤로', 3: '빼기', 4: '빼기' }
+
+export function SwipeDeck({ cards, mode, onGrade, onUndo, hint = 'interval' }: Props) {
   const top = cards[0]
   const stage = useRef<HTMLDivElement>(null)
   // 위 카드가 자기 함수를 여기에 걸어 둔다 → 채점 버튼·키보드가 같은 날아가기를 쓴다
@@ -49,7 +54,7 @@ export function SwipeDeck({ cards, mode, onGrade, onUndo }: Props) {
     return () => window.removeEventListener('keydown', h)
   }, [])
 
-  const labels = top ? intervals(top.item.card) : null
+  const labels = !top ? null : hint === 'drill' ? DRILL_HINT : intervals(top.item.card)
 
   return (
     <>

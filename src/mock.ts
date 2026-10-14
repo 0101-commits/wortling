@@ -150,6 +150,10 @@ function wordsList(q: URLSearchParams): WordsResponse {
       return it.card.state === 2 && it.card.stability >= 30
     })
     .filter((it) => !text || norm(it.word.lemma).includes(text) || (it.word.gloss_ko ?? '').includes(text))
+    .filter((it) => q.get('sort') !== 'learned' || it.card.introduced_at)
+  const sort = q.get('sort')
+  if (sort === 'learned') all.sort((a, b) => (b.card.introduced_at ?? '').localeCompare(a.card.introduced_at ?? ''))
+  if (sort === 'alpha') all.sort((a, b) => a.word.lemma.replace(/^sich /, '').toLowerCase().localeCompare(b.word.lemma.replace(/^sich /, '').toLowerCase()))
   return { total: all.length, page, size, items: all.slice((page - 1) * size, page * size) }
 }
 
@@ -206,6 +210,14 @@ export async function mockHandle(method: string, path: string, body?: unknown): 
     return { ...item(w), reviews: reviewsLog[w.id] ?? [] }
   }
   if (p === '/api/stats') return stats()
+  if (p === '/api/drill') {
+    const n = Number(url.searchParams.get('n') ?? 10)
+    return { items: words.map(item).filter((it) => it.card.state !== 0).slice(0, n) }
+  }
+  if (p === '/api/artikel') {
+    const nouns = words.map(item).filter((it) => it.word.pos === 'noun' && it.word.gender)
+    return { items: nouns.slice(0, Number(url.searchParams.get('n') ?? 20)) }
+  }
   if (p === '/api/inbox') return { items: inbox }
   if (/^\/api\/notifications\/\d+\/open$/.test(p) && method === 'POST') {
     const it = inbox.find((x) => x.id === Number(p.split('/')[3]))

@@ -995,3 +995,103 @@ code {
 .done > .tomorrow {
   text-align: center;
 }
+
+/* ── v7 3단계: 추가 연습 · 단어 정렬 · 관사 1분 ── */
+.extra {
+  display: grid;
+  gap: 10px;
+}
+.words-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.art-game {
+  display: grid;
+  gap: 14px;
+}
+.counter.warn {
+  color: var(--warn);
+}
+.art-card {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  text-align: center;
+  padding-block: 28px;
+}
+.art-q {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.art-blank {
+  display: inline-block;
+  min-width: 2.6em;
+  color: var(--ink3);
+}
+.art-blank.ok {
+  color: var(--ok);
+}
+.art-blank.no.der {
+  color: var(--der);
+}
+.art-blank.no.die {
+  color: var(--die);
+}
+.art-blank.no.das {
+  color: var(--das);
+}
+.art-btns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.art-btn {
+  font: inherit;
+  font-size: 20px;
+  font-weight: 800;
+  padding: 18px 0;
+  border: 0;
+  border-radius: 14px;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+.art-btn:active,
+.art-btn.picked {
+  transform: scale(0.96);
+}
+.art-btn:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+.art-btn.der {
+  background: var(--der);
+}
+.art-btn.die {
+  background: var(--die);
+}
+.art-btn.das {
+  background: var(--das);
+}
+.art-wrong {
+  display: grid;
+  gap: 2px;
+}
+.art-wrong b.der {
+  color: var(--der);
+}
+.art-wrong b.die {
+  color: var(--die);
+}
+.art-wrong b.das {
+  color: var(--das);
+}
+@media (prefers-reduced-motion: reduce) {
+  .art-btn {
+    transition: none;
+  }
+}

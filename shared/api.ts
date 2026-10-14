@@ -89,8 +89,16 @@ export interface WordsQuery {
   q?: string;
   level?: Level | 'all';
   state?: 'all' | 'new' | 'learning' | 'review' | 'done';
+  /** seq = 학습 순서(기본) · learned = 배운 날짜 최근 순(아직 안 배운 단어 빠짐) · alpha = 가나다(sich 뺀 표제어) */
+  sort?: 'seq' | 'learned' | 'alpha';
   page?: number;
   size?: number;
+}
+
+/** GET /api/drill?scope=&n= (B4 추가 연습) · GET /api/artikel?n= (B5 관사 1분). 일정(FSRS)은 안 바꾼다 */
+export type DrillScope = 'today' | 'week' | 'all';
+export interface DeckListResponse {
+  items: DeckItem[];
 }
 export interface WordsResponse {
   total: number;

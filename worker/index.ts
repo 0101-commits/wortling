@@ -3,6 +3,7 @@ import type { Env } from './env.ts';
 import type {
   AdminWordsRequest,
   Card,
+  DeckListResponse,
   InboxItem,
   Level,
   ReviewInput,
@@ -163,12 +164,57 @@ const words: Handler = async ({ env, url }) => {
   else if (state === 'learning') where.push('c.state IN (1, 3)');
   else if (state === 'review') where.push('c.state = 2'); // 오늘 만기 복습도 포함
   else if (state === 'done') where.push('c.state = 2 AND c.stability >= 30');
+  // 정렬(B3): 배운 날짜 = 첫 채점 시각(introduced_at) 최근 순, 가나다 = sich 뺀 표제어
+  const sort = url.searchParams.get('sort');
+  if (sort === 'learned') where.push('c.introduced_at IS NOT NULL');
+  const order =
+    sort === 'learned'
+      ? 'c.introduced_at DESC, w.seq'
+      : sort === 'alpha'
+        ? "CASE WHEN lower(w.lemma) LIKE 'sich %' THEN substr(lower(w.lemma), 6) ELSE lower(w.lemma) END, w.seq"
+        : 'w.seq';
   const from = `FROM words w JOIN cards c ON c.word_id = w.id${where.length ? ' WHERE ' + where.join(' AND ') : ''}`;
   const [cnt, rows] = await env.DB.batch([
     env.DB.prepare(`SELECT count(*) AS n ${from}`).bind(...binds),
-    env.DB.prepare(`SELECT ${ITEM_SELECT} ${from} ORDER BY w.seq LIMIT ? OFFSET ?`).bind(...binds, size, (page - 1) * size),
+    env.DB.prepare(`SELECT ${ITEM_SELECT} ${from} ORDER BY ${order} LIMIT ? OFFSET ?`).bind(...binds, size, (page - 1) * size),
   ]);
   return json({ total: count(cnt), page, size, items: sqlRows(rows).map(rowToItem) } satisfies WordsResponse);
+};
+
+/** 추가 연습 묶음(B4): 범위 안 배운 카드에서 무작위 n장. today = 오늘 학습일에 본 카드 · week = 최근 7학습일 · all = 배운 카드 전체 */
+const drill: Handler = async ({ env, url }) => {
+  const scope = url.searchParams.get('scope');
+  const n = clamp(intParam(url.searchParams.get('n'), 10), 1, 50);
+  const day = studyDay();
+  const since = scope === 'today' ? studyDayStartUtc(day) : scope === 'week' ? studyDayStartUtc(addDays(day, -6)) : null;
+  const r = await env.DB.prepare(
+    `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id
+     WHERE c.state != 0 AND c.suspended = 0${since ? ' AND c.last_review >= ?' : ''} ORDER BY random() LIMIT ?`,
+  )
+    .bind(...(since ? [since, n] : [n]))
+    .all();
+  return json({ items: sqlRows(r).map(rowToItem) } satisfies DeckListResponse);
+};
+
+/** 관사 1분(B5): 배운 명사(관사 있는 것) 무작위 n개. 모자라면 아직 안 배운 명사를 학습 순서대로 채운다 */
+const artikel: Handler = async ({ env, url }) => {
+  const n = clamp(intParam(url.searchParams.get('n'), 20), 1, 50);
+  const noun = "w.pos = 'noun' AND w.gender IN ('der', 'die', 'das')";
+  const seen = await env.DB.prepare(
+    `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id WHERE ${noun} AND c.state != 0 ORDER BY random() LIMIT ?`,
+  )
+    .bind(n)
+    .all();
+  const items = sqlRows(seen).map(rowToItem);
+  if (items.length < n) {
+    const more = await env.DB.prepare(
+      `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id WHERE ${noun} AND c.state = 0 ORDER BY w.seq LIMIT ?`,
+    )
+      .bind(n - items.length)
+      .all();
+    items.push(...sqlRows(more).map(rowToItem));
+  }
+  return json({ items } satisfies DeckListResponse);
 };
 
 const wordDetail: Handler = async ({ env, params: [id] }) => {
@@ -552,6 +598,8 @@ const routes: Route[] = [
   ['GET', /^\/api\/today$/, today],
   ['POST', /^\/api\/reviews$/, postReviews],
   ['GET', /^\/api\/words$/, words],
+  ['GET', /^\/api\/drill$/, drill],
+  ['GET', /^\/api\/artikel$/, artikel],
   ['GET', /^\/api\/word\/([\w-]+)$/, wordDetail],
   ['GET', /^\/api\/stats$/, stats],
   ['GET', /^\/api\/inbox$/, inbox],

@@ -1,11 +1,11 @@
-// 단어 목록: 검색 · 칩 · 더 보기
+// 단어 목록: 검색 · 칩 · 정렬(B3) · 더 보기 · 이 목록으로 연습
 import { useEffect, useState } from 'react'
-import { Button, Chip, ContentBadge, SearchField, Skeleton } from '@montage-ui/core'
+import { Button, Chip, ContentBadge, SearchField, SegmentedControl, SegmentedControlItem, Skeleton } from '@montage-ui/core'
 import type { DeckItem, WordsQuery } from '../../shared/api.ts'
 import { api, errorText } from '../api.ts'
-import { STATE_LABEL, dueText, num } from '../format.ts'
+import { STATE_LABEL, dueText, fmtDay, num } from '../format.ts'
 import { useDebounced } from '../hooks.ts'
-import { linkTo } from '../router.ts'
+import { linkTo, navigate } from '../router.ts'
 import { Emoji, ErrorBox, LevelBadge, Lemma, Top, WordImage } from '../ui.tsx'
 
 const CHIPS: Array<{ id: string; label: string; q: WordsQuery }> = [
@@ -18,14 +18,32 @@ const CHIPS: Array<{ id: string; label: string; q: WordsQuery }> = [
   { id: 'C1', label: 'C1', q: { level: 'C1' } },
 ]
 const SIZE = 30
-// 상세에 갔다 와도 검색어·칩을 기억한다
-let remembered = { q: '', chip: 'all' }
+type Sort = NonNullable<WordsQuery['sort']>
+const SORTS: Array<[Sort, string]> = [
+  ['seq', '학습 순서'],
+  ['learned', '배운 날짜'],
+  ['alpha', '가나다'],
+]
+// 상세에 갔다 와도 검색어·칩·정렬을 기억한다
+let remembered: { q: string; chip: string; sort: Sort } = { q: '', chip: 'all', sort: 'seq' }
+
+/** 지금 보이는 거르기·정렬 그대로 추가 연습(B4)으로 — 앞에서 n장 */
+function drillQuery(chip: string, q: string, sort: Sort, n: number): string {
+  const c = CHIPS.find((x) => x.id === chip)?.q ?? {}
+  const p = new URLSearchParams({ from: 'words', n: String(n <= 10 ? 10 : n) })
+  if (q) p.set('q', q)
+  if (c.level) p.set('level', c.level)
+  if (c.state) p.set('state', c.state)
+  if (sort !== 'seq') p.set('sort', sort)
+  return p.toString()
+}
 
 export default function Words() {
   const [q, setQ] = useState(remembered.q)
   const [chip, setChip] = useState(remembered.chip)
+  const [sort, setSort] = useState<Sort>(remembered.sort)
   const dq = useDebounced(q.trim(), 250)
-  const key = `${dq}|${chip}`
+  const key = `${dq}|${chip}|${sort}`
   const [pager, setPager] = useState({ key, page: 1 })
   const page = pager.key === key ? pager.page : 1
   const [list, setList] = useState<{ key: string; items: DeckItem[]; total: number } | null>(null)
@@ -34,15 +52,15 @@ export default function Words() {
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    remembered = { q, chip }
-  }, [q, chip])
+    remembered = { q, chip, sort }
+  }, [q, chip, sort])
 
   useEffect(() => {
     let live = true
     setLoading(true)
     setError(undefined)
     const query = CHIPS.find((c) => c.id === chip)?.q ?? {}
-    api.words({ ...query, q: dq || undefined, page, size: SIZE }).then(
+    api.words({ ...query, q: dq || undefined, sort: sort === 'seq' ? undefined : sort, page, size: SIZE }).then(
       (r) => {
         if (!live) return
         setList((prev) => ({
@@ -61,7 +79,7 @@ export default function Words() {
     return () => {
       live = false
     }
-  }, [key, dq, chip, page, tick])
+  }, [key, dq, chip, sort, page, tick])
 
   const fresh = list?.key === key ? list : null // 칩·검색을 바꾼 직후엔 옛 목록을 감춘다
   const filtered = dq !== '' || chip !== 'all'
@@ -85,7 +103,21 @@ export default function Words() {
             </Chip>
           ))}
         </div>
-        {fresh && <p className="small">{num(fresh.total)}개</p>}
+        <SegmentedControl size="small" value={sort} onValueChange={(v) => setSort(v as Sort)} aria-label="정렬">
+          {SORTS.map(([v, l]) => (
+            <SegmentedControlItem key={v} value={v}>{l}</SegmentedControlItem>
+          ))}
+        </SegmentedControl>
+        {fresh && (
+          <div className="words-bar">
+            <p className="small">{num(fresh.total)}개</p>
+            {fresh.total > 0 && (
+              <Button size="small" variant="outlined" color="primary" onClick={() => navigate('/drill?' + drillQuery(chip, dq, sort, Math.min(10, fresh.total)))}>
+                이 목록 {Math.min(10, fresh.total)}장 연습
+              </Button>
+            )}
+          </div>
+        )}
 
         {error && !loading ? (
           <ErrorBox error={error} onRetry={() => setTick((t) => t + 1)} />
@@ -133,7 +165,7 @@ export default function Words() {
                       <ContentBadge size="xsmall" variant="solid" color={it.card.state === 0 ? 'neutral' : 'accent'} accentColor="semantic.foreground.brand.primary">
                         {STATE_LABEL[it.card.state]}
                       </ContentBadge>
-                      <span>{dueText(it)}</span>
+                      <span>{sort === 'learned' && it.card.introduced_at ? `${fmtDay(it.card.introduced_at)} 배움` : dueText(it)}</span>
                     </div>
                   </a>
                 </li>

@@ -31,6 +31,8 @@ export interface DeckSnapshot {
 }
 
 export interface DeckState extends DeckSnapshot {
+  /** 이 점수 이하면 줄 맨 뒤로 다시(오늘 덱 = 1 「다시」만, 추가 연습 = 2 「다시·어려움」) */
+  requeueUpTo: Rating
   history: DeckSnapshot | null // 되돌리기 1단계
   /** pending 중 앞에서 몇 개를 이미 보냈는지. 보낸 채점은 되돌릴 수 없다. */
   sentCount: number
@@ -43,8 +45,8 @@ export type DeckAction =
   | { type: 'flush' }
   | { type: 'reset'; queue: DeckItem[] }
 
-export function initDeck(queue: DeckItem[]): DeckState {
-  return { queue, index: 0, pending: [], reshows: {}, history: null, sentCount: 0, finished: queue.length === 0 }
+export function initDeck(queue: DeckItem[], requeueUpTo: Rating = 1): DeckState {
+  return { queue, index: 0, pending: [], reshows: {}, requeueUpTo, history: null, sentCount: 0, finished: queue.length === 0 }
 }
 
 /** 놓은 순간의 이동(px)·속도(px/ms)로 채점을 정한다. 못 넘으면 null(제자리로). */
@@ -60,6 +62,16 @@ export function decideSwipe(dx: number, dy: number, vx: number, vy: number, mode
 /** 오늘 세션 = 복습 + 새 단어, session_max 까지 */
 export function buildSession(today: TodayResponse): DeckItem[] {
   return [...today.due, ...today.fresh].slice(0, today.settings.session_max)
+}
+
+/** 섞기(추가 연습·관사). rand 를 넣으면 시험에서 같은 결과 */
+export function shuffle<T>(list: T[], rand: () => number = Math.random): T[] {
+  const a = [...list]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
 }
 
 /** 아침 알림 빈칸 문제의 정답 카드를 맨 앞으로(없으면 그대로) */
@@ -83,7 +95,7 @@ export function deckReducer(s: DeckState, a: DeckAction): DeckState {
       let queue = s.queue
       let reshows = s.reshows
       const seen = s.reshows[id] ?? 0
-      if (a.rating === 1 && seen < SWIPE.MAX_RESHOW) {
+      if (a.rating <= s.requeueUpTo && seen < SWIPE.MAX_RESHOW) {
         queue = [...s.queue, item]
         reshows = { ...s.reshows, [id]: seen + 1 }
       }
@@ -97,7 +109,7 @@ export function deckReducer(s: DeckState, a: DeckAction): DeckState {
     case 'flush':
       return s.pending.length > s.sentCount ? { ...s, sentCount: s.pending.length, history: null } : s
     case 'reset':
-      return initDeck(a.queue)
+      return initDeck(a.queue, s.requeueUpTo)
   }
 }
 

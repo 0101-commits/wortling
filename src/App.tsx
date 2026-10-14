@@ -5,6 +5,8 @@ import { IconBook, IconBookFill, IconCalendar, IconCalendarFill, IconHome, IconH
 import type { Settings } from '../shared/api.ts'
 import { ApiError, MOCK, api, errorText, getToken, retryUnsent, setToken, setUnauthorizedHandler } from './api.ts'
 import { navigate, useRoute } from './router.ts'
+import Artikel from './screens/Artikel.tsx'
+import Drill from './screens/Drill.tsx'
 import Inbox from './screens/Inbox.tsx'
 import Onboarding from './screens/Onboarding.tsx'
 import SettingsScreen from './screens/Settings.tsx'
@@ -140,6 +142,12 @@ export default function App() {
       break
     case 'setup':
       screen = <Setup />
+      break
+    case 'drill':
+      screen = <Drill mode={settings.swipe_mode} />
+      break
+    case 'artikel':
+      screen = <Artikel />
       break
     default:
       screen = <Today onSettings={save} />

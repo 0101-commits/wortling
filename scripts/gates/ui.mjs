@@ -15,7 +15,7 @@ const PORT = 4173
 const BASE = `http://localhost:${PORT}/`
 const VITE = join(ROOT, 'node_modules/vite/bin/vite.js')
 
-const ROUTES = ['/onboarding', '/today', '/words', '/word/w004', '/stats', '/inbox', '/settings', '/setup']
+const ROUTES = ['/onboarding', '/today', '/words', '/word/w004', '/stats', '/inbox', '/settings', '/setup', '/drill?scope=week&n=10', '/artikel']
 const VIEWPORTS = [
   { name: '390', width: 390, height: 844 },
   { name: '1280', width: 1280, height: 800 },
