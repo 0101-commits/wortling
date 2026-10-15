@@ -1,0 +1,50 @@
+# 매일 작업(글 채우기 · 그림 · 뜻 검사)을 깃허브 서버에서 — PC 가 꺼져 있어도 돈다.
+# DB 백업은 공개 저장소라 여기서 하지 않는다(PC 작업 「Wortling Backup」, scripts/register-task.ps1).
+# 비밀값: APP_URL · API_TOKEN(.env 와 같음) · CLAUDE_CODE_OAUTH_TOKEN(`claude setup-token`) · DISCORD_WEBHOOK_URL
+name: daily
+
+on:
+  schedule:
+    - cron: '17 3 * * *' # 한국 12:17(정각은 깃허브 대기열이 붐벼 늦게 돈다)
+  workflow_dispatch:
+
+concurrency: daily
+
+permissions:
+  contents: write # .data/restyle.json · images-done.json 을 되올린다
+
+jobs:
+  daily:
+    runs-on: windows-latest # 그림 글자 검사가 Windows OCR(scripts/winocr.ps1)
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: claude CLI
+        shell: bash
+        run: |
+          npm i -g @anthropic-ai/claude-code
+          echo "NPM_GLOBAL_ROOT=$(npm root -g)" >> "$GITHUB_ENV"
+      - name: daily.mjs
+        run: node scripts/daily.mjs --no-backup
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      - name: 그림 상태 되올리기
+        if: always()
+        shell: bash
+        run: |
+          for f in .data/restyle.json .data/images-done.json; do
+            if [ -f "$f" ]; then git add -f "$f"; else git rm -q --cached --ignore-unmatch "$f"; fi
+          done
+          git diff --cached --quiet && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898283+github-actions[bot]@users.noreply.github.com'
+          git commit -q -m 'chore(daily): 그림 상태 갱신'
+          git push

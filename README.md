@@ -36,9 +36,9 @@ curl -X POST -H "Authorization: Bearer $API_TOKEN" https://wortling.e-hcg.worker
 
 ## 매일 자동 그림(무료 플랜)
 
-1. PC 에 `claude` 로그인이 되어 있어야 한다(장면 글쓰기). 그림은 Worker 의 `POST /api/admin/draw`(Workers AI 바인딩 `AI`)가 그려서 따로 로그인할 것 없음.
-2. `.env` 에 `APP_URL` · `API_TOKEN`(`.env.example` 참고).
-3. `powershell -ExecutionPolicy Bypass -File scripts\register-task.ps1` → 매일 09:10(그림 무료 몫이 09:00 에 초기화, 놓치면 PC 켜질 때 바로). 지우기는 `-Remove`.
+1. 깃허브 서버가 매일 12:17 에 돈다(`.github/workflows/daily.yml`, PC 가 꺼져 있어도). 저장소 비밀값 4개: `APP_URL` · `API_TOKEN`(`.env` 와 같음) · `CLAUDE_CODE_OAUTH_TOKEN`(`claude setup-token` 으로 만든 장면 글쓰기용) · `DISCORD_WEBHOOK_URL`. 그림은 Worker 의 `POST /api/admin/draw`(Workers AI 바인딩 `AI`)가 그린다. 손으로 돌리기: Actions → daily → Run workflow.
+2. D1 백업은 공개 저장소라 PC 에서만: `.env` 에 `APP_URL` · `API_TOKEN`(`.env.example` 참고) → `powershell -ExecutionPolicy Bypass -File scripts\register-task.ps1` → 평일 12:00 「Wortling Backup」(놓치면 PC 켜질 때 바로). 지우기는 `-Remove`.
+3. 그림 상태(`.data/restyle.json` 예전 그림체 목록 · `.data/images-done.json` 전부 완료 표시)는 깃허브 작업이 저장소에 되올린다.
 4. 손으로: `npm run daily` (`-- --dry` 미리보기, `-- --no-image` 글만, `-- --no-text` 그림만).
 
 하루 흐름: 학습 순서 앞쪽 60단어 중 빈 뜻·예문·장면을 `claude -p` 로 채움 → 그릴 단어(오늘 덱 → 예전 그림체 → 학습 순서) 장면을 `claude -p` 로 새로 쓰고 하루 100장까지 생성(무료 몫을 다 쓰면 429 → 그날 멈춤) → 자동 검사(흰 바탕·색 수·선·글자 0, 탈락이면 한 번 더) → 640×480 webp ≤ 60KB → Worker 관리 API 로 KV 에 올림 → D1 을 `backup/YYYY-MM-DD.sql.gz` 로 내려받아 30개 보관(공개 저장소엔 안 올림) → `backup/daily/YYYY-MM-DD.json` 기록. 실패하면 디스코드(AI_CLI 알림)로 오류 한 통. 그림이 아직 없는 카드는 머리글자 칸으로 보인다. 8,347장을 무료로 다 채우려면 약 85일.

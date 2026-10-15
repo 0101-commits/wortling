@@ -261,7 +261,7 @@ try {
         log.progress = { images: st.images, words: st.total_words, left_any: left > 0 };
         console.log(`그림 진행 ${st.images}/${st.total_words}`);
         if (left === 0 && !existsSync(DONE_FILE)) {
-          const sent = notify('done', 'Wortling 카드 그림 전부 완료', `그림 ${st.images}/${st.total_words}장(나머지는 검사 탈락 표시). 새 단어가 들어오면 매일 작업이 이어서 그린다.`);
+          const sent = await notify('done', 'Wortling 카드 그림 전부 완료', `그림 ${st.images}/${st.total_words}장(나머지는 검사 탈락 표시). 새 단어가 들어오면 매일 작업이 이어서 그린다.`);
           if (sent) writeFileSync(DONE_FILE, JSON.stringify({ day: log.day, images: st.images, words: st.total_words }));
         } else if (left > 0 && existsSync(DONE_FILE)) unlinkSync(DONE_FILE);
       } catch (e) {
@@ -287,13 +287,13 @@ try {
       console.log(`백업 backup/${log.backup}`);
     } catch (e) {
       log.backup_error = String(e.message || e).slice(0, 300);
-      notify('error', 'Wortling 백업 실패', `${log.backup_error}\n→ PC 에서 npx wrangler login 다시`);
+      await notify('error', 'Wortling 백업 실패', `${log.backup_error}\n→ PC 에서 npx wrangler login 다시`);
     }
   }
 } catch (e) {
   log.error = String(e.stack || e);
   console.error(log.error);
-  notify('error', `Wortling 매일 작업 실패`, String(e.message || e).slice(0, 500));
+  await notify('error', `Wortling 매일 작업 실패`, String(e.message || e).slice(0, 500));
   process.exitCode = 1;
 } finally {
   log.finished = new Date().toISOString();
@@ -398,10 +398,19 @@ function loadEnv(file) {
 function kstDay(d = new Date()) {
   return new Date(d.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 }
-/** 디스코드 알림(AI_CLI 알리미). 보냈으면 true */
-function notify(type, title, desc) {
+/** 디스코드 알림. PC 면 AI_CLI 알리미, 깃허브 서버면 DISCORD_WEBHOOK_URL 로 바로. 보냈으면 true */
+async function notify(type, title, desc) {
   const notifier = 'C:/Users/cgpar/AI_CLI/scripts/discord-notify.js';
-  if (!existsSync(notifier)) return false;
-  const r = spawnSync(process.execPath, [notifier, 'send'], { input: JSON.stringify({ type, title, desc, cli: 'claude' }), encoding: 'utf8', windowsHide: true, timeout: 20000 });
-  return r.status === 0;
+  if (existsSync(notifier)) {
+    const r = spawnSync(process.execPath, [notifier, 'send'], { input: JSON.stringify({ type, title, desc, cli: 'claude' }), encoding: 'utf8', windowsHide: true, timeout: 20000 });
+    return r.status === 0;
+  }
+  const url = process.env.DISCORD_WEBHOOK_URL;
+  if (!url) return false;
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: `**${title}**\n${desc}`.slice(0, 1900) }) });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
