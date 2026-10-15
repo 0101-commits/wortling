@@ -1095,3 +1095,69 @@ code {
     transition: none;
   }
 }
+
+/* 「이상해요」 창(native dialog) */
+.report-dlg {
+  border: 0;
+  border-radius: 20px;
+  padding: 20px;
+  width: min(calc(100vw - 32px), 420px);
+  background: var(--paper);
+  color: var(--ink);
+}
+.report-dlg::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+.report-dlg h2 {
+  font-size: 17px;
+  margin: 0 0 12px;
+  word-break: keep-all;
+}
+.chips.wrap {
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.report-act {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.report-row {
+  display: flex;
+  justify-content: flex-end;
+}
+/* 「단어 넣기」 · 고친 카드 */
+.addword {
+  display: grid;
+  gap: 8px;
+}
+.reqs,
+.chg {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.reqs li {
+  padding: 6px 0;
+}
+.chg li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.chg li:last-child {
+  border-bottom: 0;
+}
+.chg .diff {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink2);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.chg .diff del {
+  color: var(--ink3);
+}

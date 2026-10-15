@@ -15,7 +15,9 @@ B1~C1 단어 8,347개를 틴더처럼 밀어서 채점(ts-fsrs)하고, 아침 07
 | `worker/` | Cloudflare Worker — API · 알림 시계(Durable Object 알람) · 그림 제공(KV) |
 | `migrations/` | D1 스키마(words · cards · reviews · notifications · settings) |
 | `scripts/seed/` | 단어 시드 — Goethe B1(DWDS) 1,800 + WordHoard B2 → DWDS 대조 → 사람 판정 = 2,220, kaikki 보강, 한국어 뜻·예문·장면 100% |
-| `scripts/daily.mjs` | **매일 PC 에서** 빈 글 채우기(claude -p) + 그림 생성(Workers AI FLUX.2 klein 4b, 무료 하루 ≈ 100장) |
+| `scripts/daily.mjs` | **매일 깃허브 서버에서**(`.github/workflows/daily.yml`, 12:17) 빈 글 채우기(claude -p) + 그림 생성(Workers AI FLUX.2 klein 4b, 무료 하루 ≈ 100장) |
+| `scripts/words/` | **매일 서버에서**(`.github/workflows/words.yml`, 05:17) 카드 검토(뜻·예문·번역·관사·레벨, 자동 고침 + 기록·되돌리기) · 내가 넣은 단어 · 뉴스 단어 추가 · 학습 순서 |
+| `scripts/words/update.mjs` | 손으로 돌리는 예전 단어 갱신(WordHoard·DWDS, PC 전용) |
 | `shared/api.ts` | Worker ↔ 앱 계약(JSON 키) |
 
 알림은 cron 대신 Durable Object 알람이다. 무료 계정 cron 5칸을 다른 Worker 가 다 쓰고 있어서다. 알람은 울릴 때마다 다음 칸(22:30Z · 12:00Z)을 스스로 다시 예약하고, 앱에서 오늘 화면을 열 때마다 비어 있으면 다시 채운다. 그림 저장은 R2 대신 Workers KV 다(계정에서 R2 가 꺼져 있음).
@@ -55,3 +57,14 @@ node scripts/seed/verify.mjs   # G1: 임시 로컬 D1 에 시드 → 수 세기
 ## 자료 출처
 
 Goethe-Zertifikat B1 단어 목록(DWDS 제공, 목록만 사용) · DWDS 표제어 목록(B2 대조) · WordHoard(CC BY-SA 4.0) · kaikki.org / English Wiktionary(CC BY-SA) · Tatoeba(CC BY 2.0 FR) · 한국어 뜻·예문·장면은 Claude 생성 · 그림 FLUX.2 [klein] 4B(Cloudflare Workers AI, AI 생성물).
+
+## 단어 자료 출처 · 라이선스
+
+| 자료 | 쓰는 곳 | 라이선스 |
+|---|---|---|
+| [Leipzig Corpora Collection](https://wortschatz-leipzig.de/) 독일어 뉴스 300K | 뉴스에 자주 나오는 단어 · 학습 순서 | CC BY |
+| [kaikki.org](https://kaikki.org/) 독일어(영어판 Wiktionary 추출) | 활용형 → 기본형 · 관사·복수 대조 | CC BY-SA |
+| [DAFlex](https://cental.uclouvain.be/cefrlex/daflex/) (UCLouvain) | 레벨 대조 · A1/A2 거르기 | CC BY-NC-SA 4.0 — 비영리, 파생 자료는 저장소에 안 올림 |
+| tagesschau API · NDR 쉬운 말 RSS | 최근 30일 기사에 나온 기본형 수(글은 저장 안 함, 링크만) | 개인·비영리 이용, `NEWS_FEEDS=0` 으로 끔 |
+
+KBS World Radio · DW 는 이용 조건상 자동 수집을 하지 않는다 — 앱 「단어 넣기」(폰 공유하기)로 읽다가 만난 단어를 직접 넣는다.

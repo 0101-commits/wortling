@@ -1,0 +1,52 @@
+# 매일 단어 작업(카드 검토 · 뉴스 단어 · 내가 넣은 단어 · 학습 순서)을 깃허브 서버에서 — PC 가 꺼져 있어도 돈다.
+# 07:30 아침 알림 전에 오늘 볼 카드를 검토해 두려고 05:17 KST. 그림 작업(daily.yml 12:17)과 안 겹친다.
+# 설계 docs/superpowers/specs/2026-10-15-word-review-news-design.md
+# 비밀값: APP_URL · API_TOKEN · CLAUDE_CODE_OAUTH_TOKEN · DISCORD_WEBHOOK_URL (daily.yml 과 같음)
+# 색인(.data/words-src/index.json)은 Actions 캐시에 달마다. 공개 저장소라 아무것도 커밋하지 않는다.
+name: words
+
+on:
+  schedule:
+    - cron: '17 20 * * *' # 한국 05:17
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: '서버에 쓰지 않고 수만(--dry)'
+        type: boolean
+        default: false
+
+concurrency: words
+
+permissions:
+  contents: read
+
+jobs:
+  words:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      APP_URL: ${{ secrets.APP_URL }}
+      API_TOKEN: ${{ secrets.API_TOKEN }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      NEWS_FEEDS: ${{ vars.NEWS_FEEDS }} # 저장소 변수 NEWS_FEEDS=0 이면 tagesschau·NDR 을 읽지 않는다
+      DRY: ${{ inputs.dry && '--dry' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: claude CLI
+        run: npm i -g @anthropic-ai/claude-code
+      - id: month
+        run: echo "m=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: .data/words-src/index.json
+          key: words-src-${{ steps.month.outputs.m }}
+          restore-keys: words-src-
+      - name: news.mjs (넣은 단어 · 뉴스 · 새 단어 · 순서)
+        run: node scripts/words/news.mjs $DRY
+      - name: review.mjs (카드 검토)
+        if: always()
+        run: node scripts/words/review.mjs $DRY

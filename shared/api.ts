@@ -149,6 +149,15 @@ export interface RunwayResponse {
   need_text: Array<Pick<Word, 'id' | 'lemma' | 'pos' | 'gender' | 'level' | 'gloss_en'>>;
   need_image: Array<Pick<Word, 'id' | 'lemma' | 'pos' | 'gender' | 'level'> & { scene_en: string | null }>;
 }
+export interface AdminWordChange {
+  field: 'gloss_ko' | 'example_de' | 'example_ko' | 'gender' | 'plural' | 'level' | 'note';
+  old: string | null;
+  new: string | null;
+  why?: string;
+  /** 1 = 바꿈, 0 = 확인 필요(안 바꿈) */
+  applied: 0 | 1;
+  source?: 'review' | 'report';
+}
 export interface AdminWordsRequest {
   items: Array<{
     id: string;
@@ -158,5 +167,76 @@ export interface AdminWordsRequest {
     scene_en?: string;
     gloss_status?: 'generated' | 'checked' | 'mine';
     example_src?: string;
+    gender?: string | null;
+    plural?: string | null;
+    level?: Level;
+    news_rank?: number | null;
+    /** 검토함 → checked_at = 지금 */
+    checked?: boolean;
+    /** 뜻이 바뀜 → 그림 다시 그리기(image_status = 'none') */
+    image_reset?: boolean;
+    /** 이 단어의 열린 신고 닫기 */
+    close_reports?: boolean;
+    changes?: AdminWordChange[];
   }>;
+}
+/** GET /api/admin/review-queue 한 줄 */
+export interface ReviewQueueItem {
+  id: string;
+  lemma: string;
+  pos: Pos;
+  gender: string | null;
+  plural: string | null;
+  level: Level;
+  /** goethe 면 레벨은 자동으로 안 바꾼다(공식 목록) */
+  level_src: string;
+  gloss_ko: string | null;
+  gloss_status: string;
+  example_de: string | null;
+  example_ko: string | null;
+  checked_at: string | null;
+  /** 사용자가 되돌린 칸 */
+  reverted: string[];
+  report: { kind: string; note: string | null } | null;
+}
+export type ReportKind = 'meaning' | 'example' | 'gender' | 'level' | 'image' | 'other';
+export interface ReportRequest {
+  kind: ReportKind;
+  note?: string;
+}
+export type RequestStatus = 'queued' | 'added' | 'exists' | 'rejected';
+export interface WordRequestItem {
+  id: number;
+  text: string;
+  url: string | null;
+  created_at: string;
+  status: RequestStatus;
+  word_id: string | null;
+  /** 카드가 된 단어의 표제어 */
+  lemma: string | null;
+  note: string | null;
+}
+export interface WordRequestsResponse {
+  items: WordRequestItem[];
+}
+export interface ChangeItem {
+  id: number;
+  word_id: string;
+  lemma: string;
+  field: string;
+  old: string | null;
+  new: string | null;
+  why: string | null;
+  source: 'review' | 'report';
+  applied: 0 | 1;
+  reverted_at: string | null;
+  at: string;
+}
+export interface ChangesResponse {
+  items: ChangeItem[];
+}
+export interface ReviewStats {
+  total: number;
+  checked: number;
+  week: { applied: number; flagged: number; news: number; mine: number; requests: number };
 }

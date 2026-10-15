@@ -4,6 +4,7 @@ import { api } from '../api.ts'
 import { RATING_LABEL } from '../deck.ts'
 import { STATE_LABEL, dayDiff, fmtDate, fmtDay } from '../format.ts'
 import { useAsync } from '../hooks.ts'
+import { ReportButton } from '../Report.tsx'
 import { Example, ErrorBox, LevelBadge, Lemma, POS_LABEL, Top, WordImage } from '../ui.tsx'
 
 export default function WordDetail({ id }: { id: string }) {
@@ -46,6 +47,9 @@ export default function WordDetail({ id }: { id: string }) {
                 )}
               </div>
             </article>
+            <div className="report-row">
+              <ReportButton wordId={d.word.id} lemma={d.word.lemma} />
+            </div>
 
             <h3 className="sec-t">카드</h3>
             <div className="box">

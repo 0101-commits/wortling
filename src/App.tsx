@@ -12,6 +12,7 @@ import Onboarding from './screens/Onboarding.tsx'
 import SettingsScreen from './screens/Settings.tsx'
 import Setup from './screens/Setup.tsx'
 import Stats from './screens/Stats.tsx'
+import Changes from './screens/Changes.tsx'
 import Today from './screens/Today.tsx'
 import WordDetail from './screens/WordDetail.tsx'
 import Words from './screens/Words.tsx'
@@ -126,7 +127,10 @@ export default function App() {
       )
       break
     case 'words':
-      screen = <Words />
+      screen = <Words add={route.query.get('add') ?? ''} url={route.query.get('url') ?? ''} open={route.query.get('open') === '1'} />
+      break
+    case 'changes':
+      screen = <Changes />
       break
     case 'word':
       screen = <WordDetail id={route.parts[1] ?? ''} />
@@ -152,7 +156,7 @@ export default function App() {
     default:
       screen = <Today onSettings={save} />
   }
-  const tab = page === 'word' ? 'words' : TABS.some((t) => t.value === page) ? page : ['onboarding', 'inbox', 'settings', 'setup'].includes(page) ? '' : 'today'
+  const tab = page === 'word' ? 'words' : TABS.some((t) => t.value === page) ? page : ['onboarding', 'inbox', 'settings', 'setup', 'changes'].includes(page) ? '' : 'today'
 
   return (
     <div className="app">

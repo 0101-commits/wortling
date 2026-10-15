@@ -8,6 +8,7 @@ import { buildSession, deckReducer, initDeck } from '../deck.ts'
 import { fmtDay } from '../format.ts'
 import { useAsync } from '../hooks.ts'
 import { navigate, useRoute } from '../router.ts'
+import { ReportButton } from '../Report.tsx'
 import { SwipeDeck } from '../SwipeDeck.tsx'
 import { CountUp, Emoji, ErrorBox, Top, useToaster } from '../ui.tsx'
 
@@ -166,6 +167,12 @@ function Session({
         onGrade={(rating) => dispatch({ type: 'grade', rating, at: new Date().toISOString() })}
         onUndo={() => dispatch({ type: 'undo' })}
       />
+      {/* 윗줄(되돌리기 · 새/복습 · 진행 수)은 390px 에서 꽉 차 두 줄로 꺾였다 → 덱 아래 오른쪽에 */}
+      {s.queue[s.index] && (
+        <div className="report-row">
+          <ReportButton key={s.queue[s.index].word.id} wordId={s.queue[s.index].word.id} lemma={s.queue[s.index].word.lemma} />
+        </div>
+      )}
     </>
   )
 }

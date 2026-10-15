@@ -6,6 +6,7 @@ import { api, errorText } from '../api.ts'
 import { STATE_LABEL, dueText, fmtDay, num, studyDay } from '../format.ts'
 import { useDebounced } from '../hooks.ts'
 import { linkTo, navigate } from '../router.ts'
+import { AddWord } from '../AddWord.tsx'
 import { Emoji, ErrorBox, LevelBadge, Lemma, Top, WordImage } from '../ui.tsx'
 
 const CHIPS: Array<{ id: string; label: string; q: WordsQuery }> = [
@@ -38,7 +39,7 @@ function drillQuery(chip: string, q: string, sort: Sort, n: number): string {
   return p.toString()
 }
 
-export default function Words() {
+export default function Words({ add = '', url = '', open = false }: { add?: string; url?: string; open?: boolean }) {
   const [q, setQ] = useState(remembered.q)
   const [chip, setChip] = useState(remembered.chip)
   const [sort, setSort] = useState<Sort>(remembered.sort)
@@ -88,6 +89,7 @@ export default function Words() {
     <>
       <Top title="단어" actions />
       <main className="page">
+        <AddWord key={add + '|' + url} initialWord={add} initialUrl={url} initialOpen={open || Boolean(add || url)} />
         <SearchField
           size="medium"
           placeholder="단어 · 뜻 검색"

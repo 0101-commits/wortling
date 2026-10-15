@@ -23,15 +23,12 @@ import { summarize } from './discord.ts';
 import type { Payload } from './discord.ts';
 import { LATER_MS, WEBHOOK_KEY, WEBHOOK_RE, laterAllowed, sendTest, webhookUrl } from './notify.ts';
 import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
+import { HttpError, bad } from './http.ts';
+import {
+  addReport, addRequest, getNews, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
+  reseq, revertChange, reviewQueue, reviewStats, settleRequest, wordKeys,
+} from './words.ts';
 
-class HttpError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-  }
-}
-const bad = (msg: string) => new HttpError(400, msg);
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 
 async function readJson<T>(req: Request): Promise<T> {
@@ -460,59 +457,35 @@ const pushUnsubscribe: Handler = async ({ req, env }) => {
   return json({ ok: true, count: kept.length });
 };
 
-/** 정기 업데이트(scripts/words/update.mjs)용: 이미 있는 단어 열쇠 */
-const adminKeys: Handler = async ({ env }) => {
-  const r = await env.DB.prepare('SELECT id, lemma, pos FROM words').all<{ id: string; lemma: string; pos: string }>();
-  return json({ items: r.results });
-};
+// ---------- 단어 관리(worker/words.ts) ----------
 
-const INSERT_COLS = ['lemma', 'pos', 'gender', 'plural', 'ipa', 'level', 'level_src', 'gloss_en', 'gloss_ko', 'gloss_status',
-  'example_de', 'example_ko', 'example_src', 'scene_en', 'freq_rank'] as const;
-const LEVELS = new Set(['B1', 'B2', 'C1']);
-
-/** 새 단어 넣기: id·seq 는 지금 끝 번호에서 이어 매기고 카드(state 0)도 같이 만든다. 같은 (lemma,pos) 는 건너뜀. */
-const adminInsert: Handler = async ({ req, env }) => {
-  const body = (await req.json().catch(() => null)) as { items?: Array<Record<string, unknown>> } | null;
-  const items = Array.isArray(body?.items) ? body!.items : null;
-  if (!items || items.length === 0 || items.length > 500) throw bad('items 1..500');
-  for (const it of items) {
-    if (typeof it.lemma !== 'string' || !it.lemma.trim() || typeof it.pos !== 'string') throw bad('lemma/pos required');
-    if (!LEVELS.has(String(it.level))) throw bad('level must be B1|B2|C1');
-  }
-  const top = await env.DB.prepare(
-    "SELECT max(CAST(substr(id, 2) AS INTEGER)) AS n, max(seq) AS s FROM words",
-  ).first<{ n: number | null; s: number | null }>();
-  let n = top?.n ?? 0;
-  let seq = top?.s ?? 0;
-  const have = new Set(
-    (await env.DB.prepare('SELECT lemma, pos FROM words').all<{ lemma: string; pos: string }>()).results.map((r) => `${r.lemma}|${r.pos}`),
-  );
-  const now = new Date().toISOString();
-  const stmts: D1PreparedStatement[] = [];
-  let first: string | null = null;
-  let last: string | null = null;
-  for (const it of items) {
-    const k = `${it.lemma}|${it.pos}`;
-    if (have.has(k)) continue;
-    have.add(k);
-    n += 1;
-    seq += 1;
-    const id = `w${String(n).padStart(4, '0')}`;
-    first ??= id;
-    last = id;
-    const vals = INSERT_COLS.map((c) => (it[c] === undefined || it[c] === '' ? null : it[c]));
-    const gs = vals[INSERT_COLS.indexOf('gloss_status')] ?? (it.gloss_ko ? 'generated' : 'missing');
-    vals[INSERT_COLS.indexOf('gloss_status')] = gs;
-    stmts.push(
-      env.DB.prepare(
-        `INSERT INTO words(id, seq, image_status, ${INSERT_COLS.join(', ')}) VALUES (?, ?, 'none', ${INSERT_COLS.map(() => '?').join(', ')})`,
-      ).bind(id, seq, ...vals),
-      env.DB.prepare('INSERT INTO cards(word_id, state, due) VALUES (?, 0, ?)').bind(id, now),
-    );
-  }
-  if (stmts.length) await env.DB.batch(stmts);
-  return json({ inserted: stmts.length / 2, first_id: first, last_id: last });
+const adminKeys: Handler = async ({ env }) => json(await wordKeys(env.DB));
+const adminInsert: Handler = async ({ req, env }) =>
+  json(await insertWords(env.DB, (await readJson<{ items?: Array<Record<string, unknown>> }>(req))?.items));
+/** 단어 칸 고치기 + 고침 기록(scripts/words/review.mjs) · 글 채우기(daily.mjs) */
+const adminWords: Handler = async ({ req, env }) => json(await patchWords(env.DB, (await readJson<AdminWordsRequest>(req))?.items));
+const adminReviewQueue: Handler = async ({ env, url }) =>
+  json({ items: await reviewQueue(env.DB, clamp(intParam(url.searchParams.get('limit'), 250), 1, 500)) });
+const adminReseq: Handler = async ({ env }) => json(await reseq(env.DB));
+const adminNewsGet: Handler = async ({ env, url }) => json({ items: await getNews(env.DB, url.searchParams.get('since') ?? '') });
+const adminNewsPut: Handler = async ({ req, env }) => {
+  const b = await readJson<{ day?: unknown; items?: Array<{ key?: unknown; n?: unknown; url?: unknown }> }>(req);
+  return json(await putNews(env.DB, b?.day, b?.items));
 };
+const adminSkips: Handler = async ({ req, env }) =>
+  json(await putSkips(env.DB, (await readJson<{ items?: Array<{ key?: unknown; reason?: unknown }> }>(req))?.items));
+const adminRequests: Handler = async ({ env, url }) =>
+  json({ items: await listRequests(env.DB, url.searchParams.get('status') ?? undefined, 50) });
+const adminSettle: Handler = async ({ req, env, params: [id] }) =>
+  json(await settleRequest(env.DB, Number(id), await readJson<Record<string, unknown>>(req)));
+const adminReviewStats: Handler = async ({ env }) => json(await reviewStats(env.DB));
+const postReport: Handler = async ({ req, env, params: [id] }) => json(await addReport(env.DB, id, await readJson<Record<string, unknown>>(req)));
+const getRequests: Handler = async ({ env }) => json({ items: await listRequests(env.DB, undefined, 10) });
+const postRequest: Handler = async ({ req, env }) => json(await addRequest(env.DB, await readJson<Record<string, unknown>>(req)));
+/** 고친 카드 100개씩, ?before=<번호> 로 더 보기 */
+const getChanges: Handler = async ({ env, url }) =>
+  json({ items: await listChanges(env.DB, 100, intParam(url.searchParams.get('before'), 0) || undefined) });
+const postRevert: Handler = async ({ env, params: [id] }) => json(await revertChange(env.DB, Number(id)));
 
 /** 매일 스크립트가 채울 거리: 글이 비는 단어 / 그림이 없는 단어. 공부 중인 카드 먼저, 그다음 seq. */
 const runway: Handler = async ({ env, url }) => {
@@ -530,37 +503,6 @@ const runway: Handler = async ({ env, url }) => {
     ).bind(image),
   ]);
   return json({ need_text: t.results, need_image: i.results } as RunwayResponse);
-};
-
-const ADMIN_FIELDS = ['gloss_ko', 'example_de', 'example_ko', 'scene_en', 'gloss_status', 'example_src'] as const;
-
-/** 단어 글 채우기. 준 칸만 바꾼다. gloss_ko 가 오면 gloss_status 기본 generated, example_de 가 오면 example_src 기본 gen. */
-const adminWords: Handler = async ({ req, env }) => {
-  const body = await readJson<AdminWordsRequest>(req);
-  if (!body || !Array.isArray(body.items) || body.items.length > 500) throw bad('bad_request');
-  const stmts: D1PreparedStatement[] = [];
-  for (const it of body.items) {
-    if (typeof it?.id !== 'string') throw bad('bad_item');
-    const sets: string[] = [];
-    const binds: unknown[] = [];
-    const put = (k: string, v: string) => {
-      sets.push(`${k} = ?`);
-      binds.push(v);
-    };
-    for (const k of ADMIN_FIELDS) {
-      const v = it[k];
-      if (v === undefined) continue;
-      if (typeof v !== 'string') throw bad(`${k} must be string`);
-      if (k === 'gloss_status' && !['generated', 'checked', 'mine'].includes(v)) throw bad('bad gloss_status');
-      put(k, v);
-    }
-    if (it.gloss_ko !== undefined && it.gloss_status === undefined) put('gloss_status', 'generated');
-    if (it.example_de !== undefined && it.example_src === undefined) put('example_src', 'gen');
-    if (sets.length === 0) continue;
-    stmts.push(env.DB.prepare(`UPDATE words SET ${sets.join(', ')} WHERE id = ?`).bind(...binds, it.id));
-  }
-  const results = stmts.length ? await env.DB.batch(stmts) : [];
-  return json({ updated: results.reduce((n, r) => n + (r.meta.changes ?? 0), 0) });
 };
 
 const MAX_IMAGE_BYTES = 200 * 1024;
@@ -649,6 +591,11 @@ const routes: Route[] = [
   ['GET', /^\/api\/drill$/, drill],
   ['GET', /^\/api\/artikel$/, artikel],
   ['GET', /^\/api\/word\/([\w-]+)$/, wordDetail],
+  ['POST', /^\/api\/words\/([\w-]+)\/report$/, postReport],
+  ['GET', /^\/api\/requests$/, getRequests],
+  ['POST', /^\/api\/requests$/, postRequest],
+  ['GET', /^\/api\/changes$/, getChanges],
+  ['POST', /^\/api\/changes\/(\d+)\/revert$/, postRevert],
   ['GET', /^\/api\/stats$/, stats],
   ['GET', /^\/api\/inbox$/, inbox],
   ['POST', /^\/api\/notifications\/(\d+)\/open$/, openedNotification],
@@ -665,6 +612,14 @@ const routes: Route[] = [
   ['POST', /^\/api\/admin\/words$/, adminWords],
   ['PUT', /^\/api\/admin\/image\/([\w-]+)$/, putImage],
   ['POST', /^\/api\/admin\/draw$/, draw],
+  ['GET', /^\/api\/admin\/review-queue$/, adminReviewQueue],
+  ['POST', /^\/api\/admin\/reseq$/, adminReseq],
+  ['GET', /^\/api\/admin\/news$/, adminNewsGet],
+  ['POST', /^\/api\/admin\/news$/, adminNewsPut],
+  ['POST', /^\/api\/admin\/skips$/, adminSkips],
+  ['GET', /^\/api\/admin\/requests$/, adminRequests],
+  ['POST', /^\/api\/admin\/requests\/(\d+)$/, adminSettle],
+  ['GET', /^\/api\/admin\/review-stats$/, adminReviewStats],
   ['GET', /^\/api\/admin\/keys$/, adminKeys],
   ['POST', /^\/api\/admin\/words\/insert$/, adminInsert],
 ];

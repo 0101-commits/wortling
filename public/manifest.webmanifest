@@ -6,6 +6,7 @@
   "display": "standalone",
   "start_url": "/#/today",
   "scope": "/",
+  "share_target": { "action": "/", "method": "GET", "params": { "title": "title", "text": "text", "url": "url" } },
   "background_color": "#FFFFFF",
   "theme_color": "#006F82",
   "icons": [

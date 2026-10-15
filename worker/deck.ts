@@ -97,8 +97,8 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
     db
       .prepare(
         `SELECT ${ITEM_SELECT} FROM cards c JOIN words w ON w.id = c.word_id
-         WHERE c.state = 0 AND c.suspended = 0 AND w.level IN (${levels.map(() => '?').join(',')})
-         ORDER BY w.seq LIMIT ?`,
+         WHERE c.state = 0 AND c.suspended = 0 AND (w.level IN (${levels.map(() => '?').join(',')}) OR w.pinned = 1)
+         ORDER BY w.pinned DESC, w.seq LIMIT ?`,
       )
       .bind(...levels, settings.new_per_day),
   ]);
