@@ -482,7 +482,9 @@ const adminReviewStats: Handler = async ({ env }) => json(await reviewStats(env.
 const postReport: Handler = async ({ req, env, params: [id] }) => json(await addReport(env.DB, id, await readJson<Record<string, unknown>>(req)));
 const getRequests: Handler = async ({ env }) => json({ items: await listRequests(env.DB, undefined, 10) });
 const postRequest: Handler = async ({ req, env }) => json(await addRequest(env.DB, await readJson<Record<string, unknown>>(req)));
-const getChanges: Handler = async ({ env }) => json({ items: await listChanges(env.DB, 100) });
+/** 고친 카드 100개씩, ?before=<번호> 로 더 보기 */
+const getChanges: Handler = async ({ env, url }) =>
+  json({ items: await listChanges(env.DB, 100, intParam(url.searchParams.get('before'), 0) || undefined) });
 const postRevert: Handler = async ({ env, params: [id] }) => json(await revertChange(env.DB, Number(id)));
 
 /** 매일 스크립트가 채울 거리: 글이 비는 단어 / 그림이 없는 단어. 공부 중인 카드 먼저, 그다음 seq. */

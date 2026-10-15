@@ -167,8 +167,8 @@ export interface AdminWordsRequest {
     scene_en?: string;
     gloss_status?: 'generated' | 'checked' | 'mine';
     example_src?: string;
-    gender?: string;
-    plural?: string;
+    gender?: string | null;
+    plural?: string | null;
     level?: Level;
     news_rank?: number | null;
     /** 검토함 → checked_at = 지금 */
@@ -188,6 +188,8 @@ export interface ReviewQueueItem {
   gender: string | null;
   plural: string | null;
   level: Level;
+  /** goethe 면 레벨은 자동으로 안 바꾼다(공식 목록) */
+  level_src: string;
   gloss_ko: string | null;
   gloss_status: string;
   example_de: string | null;

@@ -208,6 +208,22 @@ try {
         if (!kok) fail(`덱 키보드·탭: Z → ${undone}, → → ${keyed}, 뒤집힘 ${flipped}`)
         table.push({ route: '덱 Z · → · 탭', vp: '390', light: kok ? 'ok' : 'FAIL', dark: '-', sw: `${undone} → ${keyed} · 뒤 ${flipped}` })
 
+        // 「이상해요」 창이 열려 있으면 화살표·스페이스가 뒤 카드를 채점·뒤집지 않는다(최종 검토 반영)
+        await page.getByRole('button', { name: '이상해요' }).click()
+        await sleep(200)
+        const beforeDlg = (await progress.textContent()).trim()
+        await page.keyboard.press('ArrowRight')
+        await page.keyboard.press(' ')
+        await sleep(600)
+        const afterDlg = (await progress.textContent()).trim()
+        const dlgOpen = await page.locator('dialog.report-dlg[open]').count()
+        await page.screenshot({ path: join(SHOTS, 'today-report-390.png') })
+        await page.keyboard.press('Escape')
+        await sleep(200)
+        const rok = afterDlg === beforeDlg && dlgOpen === 1 && errors.length === 0
+        if (!rok) fail(`이상해요 창 + 키: 진행 수 ${beforeDlg} → ${afterDlg}, 창 열림 ${dlgOpen}`)
+        table.push({ route: '이상해요 창 + → ·스페이스', vp: '390', light: rok ? 'ok' : 'FAIL', dark: '-', sw: `${beforeDlg} → ${afterDlg} · 창 ${dlgOpen}` })
+
         // 끝까지 채점 → 「오늘 끝」 화면(전송 1번 + 내일 수)
         for (let i = 0; i < 40 && (await progress.count()); i++) {
           await page.keyboard.press('ArrowRight')

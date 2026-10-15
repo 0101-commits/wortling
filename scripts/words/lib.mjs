@@ -313,7 +313,8 @@ export function decide(w, facts, v, reverted = new Set()) {
   const ko = fix.example_ko === undefined ? undefined : t(fix.example_ko);
   if (fix.example_de !== undefined && de !== (w.example_de ?? null)) {
     tryField('example_de', de, (x) =>
-      ko === undefined ? '번역 없이 예문만 옴'
+      reverted.has('example_ko') ? '되돌린 적 있는 칸(번역)'
+      : ko === undefined ? '번역 없이 예문만 옴'
         : !x || x.length > 70 ? '형식(70자 이내)'
           : !facts.hasForm(x) ? '예문에 표제어가 없음'
             : !ko || ko.length > 80 ? '번역 형식(80자 이내)'
@@ -328,10 +329,37 @@ export function decide(w, facts, v, reverted = new Set()) {
   if (fix.plural !== undefined)
     tryField('plural', t(fix.plural), (p) => (facts.plural === undefined ? '위키낱말사전에 없음' : p !== facts.plural ? `위키낱말사전: ${facts.plural ?? '복수 없음'}` : null));
   if (fix.level !== undefined)
-    tryField('level', t(fix.level), (lv) => (!LEVELS.includes(lv) ? '형식' : facts.daflex !== lv ? `DAFlex: ${facts.daflex ?? '모름'}` : null));
+    tryField('level', t(fix.level), (lv) =>
+      // Goethe B1 공식 목록 단어는 레벨을 자동으로 안 바꾼다 — 바뀌면 B1 공부 줄에서 빠진다(최종 검토 반영)
+      w.level_src === 'goethe' ? 'Goethe 공식 목록 단어'
+      : !LEVELS.includes(lv) ? '형식'
+      : facts.daflex !== lv ? `DAFlex: ${facts.daflex ?? '모름'}`
+      : null);
 
   if (!changes.length) note(`${why} · 고칠 값 없음`);
   return { patch, changes, meaningChanged: v.meaning_changed === true && patch.gloss_ko !== undefined };
+}
+
+/**
+ * 판정 결과 → POST /api/admin/words 한 줄. 검토했으면 checked, mine 이 아니면 gloss_status checked,
+ * 뜻이 바뀌었거나 「그림」 신고면 그림 다시 그리기(Claude 는 그림을 못 보니 신고를 믿는다), 신고는 닫는다.
+ */
+export function adminItem(w, d) {
+  return {
+    id: w.id,
+    ...d.patch,
+    ...(w.gloss_status === 'mine' ? {} : { gloss_status: 'checked' }),
+    checked: true,
+    image_reset: d.meaningChanged || w.report?.kind === 'image',
+    close_reports: Boolean(w.report),
+    changes: d.changes.map((c) => ({ ...c, source: w.report ? 'report' : 'review' })),
+  };
+}
+
+/** 색인이 정상 크기인가(10-15 실측: forms 79k · facts 50k · leipzig 41k). 거의 빈 색인으로 덱 순위를 덮지 않게 */
+export function indexLooksSane(ix) {
+  const n = (o) => (o && typeof o === 'object' ? Object.keys(o).length : 0);
+  return Boolean(ix) && n(ix.forms) >= 30000 && n(ix.facts) >= 20000 && n(ix.leipzig) >= 20000 && n(ix.daflex) >= 20000;
 }
 
 /** 일요일 디스코드 요약 */

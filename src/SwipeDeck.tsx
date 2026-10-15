@@ -36,6 +36,8 @@ export function SwipeDeck({ cards, mode, onGrade, onUndo, hint = 'interval' }: P
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     const t = e.target as HTMLElement | null
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+    // 「이상해요」 창 등이 열려 있으면 뒤 카드를 채점·뒤집지 않는다(창 안 칩은 button 이라 위 검사에 안 걸림)
+    if (document.querySelector('dialog[open]')) return
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const map: Record<string, Rating> = { ArrowLeft: 1, ArrowDown: 2, ArrowRight: 3, ArrowUp: 4 }
     if (map[e.key]) {

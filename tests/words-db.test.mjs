@@ -203,3 +203,43 @@ test('reviewStats: 검토 수 · 이번 주 고침·확인 필요·새 단어', 
   const s = await reviewStats(db, new Date());
   assert.deepEqual(s, { total: 2, checked: 1, week: { applied: 0, flagged: 1, news: 1, mine: 0, requests: 1 } });
 });
+
+// ---------- 최종 검토 반영 ----------
+import { decide } from '../scripts/words/lib.mjs';
+
+test('검토 → 고치기: 복수 「없음」(null) 판정도 400 없이 적용(검토 Critical 1)', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Personal', plural: 'Personale' });
+  const w = (await reviewQueue(db, 1, NOW))[0];
+  const d = decide(w, { genders: ['das'], plural: null, daflex: null, hasForm: () => true }, { ok: false, fix: { plural: null }, why: '복수 없음' });
+  assert.deepEqual(d.patch, { plural: null });
+  await patchWords(db, [{ id: w.id, ...d.patch, checked: true, changes: d.changes }], NOW);
+  assert.equal(row(db, 'SELECT plural FROM words').plural, null);
+});
+
+test('revertChange: 예문·번역을 같이 고친 것은 같이 되돌린다(검토 Important 2)', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Umzug', example_de: 'Der Umzug dauerte lange.', example_ko: '이사는 오래 걸렸어요.' });
+  await patchWords(db, [{ id: 'w0001', example_de: 'Der Umzug dauerte lange.', example_ko: '이사는 오래 걸렸어요.', changes: [
+    { field: 'example_de', old: 'Der Umzug war laut.', new: 'Der Umzug dauerte lange.', applied: 1 },
+    { field: 'example_ko', old: '이사는 시끄러웠어요.', new: '이사는 오래 걸렸어요.', applied: 1 },
+  ] }], NOW);
+  const de = (await listChanges(db, 10)).find((c) => c.field === 'example_de');
+  await revertChange(db, de.id, NOW);
+  assert.deepEqual(row(db, 'SELECT example_de, example_ko FROM words'), { example_de: 'Der Umzug war laut.', example_ko: '이사는 시끄러웠어요.' });
+  assert.equal(row(db, 'SELECT count(*) AS n FROM word_changes WHERE reverted_at IS NOT NULL').n, 2);
+});
+
+test('listChanges: before 로 더 보기(검토 Important 3)', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Haus' });
+  await patchWords(db, [{ id: 'w0001', changes: [1, 2, 3].map((i) => ({ field: 'note', old: null, new: null, why: String(i), applied: 0 })) }], NOW);
+  assert.deepEqual((await listChanges(db, 2)).map((c) => c.id), [3, 2]);
+  assert.deepEqual((await listChanges(db, 2, 2)).map((c) => c.id), [1]);
+});
+
+test('reviewQueue: level_src 를 같이 준다(검토 Important 4)', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Haus', level_src: 'goethe' });
+  assert.equal((await reviewQueue(db, 1, NOW))[0].level_src, 'goethe');
+});

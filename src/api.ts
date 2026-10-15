@@ -148,7 +148,8 @@ export const api = {
   requests: () => request<WordRequestsResponse>('GET', '/api/requests'),
   addRequest: (text: string, url?: string) =>
     request<{ ok: boolean; id: number; duplicate: boolean }>('POST', '/api/requests', { text, ...(url ? { url } : {}) }),
-  changes: () => request<ChangesResponse>('GET', '/api/changes'),
+  /** 100개씩, before(번호)를 주면 그보다 앞의 것 */
+  changes: (before?: number) => request<ChangesResponse>('GET', '/api/changes' + (before ? `?before=${before}` : '')),
   revertChange: (id: number) => request<{ ok: boolean }>('POST', `/api/changes/${id}/revert`),
 }
 

@@ -39,15 +39,23 @@ function Row({ c, onRevert, busy = false }: { c: ChangeItem; onRevert?: () => vo
   )
 }
 
+const PAGE = 100 // 서버가 한 번에 주는 수(worker/index.ts getChanges)
+
 export default function Changes() {
   const r = useAsync(() => api.changes(), [])
   const toast = useToaster()
   const [busy, setBusy] = useState<number | null>(null)
+  // 더 보기: 하루 250장 검토면 며칠 만에 100건을 넘는다 → 오래된 고침도 되돌릴 수 있게
+  const [more, setMore] = useState<ChangeItem[]>([])
+  const [end, setEnd] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const revert = async (c: ChangeItem) => {
     setBusy(c.id)
     try {
       await api.revertChange(c.id)
       toast(`${c.lemma} ${FIELD[c.field] ?? c.field}을 되돌렸어요.`, 'positive')
+      setMore([])
+      setEnd(false)
       r.reload()
     } catch (e) {
       toast(errorText(e), 'negative')
@@ -55,7 +63,21 @@ export default function Changes() {
       setBusy(null)
     }
   }
-  const items = r.data?.items ?? []
+  const first = r.data?.items ?? []
+  const items = [...first, ...more]
+  const canMore = !end && (more.length ? more.length % PAGE === 0 : first.length === PAGE)
+  const loadMore = async () => {
+    setLoadingMore(true)
+    try {
+      const res = await api.changes(items[items.length - 1].id)
+      setMore((m) => [...m, ...res.items])
+      if (res.items.length < PAGE) setEnd(true)
+    } catch (e) {
+      toast(errorText(e), 'negative')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
   const flagged = items.filter((c) => !c.applied)
   const applied = items.filter((c) => c.applied)
   return (
@@ -86,6 +108,11 @@ export default function Changes() {
             <ul className="box wh chg">
               {applied.map((c) => <Row key={c.id} c={c} busy={busy === c.id} onRevert={() => revert(c)} />)}
             </ul>
+            {canMore && (
+              <Button variant="outlined" color="assistive" fullWidth loading={loadingMore} onClick={loadMore}>
+                더 보기
+              </Button>
+            )}
           </>
         )}
       </main>

@@ -9,7 +9,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { wordKey } from './lib.mjs';
+import { indexLooksSane, wordKey } from './lib.mjs';
 
 export const KAIKKI_URL = 'https://kaikki.org/dictionary/German/kaikki.org-dictionary-German.jsonl.gz';
 export const DAFLEX_URL = 'https://cental.uclouvain.be/cefrlex/static/resources/de/DAFlex.tsv';
@@ -204,6 +204,8 @@ export async function ensureIndex({ dir, deckKeys, log, now = new Date() }) {
       kaikkiLines: lines, daflexText: readFileSync(dt, 'utf8'), leipzigText: readFileSync(lw.file, 'utf8'), deckKeys, month,
       src: { kaikki: statSync(kz).mtime.toISOString().slice(0, 10), leipzig: lw.name },
     });
+    // 원본 형식이 바뀌어 거의 빈 색인이 나오면 쓰지 않는다(덱 순위를 통째로 덮지 않게 — 최종 검토 반영)
+    if (!indexLooksSane(index)) throw new Error(`색인이 너무 작음 forms ${Object.keys(index.forms).length} · facts ${Object.keys(index.facts).length}`);
     writeFileSync(`${file}.tmp`, JSON.stringify(index));
     renameSync(`${file}.tmp`, file);
     for (const f of readdirSync(dir)) if (f !== 'index.json') rmSync(path.join(dir, f), { recursive: true, force: true });

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { askJson } from '../claude.mjs';
 import { ROOT, api, kstDay, notify, requireEnv } from '../admin.mjs';
-import { acceptVerdicts, decide, factsFor, reviewPrompt, summaryText } from './lib.mjs';
+import { acceptVerdicts, adminItem, decide, factsFor, reviewPrompt, summaryText } from './lib.mjs';
 
 const DRY = process.argv.includes('--dry');
 const MAX = Number((process.argv.find((a) => a.startsWith('--max=')) || '').slice(6)) || 250;
@@ -52,17 +52,17 @@ try {
       log.applied += d.changes.filter((c) => c.applied).length;
       log.flagged += d.changes.filter((c) => !c.applied).length;
       if (DRY && d.changes.length && sample.length < 10) sample.push({ lemma: w.lemma, changes: d.changes });
-      items.push({
-        id: w.id,
-        ...d.patch,
-        ...(w.gloss_status === 'mine' ? {} : { gloss_status: 'checked' }),
-        checked: true,
-        image_reset: d.meaningChanged,
-        close_reports: Boolean(w.report),
-        changes: d.changes.map((c) => ({ ...c, source: w.report ? 'report' : 'review' })),
-      });
+      items.push(adminItem(w, d));
     }
-    if (!DRY && items.length) await api('/api/admin/words', { method: 'POST', body: { items } });
+    // 서버 쓰기 실패도 그 묶음만 — 바깥에서 잡았더니 남은 묶음을 다 건너뛰었다(최종 검토 반영)
+    if (!DRY && items.length) {
+      try {
+        await api('/api/admin/words', { method: 'POST', body: { items } });
+      } catch (e) {
+        log.failedBatches++;
+        log.errors.push(`묶음 ${i / BATCH + 1} 저장: ${String(e.message || e).slice(0, 150)}`);
+      }
+    }
   }
   // 일요일(KST)엔 주간 요약
   if (!DRY && new Date(Date.now() + 9 * 3600 * 1000).getUTCDay() === 0) {

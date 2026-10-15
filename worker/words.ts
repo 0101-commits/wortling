@@ -42,6 +42,11 @@ export async function patchWords(db: D1Database, items: AdminWordsRequest['items
     for (const k of TEXT_FIELDS) {
       const v = it[k];
       if (v === undefined) continue;
+      // 관사·복수 「없음」 = null (검토가 「복수 없음」으로 고칠 때. 400 이면 그날 검토가 통째로 멈췄다 — 최종 검토 반영)
+      if (v === null && (k === 'gender' || k === 'plural')) {
+        put(k, null);
+        continue;
+      }
       if (typeof v !== 'string') throw bad(`${k} must be string`);
       if (k === 'gloss_status' && !GLOSS_STATUS.has(v)) throw bad('bad gloss_status');
       if (k === 'gender' && v !== '' && !GENDERS.has(v)) throw bad('bad gender');
@@ -136,7 +141,7 @@ export async function putSkips(db: D1Database, items: Array<{ key?: unknown; rea
 
 // ---------- 검토할 줄 ----------
 
-const REVIEW_COLS = `w.id, w.lemma, w.pos, w.gender, w.plural, w.level, w.gloss_ko, w.gloss_status, w.example_de, w.example_ko, w.checked_at,
+const REVIEW_COLS = `w.id, w.lemma, w.pos, w.gender, w.plural, w.level, w.level_src, w.gloss_ko, w.gloss_status, w.example_de, w.example_ko, w.checked_at,
   (SELECT group_concat(DISTINCT x.field) FROM word_changes x WHERE x.word_id = w.id AND x.reverted_at IS NOT NULL) AS reverted`;
 
 /** 검토할 단어: 열린 신고 → 앞으로 14일 안 새 카드 → 3일 안 복습 → 안 본 것(seq) → 180일 지난 것. 최근 검토는 빠진다. */
@@ -175,6 +180,7 @@ export async function reviewQueue(db: D1Database, limit: number, now = new Date(
         gender: t('gender'),
         plural: t('plural'),
         level: r.level as ReviewQueueItem['level'],
+        level_src: String(r.level_src),
         gloss_ko: t('gloss_ko'),
         gloss_status: String(r.gloss_status),
         example_de: t('example_de'),
@@ -298,26 +304,39 @@ export async function settleRequest(db: D1Database, id: number, body: { status?:
   return { ok: true as const };
 }
 
-/** 고친 카드(최근 순) — 「확인 필요」(applied 0)도 같이 */
-export async function listChanges(db: D1Database, limit: number): Promise<ChangeItem[]> {
+/** 고친 카드(최근 순) — 「확인 필요」(applied 0)도 같이. before(번호)를 주면 그보다 앞의 것(더 보기) */
+export async function listChanges(db: D1Database, limit: number, before?: number): Promise<ChangeItem[]> {
   const r = await db.prepare(`SELECT x.id, x.word_id, w.lemma, x.field, x.old, x.new, x.why, x.source, x.applied, x.reverted_at, x.at
-      FROM word_changes x JOIN words w ON w.id = x.word_id ORDER BY x.id DESC LIMIT ?`).bind(limit).all();
+      FROM word_changes x JOIN words w ON w.id = x.word_id ${before ? 'WHERE x.id < ?' : ''} ORDER BY x.id DESC LIMIT ?`)
+    .bind(...(before ? [before, limit] : [limit]))
+    .all();
   return r.results.map((x) => plain(x) as unknown as ChangeItem);
 }
 
-/** 되돌리기: 지금 값이 그 고침의 새 값일 때만(그 뒤 또 바뀌었으면 409) */
+type ChangeRow = { id: number; word_id: string; field: string; old: string | null; new: string | null; applied: number; reverted_at: string | null; at: string };
+// 예문과 번역은 한 판정에서 같이 고쳐진다 → 되돌릴 때도 같이(독일어만 되돌리면 옛 예문에 새 번역이 붙었다 — 최종 검토 반영)
+const PAIR: Record<string, string> = { example_de: 'example_ko', example_ko: 'example_de' };
+
+/** 되돌리기: 지금 값이 그 고침의 새 값일 때만(그 뒤 또 바뀌었으면 409). 예문·번역 짝은 같이 */
 export async function revertChange(db: D1Database, id: number, now = new Date()) {
-  const c = await db.prepare('SELECT word_id, field, old, new, applied, reverted_at FROM word_changes WHERE id = ?').bind(id)
-    .first<{ word_id: string; field: string; old: string | null; new: string | null; applied: number; reverted_at: string | null }>();
+  const c = await db.prepare('SELECT id, word_id, field, old, new, applied, reverted_at, at FROM word_changes WHERE id = ?').bind(id).first<ChangeRow>();
   if (!c) throw new HttpError(404, 'not_found');
   if (!c.applied || c.reverted_at || !REVERTIBLE.has(c.field)) throw new HttpError(409, 'not_revertible');
-  // c.field 는 REVERTIBLE 안의 이름이라 SQL 에 넣어도 안전
-  const cur = await db.prepare(`SELECT ${c.field} AS v FROM words WHERE id = ?`).bind(c.word_id).first<{ v: string | null }>();
-  if ((cur?.v ?? null) !== (c.new ?? null)) throw new HttpError(409, 'changed_since');
-  await db.batch([
-    db.prepare(`UPDATE words SET ${c.field} = ? WHERE id = ?`).bind(c.old, c.word_id),
-    db.prepare('UPDATE word_changes SET reverted_at = ? WHERE id = ?').bind(now.toISOString(), id),
-  ]);
+  // field 는 REVERTIBLE 안의 이름이라 SQL 에 넣어도 안전
+  const current = async (x: ChangeRow) =>
+    (await db.prepare(`SELECT ${x.field} AS v FROM words WHERE id = ?`).bind(x.word_id).first<{ v: string | null }>())?.v ?? null;
+  if ((await current(c)) !== (c.new ?? null)) throw new HttpError(409, 'changed_since');
+  const all = [c];
+  if (PAIR[c.field]) {
+    const mate = await db.prepare('SELECT id, word_id, field, old, new, applied, reverted_at, at FROM word_changes WHERE word_id = ? AND at = ? AND field = ? AND applied = 1 AND reverted_at IS NULL')
+      .bind(c.word_id, c.at, PAIR[c.field]).first<ChangeRow>();
+    if (mate && (await current(mate)) === (mate.new ?? null)) all.push(mate);
+  }
+  const at = now.toISOString();
+  await db.batch(all.flatMap((x) => [
+    db.prepare(`UPDATE words SET ${x.field} = ? WHERE id = ?`).bind(x.old, x.word_id),
+    db.prepare('UPDATE word_changes SET reverted_at = ? WHERE id = ?').bind(at, x.id),
+  ]));
   return { ok: true as const };
 }
 

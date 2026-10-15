@@ -251,3 +251,37 @@ test('fromShare: 공유 글에서 주소는 링크로, 단어 꼴이 아니면 �
   assert.deepEqual(fromShare(q({ text: 'Die Polizei ermittelt seit Tagen gegen mehrere Verdächtige wegen eines Vorfalls in Hamburg', url: 'https://www.tagesschau.de/x' })),
     { word: '', url: 'https://www.tagesschau.de/x' });
 });
+
+// ---------- 최종 검토 반영 ----------
+import { adminItem, indexLooksSane } from '../scripts/words/lib.mjs';
+
+test('decide: 번역을 되돌린 적 있으면 예문 짝 고침도 확인 필요(검토 Important 2)', () => {
+  const d = decide(W(), F(), { ok: false, fix: { example_de: 'Der Umzug dauerte lange.', example_ko: '이사는 오래 걸렸어요.' } }, new Set(['example_ko']));
+  assert.deepEqual(d.patch, {});
+  assert.equal(d.changes[0].applied, 0);
+});
+
+test('decide: Goethe 공식 목록 단어의 레벨은 바꾸지 않는다(검토 Important 4)', () => {
+  const d = decide(W({ level: 'B1', level_src: 'goethe' }), F({ daflex: 'B2' }), { ok: false, fix: { level: 'B2' } });
+  assert.deepEqual(d.patch, {});
+  assert.match(d.changes[0].why, /Goethe/);
+  assert.deepEqual(decide(W({ level: 'C1', level_src: 'wordhoard' }), F(), { ok: false, fix: { level: 'B1' } }).patch, { level: 'B1' });
+});
+
+test('adminItem: 그림 신고면 다시 그리기 · mine 이면 상태 안 건드림 · 신고 출처(검토 반영)', () => {
+  const img = adminItem(W({ report: { kind: 'image', note: null } }), decide(W({ report: { kind: 'image', note: null } }), F(), { ok: true }));
+  assert.equal(img.image_reset, true);
+  assert.equal(img.close_reports, true);
+  assert.equal(img.changes[0].source, 'report');
+  assert.equal(img.gloss_status, 'checked');
+  const mine = adminItem(W({ gloss_status: 'mine' }), decide(W(), F(), { ok: true }));
+  assert.equal('gloss_status' in mine, false);
+  assert.deepEqual([mine.checked, mine.image_reset, mine.close_reports], [true, false, false]);
+});
+
+test('indexLooksSane: 거의 빈 색인은 쓰지 않는다(검토 반영)', () => {
+  const big = (n) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`W${i}|noun`, 1]));
+  assert.equal(indexLooksSane({ forms: big(40000), facts: big(30000), leipzig: big(30000), daflex: big(30000) }), true);
+  assert.equal(indexLooksSane({ forms: big(100), facts: big(100), leipzig: big(100), daflex: big(30000) }), false);
+  assert.equal(indexLooksSane(null), false);
+});
