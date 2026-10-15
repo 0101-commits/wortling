@@ -17,6 +17,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { acceptContent, contentPrompt } from './lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DOT = path.join(ROOT, '.data'); // 원본 자료(git 제외)
@@ -230,34 +231,14 @@ function applyGoethe(file) {
   return `B1 목록 바뀜 +${added.length} −${removed.length}: ${[...added.map((x) => '+' + x), ...removed.map((x) => '−' + x)].slice(0, 10).join(', ')}`;
 }
 
-// ── 5) claude -p 로 판정·채우기 (규칙 = content_b2 묶음 작업과 같음) ─────────────────────
+// ── 5) claude -p 로 판정·채우기 (프롬프트·검사는 lib.mjs — news.mjs 와 같음) ─────────────────
 async function writeContent(batch) {
   const list = batch.map((w) => ({ key: `${w.lemma}|${w.pos}`, lemma: w.lemma, pos: w.pos, gender: w.gender, level: w.level, gloss_en: w.gloss_en }));
-  const prompt = `You write Korean learning content for German vocabulary (personal flashcard app "Wortling"; learner = Korean speaker moving from B1 to B2 and C1). Each item has its CEFR level. The list comes from a subtitle-frequency source, so some entries are not useful.
-Return exactly one object per input item, same order, key copied unchanged.
-- Useful word → {"key", "keep": true, "gloss_ko", "example_de", "example_ko", "scene_en"}
-  · gloss_ko: 짧은 한국어 뜻 1~3개, 쉼표 구분, 20자 이내(명사는 관사 없이 명사형, 동사는 ~하다/되다 형, 형용사는 ~한/~적인 형, 부사는 ~게/~히 형). 오스트리아·스위스 어휘는 뜻에 (오) (스) 표기.
-  · example_de: natural German sentence at the item's level, ≤70 chars, contains the headword (inflected/separated forms fine), everyday/work/news context.
-  · example_ko: 자연스러운 한국어 번역, 40자 이내, ~해요체.
-  · scene_en: ONE English line, ≤25 words, starting with "Borti " — a concrete visual scene where the mascot Borti (a chubby cream dachshund puppy with brown floppy ears) acts out the meaning with a concrete prop or action. No text, letters, numbers, signs, or logos. Only Borti unless a second character is needed ("another puppy"). Keep it gentle and family-friendly even for crime/violence words (show it symbolically: e.g. a detective magnifying glass, a broken vase).
-- Not useful → {"key", "keep": false, "reason": "짧은 사유"}. Use false for: vulgar/sexual/slang words, proper names and nationality/ethnic labels, English loan slang typical of dubbed films (Bingo, Amigo), archaic words, very narrow jargon, words that only make sense in film dialogue (Samurai, Satan, Pirat). News/daily/work vocabulary is keep:true even if it is about crime or conflict (Mörder, Verhör, Haftbefehl). When unsure → true.
-Output ONLY a JSON array (no prose, no code fence) with exactly ${list.length} objects.
-Items: ${JSON.stringify(list)}`;
-  const out = await runClaude(prompt);
+  const out = await runClaude(contentPrompt(list));
   const text = String(JSON.parse(out).result ?? '').trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
   let arr;
   try { arr = JSON.parse(text); } catch { throw new Error(`claude 결과가 JSON 이 아님: ${text.slice(0, 200)}`); }
-  const keys = new Set(list.map((w) => w.key));
-  const res = [];
-  // 묶음 작업의 검증과 같은 조건을 통과한 것만 받는다. 나머지는 다음 실행 때 다시 채운다.
-  for (const o of Array.isArray(arr) ? arr : []) {
-    if (!o || !keys.has(o.key) || typeof o.keep !== 'boolean') continue;
-    if (!o.keep) { res.push({ key: o.key, keep: false, reason: String(o.reason || '').slice(0, 60) || '(사유 없음)' }); continue; }
-    const s = (v) => (typeof v === 'string' ? v.trim() : '');
-    const c = { key: o.key, keep: true, gloss_ko: s(o.gloss_ko).slice(0, 40), example_de: s(o.example_de), example_ko: s(o.example_ko).slice(0, 80), scene_en: s(o.scene_en).slice(0, 300) };
-    if (c.gloss_ko && c.example_de && c.example_de.length <= 70 && c.example_ko && c.scene_en.startsWith('Borti ')) res.push(c);
-  }
-  return res;
+  return acceptContent(arr, list);
 }
 
 // daily.mjs 의 writeTextWithClaude 와 같은 claude.exe·플래그. 동시에 여럿 돌리려고 spawn 으로 기다린다.
