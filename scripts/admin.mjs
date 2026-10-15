@@ -1,6 +1,6 @@
 // Worker 관리 API · 디스코드 알림 · 날짜 — words.yml 의 news.mjs · review.mjs 가 같이 쓴다.
 // (daily.mjs · update.mjs 는 예전 사본을 그대로 쓴다.) .env 가 있으면 읽고, Actions 에서는 비밀값 환경변수.
-import { existsSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -60,4 +60,9 @@ function loadEnv(file) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
     if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
   }
+}
+
+/** GitHub Actions 단계 출력(steps.<id>.outputs.<name>). Actions 밖이면 아무것도 안 함 */
+export function setOutput(name, value) {
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
 }

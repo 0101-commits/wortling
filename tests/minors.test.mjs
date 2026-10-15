@@ -16,12 +16,12 @@ test('공유하기: 주소와 같이 온 글은 3낱말 이하만 단어 칸으�
   assert.deepEqual(fromShare(q({ text: 'Polizei ermittelt in Hamburg' })), { word: 'Polizei ermittelt in Hamburg', url: '' });
 });
 
-test('서버 오류 문구: 알려진 코드는 우리말, 모르는 코드는 상태 번호', () => {
+test('서버 오류 문구: 알려진 코드는 우리말, 모르는 코드는 상태 번호 + 코드', () => {
   assert.equal(serverErrorText(409, 'changed_since'), '그 뒤에 카드가 또 바뀌어서 되돌릴 수 없어요.');
   assert.equal(serverErrorText(409, 'not_revertible'), '되돌릴 수 없는 항목이에요.');
   assert.equal(serverErrorText(400, 'bad_text'), '글자로 된 단어 하나(60자 이내)만 넣어 주세요.');
   assert.equal(serverErrorText(400, 'bad_url'), '링크는 https:// 로 시작하는 주소만 넣을 수 있어요.');
-  assert.equal(serverErrorText(500, 'internal'), '서버 오류 500');
+  assert.equal(serverErrorText(500, 'internal'), '서버 오류 500 · internal');
   assert.equal(serverErrorText(502), '서버 오류 502');
 });
 

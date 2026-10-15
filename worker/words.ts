@@ -21,8 +21,11 @@ const LEVEL_ORDER = "CASE w.level WHEN 'B1' THEN 1 WHEN 'B2' THEN 2 ELSE 3 END";
 /**
  * 안 배운 카드의 순서 열쇠 = 그 단어 자신의 값만으로 만든 수(넣은 단어 → 레벨 → 뉴스 2회 이상 → news_rank → freq_rank).
  * 순번(row_number)으로 매겼더니 새 단어 하나가 끼면 뒤 카드 수천 장의 seq 가 한 칸씩 밀려 매일 수천 줄을 썼다(최종 검토 반영).
- * 같은 열쇠는 고르는 쪽에서 lemma 로 가른다. 배운 카드는 예전 순번(작은 수) 그대로라 늘 앞.
+ * 같은 열쇠는 고르는 쪽에서 lemma 로 가른다. 배운 카드의 seq 는 안 바꾼다 — 안 배운 카드끼리의 순서일 뿐이라
+ * 배운 카드를 앞에 두려면 목록 쪽에서 상태로 먼저 가른다(LIST_ORDER).
  */
+/** 단어 목록 「학습 순서」: 배운 카드 → 안 배운 카드(열쇠 순). 배포 뒤 배운 카드는 큰 열쇠를 그대로 가져 섞였다(검토 반영) */
+export const LIST_ORDER = '(c.state = 0 AND c.introduced_at IS NULL), w.seq, w.lemma';
 const SEQ_KEY = `(1 - w.pinned) * 4000000000 + ${LEVEL_ORDER} * 1000000000
   + CASE WHEN w.news_hits30 >= 2 THEN 0 ELSE 500000000 END
   + CASE WHEN w.news_rank IS NOT NULL THEN min(w.news_rank, 399999999) ELSE 400000000 + coalesce(min(w.freq_rank, 99999999), 99999999) END`;

@@ -22,10 +22,7 @@ export function ReportButton({ wordId, lemma }: { wordId: string; lemma: string 
   // 실패 안내는 창 안에 — 토스트는 모달(top layer) 뒤에 깔려 안 보였다
   const [err, setErr] = useState('')
   const toast = useToaster()
-  const close = () => {
-    setErr('')
-    dlg.current?.close()
-  }
+  const close = () => dlg.current?.close()
   const send = async () => {
     setBusy(true)
     setErr('')
@@ -46,7 +43,8 @@ export function ReportButton({ wordId, lemma }: { wordId: string; lemma: string 
         이상해요
       </button>
       {/* 바깥(뒤 배경)을 누르면 닫힘. 내용을 안쪽 칸에 넣어 dialog 자신 = 뒤 배경뿐(창 여백을 눌러도 닫히던 것 고침) */}
-      <dialog ref={dlg} className="report-dlg" aria-label={`${lemma} 이상한 곳 알리기`} onClick={(e) => e.target === dlg.current && close()}>
+      {/* onClose = 닫기 단추 · 바깥 클릭 · ESC(브라우저가 직접 닫음) 모두 — 지난 실패 안내를 지운다 */}
+      <dialog ref={dlg} className="report-dlg" aria-label={`${lemma} 이상한 곳 알리기`} onClick={(e) => e.target === dlg.current && close()} onClose={() => setErr('')}>
         <div className="report-in">
         <h2>
           <span lang="de">{lemma}</span> 어디가 이상해요?

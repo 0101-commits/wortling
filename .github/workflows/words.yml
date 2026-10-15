@@ -50,12 +50,14 @@ jobs:
           key: words-src-${{ steps.month.outputs.m }}-${{ hashFiles('scripts/words/sources.mjs') }}
           restore-keys: words-src-
       - name: news.mjs (넣은 단어 · 뉴스 · 새 단어 · 순서)
+        id: news
         run: node scripts/words/news.mjs $DRY
       - name: review.mjs (카드 검토)
         if: always()
         run: node scripts/words/review.mjs $DRY
-      - name: 색인 캐시 저장(이번 달 것이 없을 때만)
-        if: always() && steps.cache.outputs.cache-hit != 'true' && hashFiles('.data/words-src/index.json') != ''
+      # 색인을 실제로 새로 만든 날에만(news.mjs 가 rebuilt=1). 다시 만들기가 실패해 지난 색인이 남은 날은 저장하지 않는다
+      - name: 색인 캐시 저장(새로 만든 날만)
+        if: always() && steps.news.outputs.rebuilt == '1'
         continue-on-error: true
         uses: actions/cache/save@v4
         with:

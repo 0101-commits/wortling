@@ -10,5 +10,6 @@ const TEXT: Record<string, string> = {
 }
 
 export function serverErrorText(status: number, code?: string): string {
-  return (code && TEXT[code]) || `서버 오류 ${status}`
+  // 모르는 코드는 상태 번호와 같이 — 폰에서 원인을 짚을 수 있게
+  return (code && TEXT[code]) || (code ? `서버 오류 ${status} · ${code}` : `서버 오류 ${status}`)
 }
