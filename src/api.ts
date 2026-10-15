@@ -1,14 +1,17 @@
 // fetch 감싸기 + 접속 키. VITE_MOCK=1 이면 src/mock.ts 가 대신 답한다.
 import type {
+  ChangesResponse,
   DeckListResponse,
   DrillScope,
   InboxResponse,
+  ReportRequest,
   ReviewsRequest,
   ReviewsResponse,
   Settings,
   StatsResponse,
   TodayResponse,
   WordDetailResponse,
+  WordRequestsResponse,
   WordsQuery,
   WordsResponse,
 } from '../shared/api.ts'
@@ -140,6 +143,13 @@ export const api = {
   pushKey: () => request<{ publicKey: string }>('GET', '/api/push/key'),
   pushSubscribe: (sub: PushSubscriptionJSON) => request<{ ok: boolean; count: number }>('POST', '/api/push/subscribe', sub),
   pushUnsubscribe: (endpoint: string) => request<{ ok: boolean; count: number }>('DELETE', '/api/push/subscribe', { endpoint }),
+  /** 「이상해요」 → 다음 검토 때 먼저 */
+  report: (id: string, body: ReportRequest) => request<{ ok: boolean }>('POST', `/api/words/${encodeURIComponent(id)}/report`, body),
+  requests: () => request<WordRequestsResponse>('GET', '/api/requests'),
+  addRequest: (text: string, url?: string) =>
+    request<{ ok: boolean; id: number; duplicate: boolean }>('POST', '/api/requests', { text, ...(url ? { url } : {}) }),
+  changes: () => request<ChangesResponse>('GET', '/api/changes'),
+  revertChange: (id: number) => request<{ ok: boolean }>('POST', `/api/changes/${id}/revert`),
 }
 
 // ── 채점 전송: 먼저 기기에 적어 두고 보낸 뒤 지운다. 탭이 닫혀도 다음에 열 때 다시 보낸다(서버는 같은 채점을 건너뜀). ──

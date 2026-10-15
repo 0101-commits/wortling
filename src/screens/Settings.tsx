@@ -57,6 +57,13 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
           </span>
           <IconChevronRight aria-hidden />
         </a>
+        <a className="box wh linkrow" {...linkTo('/changes')}>
+          <span>
+            고친 카드
+            <small className="sub">매일 새벽 검토가 바꾼 뜻·예문 · 되돌리기</small>
+          </span>
+          <IconChevronRight aria-hidden />
+        </a>
         <h3 className="sec-t">공부</h3>
         <div className="box wh">
           <div className="kv">

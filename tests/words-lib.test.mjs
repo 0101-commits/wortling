@@ -239,3 +239,15 @@ test('buildIndex: 말뭉치·덱에 있는 표제어만, 활용형 → 기본형
   const picks = pickCandidates({ index: withDeck, have: new Set(), skips: new Set(), hits: new Map(), max: 10, rankMax: 6 }).map((c) => c.key);
   assert.deepEqual(picks, ['ermitteln|verb', 'schön|adj']);
 });
+
+import { fromShare } from '../src/share.ts';
+
+test('fromShare: 공유 글에서 주소는 링크로, 단어 꼴이 아니면 단어 칸은 비움 (Review Focus 3)', () => {
+  const q = (o) => new URLSearchParams(o);
+  assert.equal(fromShare(q({})), null);
+  assert.deepEqual(fromShare(q({ text: 'Ermittlung' })), { word: 'Ermittlung', url: '' });
+  assert.deepEqual(fromShare(q({ title: 'Prozess in Hamburg | NDR.de', text: 'https://www.ndr.de/a' })), { word: '', url: 'https://www.ndr.de/a' });
+  assert.deepEqual(fromShare(q({ text: 'Ermittlung https://www.dw.com/de/x', url: '' })), { word: 'Ermittlung', url: 'https://www.dw.com/de/x' });
+  assert.deepEqual(fromShare(q({ text: 'Die Polizei ermittelt seit Tagen gegen mehrere Verdächtige wegen eines Vorfalls in Hamburg', url: 'https://www.tagesschau.de/x' })),
+    { word: '', url: 'https://www.tagesschau.de/x' });
+});
