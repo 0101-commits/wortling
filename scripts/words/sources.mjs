@@ -11,6 +11,10 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { indexLooksSane, wordKey } from './lib.mjs';
 
+/** 색인 만드는 규칙의 판. 규칙을 바꾸면 올린다 → 같은 달이라도 캐시 색인을 다시 만든다. 2 = 동음 복수형 「모름」(10-15) */
+export const INDEX_VERSION = 2;
+/** 캐시 색인을 그대로 써도 되나: 이번 달 + 같은 판 */
+export const indexFresh = (old, month) => Boolean(old) && old.month === month && old.v === INDEX_VERSION;
 export const KAIKKI_URL = 'https://kaikki.org/dictionary/German/kaikki.org-dictionary-German.jsonl.gz';
 export const DAFLEX_URL = 'https://cental.uclouvain.be/cefrlex/static/resources/de/DAFlex.tsv';
 export const leipzigUrl = (year) => `https://downloads.wortschatz-leipzig.de/corpora/deu_news_${year}_300K.tar.gz`;
@@ -84,6 +88,7 @@ export async function buildIndex({ kaikkiLines, daflexText, leipzigText, deckKey
   const sep = new Map();
   const fn = new Set();
   const facts = new Map();
+  const plurals = new Map();
   const put = (m, f, key) => {
     const a = m.get(f) ?? [];
     if (!a.includes(key)) a.push(key);
@@ -126,10 +131,15 @@ export async function buildIndex({ kaikkiLines, daflexText, leipzigText, deckKey
     if (o.pos === 'noun') {
       const g = new Set(prev?.g ?? []);
       for (const x of o.senses ?? []) for (const t of x.tags ?? []) if (GENDER[t]) g.add(GENDER[t]);
-      const pl = prev?.pl ?? (o.forms ?? []).find((f) => f.tags?.length === 1 && f.tags[0] === 'plural')?.form ?? null;
-      facts.set(key, { g: [...g], pl, en });
+      // 복수형은 동음 표제어(Bank: Banken / Bänke)마다 모아 두었다가 하나로 같을 때만 쓴다(아래). '' = 복수 없음
+      const ps = plurals.get(key) ?? new Set();
+      ps.add((o.forms ?? []).find((f) => f.tags?.length === 1 && f.tags[0] === 'plural')?.form ?? '');
+      plurals.set(key, ps);
+      facts.set(key, { g: [...g], en });
     } else facts.set(key, { en });
   }
+  // 복수형: 동음 표제어끼리 다르면 「모름」(칸 없음) — 그 값을 Claude 에게도 보여 주므로, 하나만 고르면 「사전과 같을 때만」 검사가 독립 근거가 아니게 된다
+  for (const [key, ps] of plurals) if (ps.size === 1) facts.get(key).pl = [...ps][0] || null;
   // Leipzig 순위: 활용형 횟수를 기본형으로 모은다. 기능어 글꼴(einen = 관사)은 안 센다.
   // 1차 = 한 기본형에만 걸리는 활용형, 2차 = 여러 기본형에 걸친 활용형을 나눔 —
   // DAFlex 품사별 빈도가 있으면 그것에 비례(schon → 부사 schon, 명령형 schonen 아님), 없으면 1차 몫에 비례, 둘 다 0이면 똑같이.
@@ -151,7 +161,7 @@ export async function buildIndex({ kaikkiLines, daflexText, leipzigText, deckKey
   }
   const leipzig = Object.fromEntries([...sum].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([k], i) => [k, i + 1]));
   return {
-    month, built: new Date().toISOString(), src,
+    month, v: INDEX_VERSION, built: new Date().toISOString(), src,
     forms: Object.fromEntries(forms), sep: Object.fromEntries(sep), fn: [...fn].sort(),
     facts: Object.fromEntries(facts), daflex: parseDaflex(daflexText), leipzig,
   };
@@ -191,7 +201,7 @@ export async function ensureIndex({ dir, deckKeys, log, now = new Date() }) {
   } catch {
     old = null;
   }
-  if (old?.month === month) return { index: old, rebuilt: false };
+  if (indexFresh(old, month)) return { index: old, rebuilt: false };
   try {
     mkdirSync(dir, { recursive: true });
     const kz = path.join(dir, 'kaikki-de.jsonl.gz');

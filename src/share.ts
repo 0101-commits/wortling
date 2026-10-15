@@ -8,8 +8,10 @@ export function fromShare(q: URLSearchParams): { word: string; url: string } | n
   const link = q.get('url') ?? ''
   if (!title && !text && !link) return null
   const url = link.startsWith('https://') ? link : ((text + ' ' + title).match(/https:\/\/\S+/)?.[0] ?? '')
-  const rest = text.replace(/https?:\/\/\S+/g, ' ').trim().replace(/\s+/g, ' ')
-  return { word: REQ_TEXT.test(rest) ? rest : '', url }
+  const rest = text.replace(/https?:\/\/\S+/g, ' ').trim().replace(/\s+/g, ' ').replace(/^[„“”"«»‚‘’']+|[„“”"«»‚‘’']+$/g, '')
+  // 주소와 같이 온 글은 보통 기사 제목 — 3낱말 이하(낱말·숙어)만 단어 칸으로
+  const short = rest.split(' ').length <= 3
+  return { word: REQ_TEXT.test(rest) && (!url || short) ? rest : '', url }
 }
 
 /** 공유로 열렸으면 주소의 ?title·text·url 을 지우고 #/words?add=…&url=… 로 */

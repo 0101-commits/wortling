@@ -1100,10 +1100,17 @@ code {
 .report-dlg {
   border: 0;
   border-radius: 20px;
-  padding: 20px;
+  padding: 0;
   width: min(calc(100vw - 32px), 420px);
   background: var(--paper);
   color: var(--ink);
+}
+.report-in {
+  padding: 20px;
+}
+.report-err {
+  margin: 10px 0 0;
+  color: var(--bad);
 }
 .report-dlg::backdrop {
   background: rgb(0 0 0 / 0.35);

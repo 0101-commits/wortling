@@ -15,6 +15,7 @@ import type {
   WordsQuery,
   WordsResponse,
 } from '../shared/api.ts'
+import { serverErrorText } from './errors.ts'
 
 export const MOCK = import.meta.env.VITE_MOCK === '1'
 const TOKEN_KEY = 'wortling.token'
@@ -88,7 +89,7 @@ async function request<T>(method: string, path: string, body?: unknown, keepaliv
   }
   if (!res.ok) {
     const j = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new ApiError(res.status, j?.error ? `서버 오류 ${res.status} · ${j.error}` : `서버 오류 ${res.status}`, j?.error)
+    throw new ApiError(res.status, serverErrorText(res.status, j?.error), j?.error)
   }
   return res.json() as Promise<T>
 }

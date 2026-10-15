@@ -19,17 +19,20 @@ export function ReportButton({ wordId, lemma }: { wordId: string; lemma: string 
   const [kind, setKind] = useState<ReportKind>('meaning')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
+  // 실패 안내는 창 안에 — 토스트는 모달(top layer) 뒤에 깔려 안 보였다
+  const [err, setErr] = useState('')
   const toast = useToaster()
   const close = () => dlg.current?.close()
   const send = async () => {
     setBusy(true)
+    setErr('')
     try {
       await api.report(wordId, { kind, ...(note.trim() ? { note: note.trim() } : {}) })
       close()
       setNote('')
       toast('고마워요. 내일 아침 전에 다시 볼게요.', 'positive')
     } catch (e) {
-      toast(errorText(e), 'negative')
+      setErr(errorText(e))
     } finally {
       setBusy(false)
     }
@@ -39,7 +42,10 @@ export function ReportButton({ wordId, lemma }: { wordId: string; lemma: string 
       <button type="button" className="revonly" onClick={(e) => { e.stopPropagation(); dlg.current?.showModal() }}>
         이상해요
       </button>
-      <dialog ref={dlg} className="report-dlg" aria-label={`${lemma} 이상한 곳 알리기`} onClick={(e) => e.target === dlg.current && close()}>
+      {/* 바깥(뒤 배경)을 누르면 닫힘. 내용을 안쪽 칸에 넣어 dialog 자신 = 뒤 배경뿐(창 여백을 눌러도 닫히던 것 고침) */}
+      {/* onClose = 닫기 단추 · 바깥 클릭 · ESC(브라우저가 직접 닫음) 모두 — 지난 실패 안내를 지운다 */}
+      <dialog ref={dlg} className="report-dlg" aria-label={`${lemma} 이상한 곳 알리기`} onClick={(e) => e.target === dlg.current && close()} onClose={() => setErr('')}>
+        <div className="report-in">
         <h2>
           <span lang="de">{lemma}</span> 어디가 이상해요?
         </h2>
@@ -51,9 +57,15 @@ export function ReportButton({ wordId, lemma }: { wordId: string; lemma: string 
           ))}
         </div>
         <TextField placeholder="한 줄 메모(선택)" aria-label="메모" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
+        {err && (
+          <p className="small report-err" role="alert">
+            보내지 못했어요 · {err}
+          </p>
+        )}
         <div className="report-act">
           <Button variant="outlined" color="assistive" onClick={close}>닫기</Button>
           <Button loading={busy} onClick={send}>보내기</Button>
+        </div>
         </div>
       </dialog>
     </>

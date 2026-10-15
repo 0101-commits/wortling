@@ -25,7 +25,7 @@ import { LATER_MS, WEBHOOK_KEY, WEBHOOK_RE, laterAllowed, sendTest, webhookUrl }
 import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
 import { HttpError, bad } from './http.ts';
 import {
-  addReport, addRequest, getNews, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
+  LIST_ORDER, addReport, addRequest, getNews, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
   reseq, revertChange, reviewQueue, reviewStats, settleRequest, wordKeys,
 } from './words.ts';
 
@@ -169,7 +169,7 @@ const words: Handler = async ({ env, url }) => {
       ? 'c.introduced_at DESC, w.seq'
       : sort === 'alpha'
         ? `${ALPHA_KEY}, w.seq`
-        : 'w.seq';
+        : LIST_ORDER;
   const from = `FROM words w JOIN cards c ON c.word_id = w.id${where.length ? ' WHERE ' + where.join(' AND ') : ''}`;
   const [cnt, rows] = await env.DB.batch([
     env.DB.prepare(`SELECT count(*) AS n ${from}`).bind(...binds),
@@ -212,7 +212,7 @@ const artikel: Handler = async ({ env, url }) => {
   const items = sqlRows(seen).map(rowToItem);
   if (items.length < n) {
     const more = await env.DB.prepare(
-      `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id WHERE ${noun} AND c.state = 0 ORDER BY w.seq LIMIT ?`,
+      `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id WHERE ${noun} AND c.state = 0 ORDER BY w.seq, w.lemma LIMIT ?`,
     )
       .bind(n - items.length)
       .all();

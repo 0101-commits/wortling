@@ -4,10 +4,10 @@
 // 뉴스 글은 어디에도 남기지 않는다 — 기본형별 기사 수와 링크 1개만 서버로, 로그엔 수만(공개 저장소의 Actions 로그).
 import path from 'node:path';
 import { askJson } from '../claude.mjs';
-import { ROOT, addDays, api, kstDay, notify, requireEnv } from '../admin.mjs';
+import { ROOT, addDays, api, kstDay, notify, requireEnv, setOutput } from '../admin.mjs';
 import { ensureIndex } from './sources.mjs';
 import {
-  acceptContent, acceptRequests, cefr3, contentPrompt, countNews, own, parseRss, parseTagesschau, pickCandidates, requestPrompt, wordKey,
+  acceptContent, acceptRequests, cefr3, contentPrompt, countNews, newsItems, newsProblems, own, parseRss, parseTagesschau, pickCandidates, requestPrompt, wordKey,
 } from './lib.mjs';
 
 const DRY = process.argv.includes('--dry');
@@ -36,6 +36,8 @@ try {
   const keys = await api('/api/admin/keys');
   const { index, rebuilt } = await ensureIndex({ dir: path.join(ROOT, '.data', 'words-src'), deckKeys: keys.items.map((w) => wordKey(w.lemma, w.pos)), log });
   log.index = index ? { month: index.month, rebuilt, src: index.src } : null;
+  // 새로 만든 날에만 캐시 저장(words.yml) — 실패해 지난 색인이 남은 날 그것을 이번 달 열쇠로 저장하면 그달 내내 다시 받았다
+  if (rebuilt) setOutput('rebuilt', '1');
   await step('넣은 단어', () => requests(index, keys));
   if (index && FEEDS) await step('뉴스', () => news(index));
   if (index) await step('새 단어', () => candidates(index));
@@ -110,10 +112,12 @@ async function news(index) {
       log.news[name] = `실패 ${String(e.message || e).slice(0, 60)}`;
     }
   }
+  // 두 곳 다 못 받은 날은 오류로 알린다(한 곳만이면 조용히 — 다른 곳으로 센다)
+  log.errors.push(...newsProblems({ tagesschau: log.news.tagesschau, ndr: log.news.ndr }));
   const counts = countNews(arts, index);
   log.news.keys = counts.size;
   if (!counts.size || DRY) return;
-  const items = [...counts].map(([key, v]) => ({ key, n: v.n, url: v.url }));
+  const items = newsItems(counts);
   for (let i = 0; i < items.length; i += CHUNK) await api('/api/admin/news', { method: 'POST', body: { day, items: items.slice(i, i + CHUNK) } });
 }
 
