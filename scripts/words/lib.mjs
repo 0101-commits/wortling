@@ -93,6 +93,7 @@ export const cefr3 = (d) => (d === 'A1' || d === 'A2' || d === 'B1' ? 'B1' : d =
  * have = 덱 열쇠 소문자 Set, skips = 뺀 열쇠 Set, hits = Map(열쇠 → {n})
  */
 export function pickCandidates({ index, have, skips, hits, max = 30, rankMax = 20000 }) {
+  const fn = new Set(index.fn ?? []);
   const out = [];
   for (const key of new Set([...Object.keys(index.leipzig), ...hits.keys()])) {
     const rank = own(index.leipzig, key) ?? null;
@@ -101,6 +102,8 @@ export function pickCandidates({ index, have, skips, hits, max = 30, rankMax = 2
     if (have.has(key.toLowerCase()) || skips.has(key) || !own(index.facts, key)) continue;
     const [lemma, pos] = key.split('|');
     if (lemma.length < 3 || /^[A-ZÄÖÜ]{2,}$/.test(lemma)) continue; // 약어(EU·SPD)
+    // 동음이의: 표제어가 기능어(einen = 관사)이거나 다른 기본형의 활용형(schönen = schön)이면 빈도가 그쪽 몫이라 뺀다
+    if (fn.has(lemma) || (own(index.forms, lemma) ?? []).some((k) => k !== key)) continue;
     const d = own(index.daflex, lemma.toLowerCase());
     if (d === 'A1' || d === 'A2') continue; // 이미 아는 단계
     out.push({ key, lemma, pos, rank, hits: n, level: cefr3(d) ?? 'C1' });
@@ -191,7 +194,7 @@ export function exampleHasWord(de, w, index) {
   if (findWord(de, w.lemma)) return true;
   if (!index) return false;
   const key = wordKey(w.lemma, w.pos);
-  return tokens(de).some((t, i) => lemmatize(t, index, i === 0).includes(key));
+  return tokens(de).some((t, i) => lemmatize(t, index, i === 0).includes(key) || (own(index.sep, t) ?? []).includes(key));
 }
 
 /** 검토 근거. 색인이 없으면 모름 → 관사·복수·레벨은 자동으로 「확인 필요」 */

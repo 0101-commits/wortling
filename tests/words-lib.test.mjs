@@ -7,7 +7,9 @@ import {
 } from '../scripts/words/lib.mjs';
 
 const INDEX = {
-  forms: { Umzug: ['Umzug|noun'], Umzüge: ['Umzug|noun'], ermittelte: ['ermitteln|verb'], ermitteln: ['ermitteln|verb'], Vorfall: ['Vorfall|noun'], rief: ['anrufen|verb'], Bank: ['Bank|noun'] },
+  forms: { Umzug: ['Umzug|noun'], Umzüge: ['Umzug|noun'], ermittelte: ['ermitteln|verb'], ermitteln: ['ermitteln|verb'], Vorfall: ['Vorfall|noun'], Bank: ['Bank|noun'] },
+  sep: { rief: ['anrufen|verb'] },
+  fn: [],
   facts: {
     'Umzug|noun': { g: ['der'], pl: 'Umzüge', en: 'move' },
     'ermitteln|verb': { en: 'to investigate' },
@@ -164,4 +166,63 @@ test('exampleHasWord · factsFor · reviewPrompt', () => {
   assert.match(p, /"learner_report":\{"kind":"meaning"/);
   assert.match(p, /"wiktionary_plural":"Umzüge"/);
   assert.match(p, /exactly 1 objects/);
+});
+
+import { buildIndex, parseDaflex, parseLeipzig } from '../scripts/words/sources.mjs';
+
+const KAIKKI = [
+  { word: 'Umzug', pos: 'noun', forms: [{ form: 'Umzüge', tags: ['plural'] }, { form: 'Umzugs', tags: ['genitive'] }, { form: 'strong', tags: ['table-tags'] }], senses: [{ glosses: ['move, relocation'], tags: ['masculine'] }] },
+  { word: 'ermitteln', pos: 'verb', forms: [{ form: 'ermittelte', tags: ['past'] }, { form: 'haben', tags: ['auxiliary'] }], senses: [{ glosses: ['to investigate'] }] },
+  { word: 'anrufen', pos: 'verb', forms: [{ form: 'rief an', tags: ['past'] }], senses: [{ glosses: ['to call'] }] },
+  { word: 'Umzüge', pos: 'noun', senses: [{ form_of: [{ word: 'Umzug' }], glosses: ['plural of Umzug'] }] },
+  { word: 'Berlin', pos: 'name', senses: [{ glosses: ['capital'] }] },
+  { word: 'Zzzwort', pos: 'noun', senses: [{ glosses: ['rare'], tags: ['neuter'] }] },
+  // 두 낱말 활용형은 분리동사(「rief an」)만 — 「zu betrüben」·「habe betrübt」·「viel sagend」의 앞 낱말은 활용형이 아니다
+  { word: 'betrüben', pos: 'verb', forms: [{ form: 'zu betrüben', tags: ['infinitive', 'zu'] }, { form: 'habe betrübt', tags: ['perfect'] }], senses: [{ glosses: ['to sadden'] }] },
+  { word: 'betrübend', pos: 'verb', forms: [{ form: 'zu betrüben', tags: ['infinitive'] }], senses: [{ glosses: ['saddening'] }] },
+  { word: 'ein', pos: 'article', forms: [{ form: 'einen', tags: ['accusative'] }], senses: [{ glosses: ['a'] }] },
+  { word: 'einen', pos: 'verb', senses: [{ glosses: ['to unite'] }] },
+  { word: 'schön', pos: 'adj', forms: [{ form: 'schönen', tags: ['weak'] }], senses: [{ glosses: ['beautiful'] }] },
+  { word: 'schönen', pos: 'verb', senses: [{ glosses: ['to embellish'] }] },
+  { word: 'haben', pos: 'verb', forms: [{ form: 'hatte', tags: ['past'] }], senses: [{ glosses: ['to have'] }] },
+  { word: 'haten', pos: 'verb', forms: [{ form: 'hatte', tags: ['past'] }], senses: [{ glosses: ['to hate (rare)'] }] },
+  { word: 'schon', pos: 'adv', senses: [{ glosses: ['already'] }] },
+  { word: 'schonen', pos: 'verb', forms: [{ form: 'schon', tags: ['imperative'] }, { form: 'schont', tags: ['present'] }], senses: [{ glosses: ['to spare'] }] },
+  { word: 'vielsagend', pos: 'adj', forms: [{ form: 'viel sagend', tags: ['alternative'] }], senses: [{ glosses: ['meaningful'] }] },
+].map((o) => JSON.stringify(o)).concat(['not json', '']);
+const DAFLEX = '"word"\t"tag"\t"level_freq@a1"\t"level_freq@a2"\t"level_freq@b1"\t"level_freq@b2"\t"level_freq@c1"\t"level_freq@c2"\t"total_freq@total"\n'
+  + '"umzug"\t"NN"\t"0.0"\t"1.2"\t"0.0"\t"0.0"\t"0.0"\t"0.0"\n"berlin"\t"NE"\t"5"\t"0"\t"0"\t"0"\t"0"\t"0"\n"ermitteln"\t"VVINF"\t"0"\t"0"\t"0"\t"0.4"\t"0"\t"0"\n"haben"\t"VAFIN"\t"9"\t"0"\t"0"\t"0"\t"0"\t"0"\n"schon"\t"ADV"\t"40"\t"0"\t"0"\t"0"\t"0"\t"0"\t"500"\n';
+const LEIPZIG = '1\tUmzüge\t30\n2\tUmzug\t20\n3\termittelte\t70\n4\trief\t5\n5\tBerlin\t500\n6\tkaputt-zeile\n7\tzu\t900\n8\thabe\t400\n9\tviel\t300\n10\teinen\t800\n11\tschönen\t60\n12\thaben\t500\n13\thatte\t1000\n14\thaten\t1\n15\tschon\t700\n16\tschont\t2\n';
+
+test('parseDaflex · parseLeipzig', () => {
+  assert.deepEqual(parseDaflex(DAFLEX), { umzug: 'A2', ermitteln: 'B2', haben: 'A1', schon: 'A1' });
+  assert.deepEqual([...parseLeipzig(LEIPZIG)], [['Umzüge', 30], ['Umzug', 20], ['ermittelte', 70], ['rief', 5], ['Berlin', 500], ['zu', 900], ['habe', 400], ['viel', 300], ['einen', 800], ['schönen', 60], ['haben', 500], ['hatte', 1000], ['haten', 1], ['schon', 700], ['schont', 2]]);
+});
+
+test('buildIndex: 말뭉치·덱에 있는 표제어만, 활용형 → 기본형, 성·복수·영어 뜻, Leipzig 기본형 순위', async () => {
+  const ix = await buildIndex({ kaikkiLines: KAIKKI, daflexText: DAFLEX, leipzigText: LEIPZIG, deckKeys: [], month: '2026-10' });
+  assert.equal(ix.month, '2026-10');
+  assert.deepEqual(ix.forms['Umzüge'], ['Umzug|noun']);
+  assert.deepEqual(ix.forms['ermittelte'], ['ermitteln|verb']);
+  assert.equal(Object.hasOwn(ix.forms, 'rief'), false, '분리동사 앞 낱말은 빈도 셈(forms)에 안 넣음');
+  assert.equal(Object.hasOwn(ix.sep, 'rief'), false, '덱에도 말뭉치에도 없는 anrufen 은 안 담음');
+  assert.deepEqual(ix.fn, ['ein', 'einen'], '관사 등 기능어 글꼴');
+  assert.deepEqual(ix.forms['schönen'], ['schön|adj', 'schönen|verb']);
+  assert.deepEqual(ix.forms['haben'], ['haben|verb'], '조동사 칸(ermitteln 의 haben)은 활용형 아님');
+  assert.equal(Object.hasOwn(ix.forms, 'Berlin'), false, '고유명사(name)는 안 넣음');
+  for (const fw of ['zu', 'habe', 'viel']) assert.equal(Object.hasOwn(ix.forms, fw), false, `${fw} 는 두 낱말 활용형의 앞 낱말일 뿐`);
+  assert.deepEqual(ix.facts['Umzug|noun'], { g: ['der'], pl: 'Umzüge', en: 'move, relocation' });
+  assert.deepEqual(ix.facts['ermitteln|verb'], { en: 'to investigate' });
+  assert.equal(Object.hasOwn(ix.facts, 'Zzzwort|noun'), false, '말뭉치에도 덱에도 없음');
+  // 빈도 = 한 기본형에만 걸리는 활용형 횟수 + 여러 기본형에 걸친 활용형은 그 몫에 비례해 나눔(hatte 1000 → haben 998 · haten 2),
+  // 기능어 글꼴(einen)은 안 셈, 1차 몫이 모두 0이면 똑같이(schönen 60 → 30 · 30), 같은 횟수는 열쇠 글자 순서
+  // 겹친 활용형은 DAFlex 품사별 빈도가 있으면 그것에 비례(schon 700 → schon|adv), 없으면 1차 몫에 비례
+  assert.deepEqual(ix.leipzig, { 'haben|verb': 1, 'schon|adv': 2, 'ermitteln|verb': 3, 'Umzug|noun': 4, 'schönen|verb': 5, 'schön|adj': 6, 'haten|verb': 7, 'schonen|verb': 8 });
+  assert.deepEqual(ix.daflex, { umzug: 'A2', ermitteln: 'B2', haben: 'A1', schon: 'A1' });
+  const withDeck = await buildIndex({ kaikkiLines: KAIKKI, daflexText: DAFLEX, leipzigText: LEIPZIG, deckKeys: ['Zzzwort|noun', 'anrufen|verb'], month: '2026-10' });
+  assert.deepEqual(withDeck.facts['Zzzwort|noun'], { g: ['das'], pl: null, en: 'rare' });
+  assert.deepEqual(withDeck.sep['rief'], ['anrufen|verb'], '덱 동사면 분리동사 앞 낱말을 예문 검사용으로');
+  // 동음이의 후보: 표제어가 기능어(einen = 관사)이거나 다른 기본형의 활용형(schönen = schön)이면 새 단어로 안 냄. Umzug 는 DAFlex A2
+  const picks = pickCandidates({ index: withDeck, have: new Set(), skips: new Set(), hits: new Map(), max: 10, rankMax: 6 }).map((c) => c.key);
+  assert.deepEqual(picks, ['ermitteln|verb', 'schön|adj']);
 });
