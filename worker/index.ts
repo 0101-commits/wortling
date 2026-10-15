@@ -169,7 +169,7 @@ const words: Handler = async ({ env, url }) => {
       ? 'c.introduced_at DESC, w.seq'
       : sort === 'alpha'
         ? `${ALPHA_KEY}, w.seq`
-        : 'w.seq';
+        : 'w.seq, w.lemma';
   const from = `FROM words w JOIN cards c ON c.word_id = w.id${where.length ? ' WHERE ' + where.join(' AND ') : ''}`;
   const [cnt, rows] = await env.DB.batch([
     env.DB.prepare(`SELECT count(*) AS n ${from}`).bind(...binds),
@@ -212,7 +212,7 @@ const artikel: Handler = async ({ env, url }) => {
   const items = sqlRows(seen).map(rowToItem);
   if (items.length < n) {
     const more = await env.DB.prepare(
-      `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id WHERE ${noun} AND c.state = 0 ORDER BY w.seq LIMIT ?`,
+      `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id WHERE ${noun} AND c.state = 0 ORDER BY w.seq, w.lemma LIMIT ?`,
     )
       .bind(n - items.length)
       .all();

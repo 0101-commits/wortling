@@ -215,6 +215,8 @@ export interface WordRequestItem {
   /** 카드가 된 단어의 표제어 */
   lemma: string | null;
   note: string | null;
+  /** 그 단어를 이미 배우는 중(새 카드 아님) */
+  learned: boolean;
 }
 export interface WordRequestsResponse {
   items: WordRequestItem[];

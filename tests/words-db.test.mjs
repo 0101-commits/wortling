@@ -168,7 +168,7 @@ test('settleRequest: exists 면 그 단어 pinned · 두 번째는 409 · listRe
   await assert.rejects(settleRequest(db, 2, { status: 'queued' }), /bad status/);
   await assert.rejects(settleRequest(db, 2, { status: 'added' }), /word_id required/);
   const list = await listRequests(db, undefined, 10);
-  assert.deepEqual(list[0], { id: 2, text: 'Quatschwort', url: null, created_at: '2026-10-15T00:00:00.000Z', status: 'rejected', word_id: null, lemma: null, note: '독일어 아님' });
+  assert.deepEqual(list[0], { id: 2, text: 'Quatschwort', url: null, created_at: '2026-10-15T00:00:00.000Z', status: 'rejected', word_id: null, lemma: null, note: '독일어 아님', learned: false });
   assert.equal(list[1].lemma, 'Ermittlung');
 });
 

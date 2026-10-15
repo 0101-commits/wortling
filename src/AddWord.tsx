@@ -56,7 +56,7 @@ export function AddWord({ initialWord = '', initialUrl = '', initialOpen = false
           {list.map((r) => (
             <li key={r.id} className="kv">
               {r.word_id ? <a {...linkTo('/word/' + r.word_id)} lang="de">{r.lemma ?? r.text}</a> : <span lang="de">{r.text}</span>}
-              <ContentBadge size="xsmall" variant="outlined" color="neutral">{STATUS[r.status]}</ContentBadge>
+              <ContentBadge size="xsmall" variant="outlined" color="neutral">{r.status === 'exists' && r.learned ? '이미 배우는 단어' : STATUS[r.status]}</ContentBadge>
             </li>
           ))}
         </ul>

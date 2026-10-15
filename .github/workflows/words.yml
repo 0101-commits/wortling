@@ -40,7 +40,10 @@ jobs:
         run: npm i -g @anthropic-ai/claude-code
       - id: month
         run: echo "m=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
+      # 복원과 저장을 나눈다 — actions/cache 하나로는 작업이 실패하면(검토 묶음 하나만 실패해도) 새 색인이 저장되지 않아
+      # 다음 날 원본 ≈170MB 를 다시 받았다(최종 검토 반영)
+      - id: cache
+        uses: actions/cache/restore@v4
         with:
           path: .data/words-src/index.json
           key: words-src-${{ steps.month.outputs.m }}
@@ -50,3 +53,10 @@ jobs:
       - name: review.mjs (카드 검토)
         if: always()
         run: node scripts/words/review.mjs $DRY
+      - name: 색인 캐시 저장(이번 달 것이 없을 때만)
+        if: always() && steps.cache.outputs.cache-hit != 'true' && hashFiles('.data/words-src/index.json') != ''
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: .data/words-src/index.json
+          key: words-src-${{ steps.month.outputs.m }}

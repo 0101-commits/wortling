@@ -18,6 +18,14 @@ const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** 열쇠 = 기본형|품사, 앞의 sich 는 뺀다(대소문자 그대로). scripts/words/lib.mjs 의 wordKey 와 같은 규칙 */
 export const KEY_SQL = "(CASE WHEN w.lemma LIKE 'sich %' THEN substr(w.lemma, 6) ELSE w.lemma END) || '|' || w.pos";
 const LEVEL_ORDER = "CASE w.level WHEN 'B1' THEN 1 WHEN 'B2' THEN 2 ELSE 3 END";
+/**
+ * 안 배운 카드의 순서 열쇠 = 그 단어 자신의 값만으로 만든 수(넣은 단어 → 레벨 → 뉴스 2회 이상 → news_rank → freq_rank).
+ * 순번(row_number)으로 매겼더니 새 단어 하나가 끼면 뒤 카드 수천 장의 seq 가 한 칸씩 밀려 매일 수천 줄을 썼다(최종 검토 반영).
+ * 같은 열쇠는 고르는 쪽에서 lemma 로 가른다. 배운 카드는 예전 순번(작은 수) 그대로라 늘 앞.
+ */
+const SEQ_KEY = `(1 - w.pinned) * 4000000000 + ${LEVEL_ORDER} * 1000000000
+  + CASE WHEN w.news_hits30 >= 2 THEN 0 ELSE 500000000 END
+  + CASE WHEN w.news_rank IS NOT NULL THEN min(w.news_rank, 399999999) ELSE 400000000 + coalesce(min(w.freq_rank, 99999999), 99999999) END`;
 /** D1·node:sqlite 줄 → 보통 객체 */
 const plain = (r: unknown) => ({ ...(r as Record<string, unknown>) });
 const str = (x: unknown, max: number) => (x == null ? null : String(x).slice(0, max));
@@ -157,11 +165,11 @@ export async function reviewQueue(db: D1Database, limit: number, now = new Date(
       FROM word_reports r JOIN words w ON w.id = r.word_id WHERE r.closed_at IS NULL ORDER BY r.created_at LIMIT ?`).bind(limit),
     db.prepare(`SELECT ${REVIEW_COLS} FROM (
         SELECT w.* FROM words w JOIN cards c ON c.word_id = w.id
-        WHERE c.state = 0 AND c.suspended = 0 AND ${inLevel} ORDER BY w.pinned DESC, w.seq LIMIT ?
+        WHERE c.state = 0 AND c.suspended = 0 AND ${inLevel} ORDER BY w.pinned DESC, w.seq, w.lemma LIMIT ?
       ) w WHERE ${notFresh}`).bind(...lv, 14 * s.new_per_day, stale),
     db.prepare(`SELECT ${REVIEW_COLS} FROM words w JOIN cards c ON c.word_id = w.id
       WHERE c.state IN (1, 2, 3) AND c.suspended = 0 AND c.due < ? AND ${notFresh} ORDER BY c.due LIMIT ?`).bind(soon, stale, limit),
-    db.prepare(`SELECT ${REVIEW_COLS} FROM words w WHERE w.checked_at IS NULL ORDER BY w.seq LIMIT ?`).bind(limit),
+    db.prepare(`SELECT ${REVIEW_COLS} FROM words w WHERE w.checked_at IS NULL ORDER BY w.seq, w.lemma LIMIT ?`).bind(limit),
     db.prepare(`SELECT ${REVIEW_COLS} FROM words w WHERE w.checked_at < ? ORDER BY w.checked_at LIMIT ?`).bind(stale, limit),
   ]);
   const out: ReviewQueueItem[] = [];
@@ -203,13 +211,10 @@ export async function reseq(db: D1Database, now = new Date()) {
     db.prepare(`UPDATE words SET news_hits30 = x.h FROM (
         SELECT w.id, coalesce((SELECT sum(d.n) FROM news_days d WHERE d.key = ${KEY_SQL} AND d.day >= ?), 0) AS h FROM words w
       ) x WHERE words.id = x.id AND words.news_hits30 != x.h`).bind(since),
-    db.prepare(`UPDATE words SET seq = x.rn FROM (
-        SELECT w.id,
-          (SELECT coalesce(max(w2.seq), 0) FROM words w2 JOIN cards c2 ON c2.word_id = w2.id WHERE c2.state != 0 OR c2.introduced_at IS NOT NULL)
-          + row_number() OVER (ORDER BY w.pinned DESC, ${LEVEL_ORDER}, (w.news_hits30 >= 2) DESC,
-              w.news_rank IS NULL, w.news_rank, w.freq_rank IS NULL, w.freq_rank, w.lemma) AS rn
+    db.prepare(`UPDATE words SET seq = x.k FROM (
+        SELECT w.id, ${SEQ_KEY} AS k
         FROM words w JOIN cards c ON c.word_id = w.id WHERE c.state = 0 AND c.introduced_at IS NULL
-      ) x WHERE words.id = x.id AND words.seq != x.rn`),
+      ) x WHERE words.id = x.id AND words.seq != x.k`),
   ]);
   return { hits: h.meta.changes ?? 0, moved: m.meta.changes ?? 0 };
 }
@@ -281,12 +286,13 @@ export async function addRequest(db: D1Database, body: { text?: unknown; url?: u
 
 /** status 를 주면 그 상태만 오래된 순(작업용), 안 주면 최근 순(앱) */
 export async function listRequests(db: D1Database, status: string | undefined, limit: number): Promise<WordRequestItem[]> {
-  const r = await db.prepare(`SELECT q.id, q.text, q.url, q.created_at, q.status, q.word_id, w.lemma, q.note
-      FROM word_requests q LEFT JOIN words w ON w.id = q.word_id
+  const r = await db.prepare(`SELECT q.id, q.text, q.url, q.created_at, q.status, q.word_id, w.lemma, q.note,
+        CASE WHEN c.state IS NOT NULL AND (c.state != 0 OR c.introduced_at IS NOT NULL) THEN 1 ELSE 0 END AS learned
+      FROM word_requests q LEFT JOIN words w ON w.id = q.word_id LEFT JOIN cards c ON c.word_id = q.word_id
       ${status ? 'WHERE q.status = ?' : ''} ORDER BY q.id ${status ? 'ASC' : 'DESC'} LIMIT ?`)
     .bind(...(status ? [status, limit] : [limit]))
     .all();
-  return r.results.map((x) => plain(x) as unknown as WordRequestItem);
+  return r.results.map((x) => ({ ...plain(x), learned: Boolean((x as { learned: number }).learned) }) as unknown as WordRequestItem);
 }
 
 /** 넣은 단어 처리 결과. added·exists 면 그 단어를 새 카드 맨 앞(pinned)으로 */
@@ -336,6 +342,8 @@ export async function revertChange(db: D1Database, id: number, now = new Date())
   await db.batch(all.flatMap((x) => [
     db.prepare(`UPDATE words SET ${x.field} = ? WHERE id = ?`).bind(x.old, x.word_id),
     db.prepare('UPDATE word_changes SET reverted_at = ? WHERE id = ?').bind(at, x.id),
+    // 뜻을 되돌리면 그 뜻은 사용자가 고른 것(mine — 검토가 다시 안 바꿈), 새 뜻으로 그린 그림은 다시 그린다
+    ...(x.field === 'gloss_ko' ? [db.prepare("UPDATE words SET gloss_status = 'mine', image_status = 'none' WHERE id = ?").bind(x.word_id)] : []),
   ]));
   return { ok: true as const };
 }

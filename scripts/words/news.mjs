@@ -7,7 +7,7 @@ import { askJson } from '../claude.mjs';
 import { ROOT, addDays, api, kstDay, notify, requireEnv } from '../admin.mjs';
 import { ensureIndex } from './sources.mjs';
 import {
-  acceptContent, acceptRequests, cefr3, contentPrompt, countNews, own, parseRss, parseTagesschau, pickCandidates, requestPrompt, wordKey,
+  acceptContent, acceptRequests, cefr3, contentPrompt, countNews, newsItems, newsProblems, own, parseRss, parseTagesschau, pickCandidates, requestPrompt, wordKey,
 } from './lib.mjs';
 
 const DRY = process.argv.includes('--dry');
@@ -110,10 +110,12 @@ async function news(index) {
       log.news[name] = `실패 ${String(e.message || e).slice(0, 60)}`;
     }
   }
+  // 두 곳 다 못 받은 날은 오류로 알린다(한 곳만이면 조용히 — 다른 곳으로 센다)
+  log.errors.push(...newsProblems({ tagesschau: log.news.tagesschau, ndr: log.news.ndr }));
   const counts = countNews(arts, index);
   log.news.keys = counts.size;
   if (!counts.size || DRY) return;
-  const items = [...counts].map(([key, v]) => ({ key, n: v.n, url: v.url }));
+  const items = newsItems(counts);
   for (let i = 0; i < items.length; i += CHUNK) await api('/api/admin/news', { method: 'POST', body: { day, items: items.slice(i, i + CHUNK) } });
 }
 

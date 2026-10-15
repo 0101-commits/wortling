@@ -200,8 +200,8 @@ function applyReviews(body: ReviewsRequest) {
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const requests: WordRequestItem[] = [
-  { id: 2, text: 'ermittelte', url: 'https://www.dw.com/de/x', created_at: ago(0), status: 'queued', word_id: null, lemma: null, note: null },
-  { id: 1, text: 'Umzug', url: null, created_at: ago(1), status: 'exists', word_id: 'w002', lemma: 'Umzug', note: null },
+  { id: 2, text: 'ermittelte', url: 'https://www.dw.com/de/x', created_at: ago(0), status: 'queued', word_id: null, lemma: null, note: null, learned: false },
+  { id: 1, text: 'Umzug', url: null, created_at: ago(1), status: 'exists', word_id: 'w002', lemma: 'Umzug', note: null, learned: true },
 ]
 const changes: ChangeItem[] = [
   { id: 2, word_id: 'w004', lemma: 'Entscheidung', field: 'level', old: 'B1', new: 'B2', why: '검토 판정 · 안 바꿈: DAFlex: B1', source: 'review', applied: 0, reverted_at: null, at: ago(0) },
@@ -229,11 +229,15 @@ export async function mockHandle(method: string, path: string, body?: unknown): 
     const nouns = words.map(item).filter((it) => it.word.pos === 'noun' && it.word.gender)
     return { items: nouns.slice(0, Number(url.searchParams.get('n') ?? 20)) }
   }
-  if (/^\/api\/words\/[\w-]+\/report$/.test(p) && method === 'POST') return { ok: true, id: 1 }
+  if (/^\/api\/words\/[\w-]+\/report$/.test(p) && method === 'POST') {
+    // 게이트가 보내기 실패 안내를 보려고 쓰는 메모
+    if ((body as { note?: string })?.note === '실패시험') throw new Error('서버 오류 500')
+    return { ok: true, id: 1 }
+  }
   if (p === '/api/requests' && method === 'GET') return { items: requests }
   if (p === '/api/requests' && method === 'POST') {
     const b = body as { text: string; url?: string }
-    requests.unshift({ id: requests.length + 1, text: b.text, url: b.url ?? null, created_at: iso(now()), status: 'queued', word_id: null, lemma: null, note: null })
+    requests.unshift({ id: requests.length + 1, text: b.text, url: b.url ?? null, created_at: iso(now()), status: 'queued', word_id: null, lemma: null, note: null, learned: false })
     return { ok: true, id: requests.length, duplicate: false }
   }
   if (p === '/api/changes') return { items: changes }

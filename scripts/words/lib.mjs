@@ -367,3 +367,18 @@ export function summaryText(st) {
   const pct = st.total ? Math.round((st.checked / st.total) * 100) : 0;
   return `검토한 카드 ${st.checked}/${st.total} (${pct}%)\n이번 주: 고침 ${st.week.applied} · 확인 필요 ${st.week.flagged} · 새 단어(뉴스) ${st.week.news} · 내가 넣은 ${st.week.mine}\n앱 설정 → 고친 카드에서 보고 되돌릴 수 있어요.`;
 }
+
+/** 뉴스 받기 결과({곳: 기사 수 | '실패 …'}) → 오류로 알릴 것. 한 곳만 실패면 조용히(다른 곳으로 셈), 다 0·실패면 알림 */
+export function newsProblems(stats) {
+  const v = Object.entries(stats);
+  if (!v.length || v.some(([, x]) => typeof x === 'number' && x > 0)) return [];
+  return [`뉴스 못 받음 — ${v.map(([k, x]) => `${k} ${x}`).join(' · ')}`];
+}
+
+const NEWS_KEY = /^[^|]{1,60}\|[a-z]+$/; // worker/words.ts putNews 와 같은 규칙
+/** countNews 결과 → POST /api/admin/news 줄. 서버가 거절할 줄(60자 넘는 기본형 등)은 미리 빼서 묶음 하나가 통째로 400 나지 않게 */
+export function newsItems(counts) {
+  return [...counts]
+    .filter(([key]) => NEWS_KEY.test(key))
+    .map(([key, v]) => ({ key, n: v.n, url: typeof v.url === 'string' && v.url.startsWith('https://') && v.url.length <= 500 ? v.url : null }));
+}
