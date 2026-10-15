@@ -22,3 +22,112 @@ test('pinned: 레벨 설정(B1) 밖의 C1 단어도 새 카드 맨 앞', async (
   const t = await buildToday(db, s, new Date('2026-10-15T00:00:00Z'));
   assert.deepEqual(t.fresh.map((x) => x.word.id), ['w0002', 'w0001']);
 });
+import { getNews, insertWords, patchWords, putNews, putSkips, reseq, reviewQueue, wordKeys } from '../worker/words.ts';
+
+const NOW = new Date('2026-10-15T00:00:00Z');
+const row = (db, sql) => ({ ...db.raw.prepare(sql).get() });
+
+test('patchWords: 고침 + 기록 + checked_at + 신고 닫기 + 그림 다시', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Umzug', gloss_ko: '이동', image_status: 'ok' });
+  db.raw.prepare("INSERT INTO word_reports(word_id, kind, created_at) VALUES ('w0001', 'meaning', '2026-10-14T00:00:00Z')").run();
+  const r = await patchWords(db, [{
+    id: 'w0001', gloss_ko: '이사', gloss_status: 'checked', checked: true, image_reset: true, close_reports: true,
+    changes: [{ field: 'gloss_ko', old: '이동', new: '이사', why: '주된 뜻', applied: 1, source: 'report' }],
+  }], NOW);
+  assert.deepEqual(r, { updated: 1, changes: 1 });
+  assert.deepEqual(row(db, "SELECT gloss_ko, gloss_status, checked_at, image_status FROM words WHERE id = 'w0001'"),
+    { gloss_ko: '이사', gloss_status: 'checked', checked_at: '2026-10-15T00:00:00.000Z', image_status: 'none' });
+  assert.equal(row(db, 'SELECT closed_at FROM word_reports').closed_at, '2026-10-15T00:00:00.000Z');
+  assert.deepEqual(row(db, 'SELECT field, old, new, why, source, applied FROM word_changes'),
+    { field: 'gloss_ko', old: '이동', new: '이사', why: '주된 뜻', source: 'report', applied: 1 });
+});
+
+test('patchWords: 예전 규칙(gloss_ko 만 → generated) · 잘못된 값 400', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Haus', gloss_status: 'checked' });
+  await patchWords(db, [{ id: 'w0001', gloss_ko: '집' }]);
+  assert.equal(row(db, 'SELECT gloss_status FROM words').gloss_status, 'generated');
+  await patchWords(db, [{ id: 'w0001', news_rank: 12, gender: 'das', plural: 'Häuser', level: 'B2' }]);
+  assert.deepEqual(row(db, 'SELECT news_rank, gender, plural, level FROM words'), { news_rank: 12, gender: 'das', plural: 'Häuser', level: 'B2' });
+  await assert.rejects(patchWords(db, [{ id: 'w0001', level: 'A1' }]), /bad level/);
+  await assert.rejects(patchWords(db, [{ id: 'w0001', gender: 'm' }]), /bad gender/);
+  await assert.rejects(patchWords(db, [{ id: 'w0001', news_rank: 0 }]), /bad news_rank/);
+  await assert.rejects(patchWords(db, [{ id: 'w0001', changes: [{ field: 'lemma', old: 'a', new: 'b', applied: 1 }] }]), /bad change/);
+});
+
+test('reviewQueue: 신고 → 14일 안 새 카드 → 3일 안 복습 → 안 본 것 → 180일 지난 것', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Awort', seq: 1 });
+  addWord(db, { id: 'w0002', lemma: 'Bwort', seq: 2, checked_at: '2026-10-14T00:00:00.000Z' });
+  addWord(db, { id: 'w0003', lemma: 'Cwort', seq: 3 });
+  addWord(db, { id: 'w0004', lemma: 'Dwort', seq: 4, state: 2, due: '2026-10-17T00:00:00.000Z', introduced_at: '2026-10-01T00:00:00.000Z' });
+  addWord(db, { id: 'w0005', lemma: 'Ewort', seq: 5, state: 2, due: '2026-10-25T00:00:00.000Z', introduced_at: '2026-10-01T00:00:00.000Z' });
+  addWord(db, { id: 'w0006', lemma: 'Fwort', seq: 6, level: 'C1' });
+  addWord(db, { id: 'w0007', lemma: 'Gwort', seq: 7, level: 'C1', checked_at: '2026-03-01T00:00:00.000Z' });
+  addWord(db, { id: 'w0008', lemma: 'Hwort', seq: 8, level: 'C1', checked_at: '2026-10-10T00:00:00.000Z' });
+  db.raw.prepare("INSERT INTO word_reports(word_id, kind, note, created_at) VALUES ('w0006', 'example', '예문이 이상', '2026-10-14T00:00:00Z')").run();
+  db.raw.prepare("INSERT INTO word_changes(word_id, field, old, new, applied, reverted_at, at) VALUES ('w0003', 'gloss_ko', 'a', 'b', 1, '2026-10-14T00:00:00Z', '2026-10-13T00:00:00Z')").run();
+  const q = await reviewQueue(db, 50, NOW);
+  assert.deepEqual(q.map((w) => w.id), ['w0006', 'w0001', 'w0003', 'w0004', 'w0005', 'w0007']);
+  assert.deepEqual(q[0].report, { kind: 'example', note: '예문이 이상' });
+  assert.deepEqual(q.find((w) => w.id === 'w0003').reverted, ['gloss_ko']);
+  assert.deepEqual(q.find((w) => w.id === 'w0001').reverted, []);
+  assert.equal((await reviewQueue(db, 2, NOW)).length, 2);
+});
+
+test('reseq: 배운 카드는 그대로, 넣은 단어 → B1 → B2, 같은 레벨은 최근 30일 뉴스 2회 이상 → news_rank → freq_rank', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Gelernt', seq: 1, state: 2, introduced_at: '2026-10-01T00:00:00.000Z' });
+  addWord(db, { id: 'w0002', lemma: 'Alt', seq: 2, freq_rank: 10 });
+  addWord(db, { id: 'w0003', lemma: 'Ermittlung', seq: 3, news_rank: 500 });
+  addWord(db, { id: 'w0004', lemma: 'Vorfall', seq: 4, news_rank: 9000 });
+  addWord(db, { id: 'w0005', lemma: 'Zweit', seq: 5, level: 'B2', news_rank: 1 });
+  addWord(db, { id: 'w0006', lemma: 'Mein', seq: 6, level: 'C1', pinned: 1 });
+  db.raw.prepare("INSERT INTO news_days(day, key, n) VALUES ('2026-10-14', 'Vorfall|noun', 2), ('2026-10-01', 'Vorfall|noun', 1), ('2026-09-01', 'Ermittlung|noun', 9)").run();
+  const r = await reseq(db, NOW);
+  assert.deepEqual(db.raw.prepare('SELECT id FROM words ORDER BY seq').all().map((x) => x.id), ['w0001', 'w0006', 'w0004', 'w0003', 'w0002', 'w0005']);
+  assert.equal(row(db, "SELECT seq FROM words WHERE id = 'w0001'").seq, 1, '배운 카드 seq 그대로');
+  assert.equal(row(db, "SELECT news_hits30 FROM words WHERE id = 'w0004'").news_hits30, 3);
+  assert.equal(row(db, "SELECT news_hits30 FROM words WHERE id = 'w0003'").news_hits30, 0, '30일 넘은 기록은 안 셈');
+  assert.ok(r.moved > 0);
+  assert.equal((await reseq(db, NOW)).moved, 0, '두 번째는 바꿀 것 없음');
+});
+
+test('putNews: 같은 날·열쇠는 덮어씀 · 60일 지난 줄 지움 · getNews 는 기간 합 + 마지막 링크', async () => {
+  const db = fakeD1();
+  await putNews(db, '2026-08-01', [{ key: 'Alt|noun', n: 1, url: null }]);
+  await putNews(db, '2026-10-14', [{ key: 'Vorfall|noun', n: 2, url: 'https://www.tagesschau.de/a' }]);
+  await putNews(db, '2026-10-15', [{ key: 'Vorfall|noun', n: 1, url: 'https://www.ndr.de/b' }]);
+  await putNews(db, '2026-10-15', [{ key: 'Vorfall|noun', n: 4, url: 'https://www.ndr.de/c' }]);
+  assert.equal(row(db, "SELECT count(*) AS n FROM news_days WHERE day = '2026-08-01'").n, 0);
+  assert.deepEqual(await getNews(db, '2026-10-01'), [{ key: 'Vorfall|noun', n: 6, url: 'https://www.ndr.de/c' }]);
+  await assert.rejects(putNews(db, '2026-10-15', [{ key: 'x', n: 1 }]), /bad item/);
+  await assert.rejects(putNews(db, '2026-10-15', [{ key: 'A|noun', n: 1, url: 'http://x' }]), /bad item/);
+  await assert.rejects(putNews(db, '15.10.', []), /bad day/);
+});
+
+test('insertWords: news_rank·pinned·level_src(news|mine) · 이미 있는 (lemma,pos) 건너뜀 · 모르는 level_src 400', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Haus', seq: 1 });
+  const r = await insertWords(db, [
+    { lemma: 'Ermittlung', pos: 'noun', level: 'B1', level_src: 'news', news_rank: 812, gloss_ko: '수사' },
+    { lemma: 'Haus', pos: 'noun', level: 'B1', level_src: 'mine' },
+    { lemma: 'beschatten', pos: 'verb', level: 'C1', level_src: 'mine', pinned: 1 },
+  ]);
+  assert.deepEqual(r, { inserted: 2, first_id: 'w0002', last_id: 'w0003' });
+  assert.deepEqual(db.raw.prepare('SELECT id, level_src, news_rank, pinned, seq, gloss_status FROM words WHERE id > ? ORDER BY id').all('w0001').map((x) => ({ ...x })), [
+    { id: 'w0002', level_src: 'news', news_rank: 812, pinned: 0, seq: 2, gloss_status: 'generated' },
+    { id: 'w0003', level_src: 'mine', news_rank: null, pinned: 1, seq: 3, gloss_status: 'missing' },
+  ]);
+  assert.equal(row(db, "SELECT state FROM cards WHERE word_id = 'w0003'").state, 0);
+  await assert.rejects(insertWords(db, [{ lemma: 'X', pos: 'noun', level: 'B1', level_src: 'kbs' }]), /bad level_src/);
+});
+
+test('wordKeys · putSkips', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Haus', news_rank: 3 });
+  await putSkips(db, [{ key: 'Bingo|noun', reason: '영화 말' }, { key: 'Bingo|noun', reason: '또' }], NOW);
+  assert.deepEqual(await wordKeys(db), { items: [{ id: 'w0001', lemma: 'Haus', pos: 'noun', news_rank: 3 }], skips: ['Bingo|noun'] });
+  await assert.rejects(putSkips(db, [{ key: 'nopipe' }], NOW), /bad item/);
+});
