@@ -24,7 +24,10 @@ import type { Payload } from './discord.ts';
 import { LATER_MS, WEBHOOK_KEY, WEBHOOK_RE, laterAllowed, sendTest, webhookUrl } from './notify.ts';
 import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
 import { HttpError, bad } from './http.ts';
-import { getNews, insertWords, patchWords, putNews, putSkips, reseq, reviewQueue, wordKeys } from './words.ts';
+import {
+  addReport, addRequest, getNews, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
+  reseq, revertChange, reviewQueue, reviewStats, settleRequest, wordKeys,
+} from './words.ts';
 
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 
@@ -471,6 +474,16 @@ const adminNewsPut: Handler = async ({ req, env }) => {
 };
 const adminSkips: Handler = async ({ req, env }) =>
   json(await putSkips(env.DB, (await readJson<{ items?: Array<{ key?: unknown; reason?: unknown }> }>(req))?.items));
+const adminRequests: Handler = async ({ env, url }) =>
+  json({ items: await listRequests(env.DB, url.searchParams.get('status') ?? undefined, 50) });
+const adminSettle: Handler = async ({ req, env, params: [id] }) =>
+  json(await settleRequest(env.DB, Number(id), await readJson<Record<string, unknown>>(req)));
+const adminReviewStats: Handler = async ({ env }) => json(await reviewStats(env.DB));
+const postReport: Handler = async ({ req, env, params: [id] }) => json(await addReport(env.DB, id, await readJson<Record<string, unknown>>(req)));
+const getRequests: Handler = async ({ env }) => json({ items: await listRequests(env.DB, undefined, 10) });
+const postRequest: Handler = async ({ req, env }) => json(await addRequest(env.DB, await readJson<Record<string, unknown>>(req)));
+const getChanges: Handler = async ({ env }) => json({ items: await listChanges(env.DB, 100) });
+const postRevert: Handler = async ({ env, params: [id] }) => json(await revertChange(env.DB, Number(id)));
 
 /** 매일 스크립트가 채울 거리: 글이 비는 단어 / 그림이 없는 단어. 공부 중인 카드 먼저, 그다음 seq. */
 const runway: Handler = async ({ env, url }) => {
@@ -576,6 +589,11 @@ const routes: Route[] = [
   ['GET', /^\/api\/drill$/, drill],
   ['GET', /^\/api\/artikel$/, artikel],
   ['GET', /^\/api\/word\/([\w-]+)$/, wordDetail],
+  ['POST', /^\/api\/words\/([\w-]+)\/report$/, postReport],
+  ['GET', /^\/api\/requests$/, getRequests],
+  ['POST', /^\/api\/requests$/, postRequest],
+  ['GET', /^\/api\/changes$/, getChanges],
+  ['POST', /^\/api\/changes\/(\d+)\/revert$/, postRevert],
   ['GET', /^\/api\/stats$/, stats],
   ['GET', /^\/api\/inbox$/, inbox],
   ['POST', /^\/api\/notifications\/(\d+)\/open$/, openedNotification],
@@ -597,6 +615,9 @@ const routes: Route[] = [
   ['GET', /^\/api\/admin\/news$/, adminNewsGet],
   ['POST', /^\/api\/admin\/news$/, adminNewsPut],
   ['POST', /^\/api\/admin\/skips$/, adminSkips],
+  ['GET', /^\/api\/admin\/requests$/, adminRequests],
+  ['POST', /^\/api\/admin\/requests\/(\d+)$/, adminSettle],
+  ['GET', /^\/api\/admin\/review-stats$/, adminReviewStats],
   ['GET', /^\/api\/admin\/keys$/, adminKeys],
   ['POST', /^\/api\/admin\/words\/insert$/, adminInsert],
 ];

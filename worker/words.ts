@@ -1,8 +1,9 @@
 // 카드 정기 검토 · 뉴스 단어 · 신고 · 내가 넣은 단어 — DB 함수(설계 docs/superpowers/specs/2026-10-15-word-review-news-design.md).
 // index.ts 처리기는 요청을 풀어 여기로 넘기기만 한다. 시험: tests/words-db.test.mjs(node:sqlite D1 흉내).
-import type { AdminWordsRequest, ReviewQueueItem } from '../shared/api.ts';
+import type { AdminWordsRequest, ChangeItem, ReviewQueueItem, ReviewStats, WordRequestItem } from '../shared/api.ts';
+import { REQ_TEXT } from '../shared/request.ts';
 import { levelsFor, loadSettings } from './deck.ts';
-import { bad } from './http.ts';
+import { HttpError, bad } from './http.ts';
 import { addDays, kstDay } from './time.ts';
 
 const DAY = 86_400_000;
@@ -234,4 +235,106 @@ export async function getNews(db: D1Database, since: string) {
       (SELECT d2.url FROM news_days d2 WHERE d2.key = d.key AND d2.url IS NOT NULL ORDER BY d2.day DESC LIMIT 1) AS url
     FROM news_days d WHERE d.day >= ? GROUP BY d.key ORDER BY n DESC, d.key`).bind(since).all<{ key: string; n: number; url: string | null }>();
   return r.results.map((x) => ({ key: x.key, n: Number(x.n), url: x.url ?? null }));
+}
+
+// ---------- 앱: 신고 · 단어 넣기 · 고친 카드 ----------
+
+const REPORT_KINDS = new Set(['meaning', 'example', 'gender', 'level', 'image', 'other']);
+const REQUEST_DONE = new Set(['added', 'exists', 'rejected']);
+const REVERTIBLE = new Set(['gloss_ko', 'example_de', 'example_ko', 'gender', 'plural', 'level']);
+
+/** 「이상해요」 — 다음 검토 때 맨 먼저 본다 */
+export async function addReport(db: D1Database, wordId: string, body: { kind?: unknown; note?: unknown } | null, now = new Date()) {
+  const kind = String(body?.kind ?? '');
+  if (!REPORT_KINDS.has(kind)) throw bad('bad kind');
+  const note = body?.note == null ? null : String(body.note).trim().slice(0, 200) || null;
+  if (!(await db.prepare('SELECT id FROM words WHERE id = ?').bind(wordId).first())) throw new HttpError(404, 'not_found');
+  const r = await db.prepare('INSERT INTO word_reports(word_id, kind, note, created_at) VALUES (?, ?, ?, ?)').bind(wordId, kind, note, now.toISOString()).run();
+  return { ok: true as const, id: Number(r.meta.last_row_id) };
+}
+
+/** 「단어 넣기」 — 다음 새벽 작업(news.mjs)이 카드로 만든다. 같은 글이 대기 중이면 그 번호 */
+export async function addRequest(db: D1Database, body: { text?: unknown; url?: unknown } | null, now = new Date()) {
+  const text = typeof body?.text === 'string' ? body.text.trim().replace(/\s+/g, ' ') : '';
+  if (!REQ_TEXT.test(text)) throw bad('bad_text');
+  let url: string | null = null;
+  if (body?.url != null && body.url !== '') {
+    if (typeof body.url !== 'string' || body.url.length > 500 || !body.url.startsWith('https://')) throw bad('bad_url');
+    try {
+      new URL(body.url);
+    } catch {
+      throw bad('bad_url');
+    }
+    url = body.url;
+  }
+  const dup = await db.prepare("SELECT id FROM word_requests WHERE status = 'queued' AND text = ?").bind(text).first<{ id: number }>();
+  if (dup) return { ok: true as const, id: Number(dup.id), duplicate: true };
+  const r = await db.prepare('INSERT INTO word_requests(text, url, created_at) VALUES (?, ?, ?)').bind(text, url, now.toISOString()).run();
+  return { ok: true as const, id: Number(r.meta.last_row_id), duplicate: false };
+}
+
+/** status 를 주면 그 상태만 오래된 순(작업용), 안 주면 최근 순(앱) */
+export async function listRequests(db: D1Database, status: string | undefined, limit: number): Promise<WordRequestItem[]> {
+  const r = await db.prepare(`SELECT q.id, q.text, q.url, q.created_at, q.status, q.word_id, w.lemma, q.note
+      FROM word_requests q LEFT JOIN words w ON w.id = q.word_id
+      ${status ? 'WHERE q.status = ?' : ''} ORDER BY q.id ${status ? 'ASC' : 'DESC'} LIMIT ?`)
+    .bind(...(status ? [status, limit] : [limit]))
+    .all();
+  return r.results.map((x) => plain(x) as unknown as WordRequestItem);
+}
+
+/** 넣은 단어 처리 결과. added·exists 면 그 단어를 새 카드 맨 앞(pinned)으로 */
+export async function settleRequest(db: D1Database, id: number, body: { status?: unknown; word_id?: unknown; note?: unknown } | null) {
+  const status = String(body?.status ?? '');
+  if (!REQUEST_DONE.has(status)) throw bad('bad status');
+  const wordId = typeof body?.word_id === 'string' ? body.word_id : null;
+  if (status !== 'rejected' && !wordId) throw bad('word_id required');
+  const cur = await db.prepare('SELECT status FROM word_requests WHERE id = ?').bind(id).first<{ status: string }>();
+  if (!cur) throw new HttpError(404, 'not_found');
+  if (cur.status !== 'queued') throw new HttpError(409, 'not_queued');
+  const stmts = [db.prepare('UPDATE word_requests SET status = ?, word_id = ?, note = ? WHERE id = ?').bind(status, wordId, str(body?.note, 100), id)];
+  if (wordId) stmts.push(db.prepare('UPDATE words SET pinned = 1 WHERE id = ?').bind(wordId));
+  await db.batch(stmts);
+  return { ok: true as const };
+}
+
+/** 고친 카드(최근 순) — 「확인 필요」(applied 0)도 같이 */
+export async function listChanges(db: D1Database, limit: number): Promise<ChangeItem[]> {
+  const r = await db.prepare(`SELECT x.id, x.word_id, w.lemma, x.field, x.old, x.new, x.why, x.source, x.applied, x.reverted_at, x.at
+      FROM word_changes x JOIN words w ON w.id = x.word_id ORDER BY x.id DESC LIMIT ?`).bind(limit).all();
+  return r.results.map((x) => plain(x) as unknown as ChangeItem);
+}
+
+/** 되돌리기: 지금 값이 그 고침의 새 값일 때만(그 뒤 또 바뀌었으면 409) */
+export async function revertChange(db: D1Database, id: number, now = new Date()) {
+  const c = await db.prepare('SELECT word_id, field, old, new, applied, reverted_at FROM word_changes WHERE id = ?').bind(id)
+    .first<{ word_id: string; field: string; old: string | null; new: string | null; applied: number; reverted_at: string | null }>();
+  if (!c) throw new HttpError(404, 'not_found');
+  if (!c.applied || c.reverted_at || !REVERTIBLE.has(c.field)) throw new HttpError(409, 'not_revertible');
+  // c.field 는 REVERTIBLE 안의 이름이라 SQL 에 넣어도 안전
+  const cur = await db.prepare(`SELECT ${c.field} AS v FROM words WHERE id = ?`).bind(c.word_id).first<{ v: string | null }>();
+  if ((cur?.v ?? null) !== (c.new ?? null)) throw new HttpError(409, 'changed_since');
+  await db.batch([
+    db.prepare(`UPDATE words SET ${c.field} = ? WHERE id = ?`).bind(c.old, c.word_id),
+    db.prepare('UPDATE word_changes SET reverted_at = ? WHERE id = ?').bind(now.toISOString(), id),
+  ]);
+  return { ok: true as const };
+}
+
+/** 주간 요약(일요일 디스코드) */
+export async function reviewStats(db: D1Database, now = new Date()): Promise<ReviewStats> {
+  const since = new Date(now.getTime() - 7 * DAY).toISOString();
+  const [t, c, ch, add, req] = await db.batch([
+    db.prepare('SELECT count(*) AS n FROM words'),
+    db.prepare('SELECT count(*) AS n FROM words WHERE checked_at IS NOT NULL'),
+    db.prepare('SELECT applied, count(*) AS n FROM word_changes WHERE at >= ? GROUP BY applied').bind(since),
+    // words.created_at 은 datetime('now') 꼴(공백) → ISO 를 datetime() 으로 맞춰 비교
+    db.prepare("SELECT level_src, count(*) AS n FROM words WHERE created_at >= datetime(?) AND level_src IN ('news', 'mine') GROUP BY level_src").bind(since),
+    db.prepare('SELECT count(*) AS n FROM word_requests WHERE created_at >= ?').bind(since),
+  ]);
+  const n = (r: D1Result) => Number((r.results[0] as { n: number }).n);
+  const by = (r: D1Result, k: string) => Object.fromEntries((r.results as Array<Record<string, unknown>>).map((x) => [String(x[k]), Number(x.n)]));
+  const chg = by(ch, 'applied');
+  const ad = by(add, 'level_src');
+  return { total: n(t), checked: n(c), week: { applied: chg['1'] ?? 0, flagged: chg['0'] ?? 0, news: ad.news ?? 0, mine: ad.mine ?? 0, requests: n(req) } };
 }

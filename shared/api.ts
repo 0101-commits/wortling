@@ -197,3 +197,44 @@ export interface ReviewQueueItem {
   reverted: string[];
   report: { kind: string; note: string | null } | null;
 }
+export type ReportKind = 'meaning' | 'example' | 'gender' | 'level' | 'image' | 'other';
+export interface ReportRequest {
+  kind: ReportKind;
+  note?: string;
+}
+export type RequestStatus = 'queued' | 'added' | 'exists' | 'rejected';
+export interface WordRequestItem {
+  id: number;
+  text: string;
+  url: string | null;
+  created_at: string;
+  status: RequestStatus;
+  word_id: string | null;
+  /** 카드가 된 단어의 표제어 */
+  lemma: string | null;
+  note: string | null;
+}
+export interface WordRequestsResponse {
+  items: WordRequestItem[];
+}
+export interface ChangeItem {
+  id: number;
+  word_id: string;
+  lemma: string;
+  field: string;
+  old: string | null;
+  new: string | null;
+  why: string | null;
+  source: 'review' | 'report';
+  applied: 0 | 1;
+  reverted_at: string | null;
+  at: string;
+}
+export interface ChangesResponse {
+  items: ChangeItem[];
+}
+export interface ReviewStats {
+  total: number;
+  checked: number;
+  week: { applied: number; flagged: number; news: number; mine: number; requests: number };
+}

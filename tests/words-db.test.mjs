@@ -131,3 +131,75 @@ test('wordKeys · putSkips', async () => {
   assert.deepEqual(await wordKeys(db), { items: [{ id: 'w0001', lemma: 'Haus', pos: 'noun', news_rank: 3 }], skips: ['Bingo|noun'] });
   await assert.rejects(putSkips(db, [{ key: 'nopipe' }], NOW), /bad item/);
 });
+import { addReport, addRequest, listChanges, listRequests, revertChange, reviewStats, settleRequest } from '../worker/words.ts';
+
+test('addReport: 종류 검사 · 없는 단어 404 · 메모 200자로 자름', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Haus' });
+  const r = await addReport(db, 'w0001', { kind: 'example', note: 'x'.repeat(300) }, NOW);
+  assert.equal(r.ok, true);
+  assert.equal(row(db, 'SELECT length(note) AS n FROM word_reports').n, 200);
+  await assert.rejects(addReport(db, 'w0001', { kind: 'spam' }, NOW), /bad kind/);
+  await assert.rejects(addReport(db, 'w9999', { kind: 'meaning' }, NOW), (e) => e.status === 404);
+});
+
+test('addRequest: 글자 단어만 · 주소·이모지·61자·빈 값 400 · 같은 대기 글은 같은 번호', async () => {
+  const db = fakeD1();
+  const a = await addRequest(db, { text: '  Ermittlung ', url: 'https://www.dw.com/de/x' }, NOW);
+  assert.deepEqual(a, { ok: true, id: 1, duplicate: false });
+  assert.deepEqual(await addRequest(db, { text: 'Ermittlung' }, NOW), { ok: true, id: 1, duplicate: true });
+  assert.equal((await addRequest(db, { text: 'die Daumen drücken' }, NOW)).id, 2);
+  for (const text of ['', 'https://www.dw.com/de/x', 'Ermittlung🙂', 'a'.repeat(61), '123', 42])
+    await assert.rejects(addRequest(db, { text }, NOW), /bad_text/, String(text));
+  await assert.rejects(addRequest(db, { text: 'Haus', url: 'http://x' }, NOW), /bad_url/);
+  await assert.rejects(addRequest(db, { text: 'Haus', url: 'https://' + 'x'.repeat(600) }, NOW), /bad_url/);
+});
+
+test('settleRequest: exists 면 그 단어 pinned · 두 번째는 409 · listRequests 모양', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Ermittlung' });
+  await addRequest(db, { text: 'ermittlung' }, NOW);
+  await addRequest(db, { text: 'Quatschwort' }, NOW);
+  assert.deepEqual((await listRequests(db, 'queued', 50)).map((r) => r.text), ['ermittlung', 'Quatschwort']);
+  await settleRequest(db, 1, { status: 'exists', word_id: 'w0001' });
+  await settleRequest(db, 2, { status: 'rejected', note: '독일어 아님' });
+  assert.equal(row(db, "SELECT pinned FROM words WHERE id = 'w0001'").pinned, 1);
+  await assert.rejects(settleRequest(db, 1, { status: 'added', word_id: 'w0001' }), (e) => e.status === 409);
+  await assert.rejects(settleRequest(db, 2, { status: 'queued' }), /bad status/);
+  await assert.rejects(settleRequest(db, 2, { status: 'added' }), /word_id required/);
+  const list = await listRequests(db, undefined, 10);
+  assert.deepEqual(list[0], { id: 2, text: 'Quatschwort', url: null, created_at: '2026-10-15T00:00:00.000Z', status: 'rejected', word_id: null, lemma: null, note: '독일어 아님' });
+  assert.equal(list[1].lemma, 'Ermittlung');
+});
+
+test('revertChange: 원래 값으로 · 그 뒤 바뀌었으면 409 · 두 번 409 · 확인 필요는 409', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Umzug', gloss_ko: '이사' });
+  await patchWords(db, [{ id: 'w0001', gloss_ko: '이사', changes: [
+    { field: 'gloss_ko', old: '이동', new: '이사', why: '주된 뜻', applied: 1 },
+    { field: 'level', old: 'B1', new: 'B2', why: 'DAFlex 다름', applied: 0 },
+  ] }], NOW);
+  const [flag, fix] = await listChanges(db, 10);
+  assert.equal(fix.field, 'gloss_ko');
+  assert.equal(fix.lemma, 'Umzug');
+  await assert.rejects(revertChange(db, flag.id, NOW), (e) => e.status === 409);
+  await revertChange(db, fix.id, NOW);
+  assert.equal(row(db, 'SELECT gloss_ko FROM words').gloss_ko, '이동');
+  await assert.rejects(revertChange(db, fix.id, NOW), (e) => e.status === 409);
+  // 다시 고쳐진 뒤 다른 값으로 또 바뀐 경우
+  await patchWords(db, [{ id: 'w0001', gloss_ko: '이사', changes: [{ field: 'gloss_ko', old: '이동', new: '이사', applied: 1 }] }], NOW);
+  await patchWords(db, [{ id: 'w0001', gloss_ko: '이전' }], NOW);
+  const again = (await listChanges(db, 10))[0];
+  await assert.rejects(revertChange(db, again.id, NOW), (e) => e.status === 409 && /changed_since/.test(e.message));
+  await assert.rejects(revertChange(db, 999, NOW), (e) => e.status === 404);
+});
+
+test('reviewStats: 검토 수 · 이번 주 고침·확인 필요·새 단어', async () => {
+  const db = fakeD1();
+  addWord(db, { id: 'w0001', lemma: 'Haus', checked_at: '2026-10-14T00:00:00.000Z' });
+  await insertWords(db, [{ lemma: 'Vorfall', pos: 'noun', level: 'B1', level_src: 'news' }]);
+  await patchWords(db, [{ id: 'w0001', changes: [{ field: 'level', old: 'B1', new: 'B2', applied: 0 }] }], new Date());
+  await addRequest(db, { text: 'Ermittlung' }, new Date());
+  const s = await reviewStats(db, new Date());
+  assert.deepEqual(s, { total: 2, checked: 1, week: { applied: 0, flagged: 1, news: 1, mine: 0, requests: 1 } });
+});
