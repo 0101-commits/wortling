@@ -23,15 +23,8 @@ import { summarize } from './discord.ts';
 import type { Payload } from './discord.ts';
 import { LATER_MS, WEBHOOK_KEY, WEBHOOK_RE, laterAllowed, sendTest, webhookUrl } from './notify.ts';
 import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
+import { HttpError, bad } from './http.ts';
 
-class HttpError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-  }
-}
-const bad = (msg: string) => new HttpError(400, msg);
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 
 async function readJson<T>(req: Request): Promise<T> {
