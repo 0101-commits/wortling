@@ -58,3 +58,11 @@ test('뉴스 수 보내기: 서버가 안 받는 열쇠(60자 넘는 기본형 �
   ]);
   assert.deepEqual(newsItems(counts), [{ key: 'Vorfall|noun', n: 2, url: 'https://a' }, { key: 'Haus|noun', n: 1, url: null }]);
 });
+
+import { indexFresh, INDEX_VERSION } from '../scripts/words/sources.mjs';
+test('색인 다시 만들기: 달이 같아도 만드는 규칙(판)이 바뀌었으면 새로', () => {
+  assert.equal(indexFresh({ month: '2026-10', v: INDEX_VERSION }, '2026-10'), true);
+  assert.equal(indexFresh({ month: '2026-10' }, '2026-10'), false, '판 번호 없는 예전 색인');
+  assert.equal(indexFresh({ month: '2026-09', v: INDEX_VERSION }, '2026-10'), false);
+  assert.equal(indexFresh(null, '2026-10'), false);
+});

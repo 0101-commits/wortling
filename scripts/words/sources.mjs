@@ -11,6 +11,10 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { indexLooksSane, wordKey } from './lib.mjs';
 
+/** 색인 만드는 규칙의 판. 규칙을 바꾸면 올린다 → 같은 달이라도 캐시 색인을 다시 만든다. 2 = 동음 복수형 「모름」(10-15) */
+export const INDEX_VERSION = 2;
+/** 캐시 색인을 그대로 써도 되나: 이번 달 + 같은 판 */
+export const indexFresh = (old, month) => Boolean(old) && old.month === month && old.v === INDEX_VERSION;
 export const KAIKKI_URL = 'https://kaikki.org/dictionary/German/kaikki.org-dictionary-German.jsonl.gz';
 export const DAFLEX_URL = 'https://cental.uclouvain.be/cefrlex/static/resources/de/DAFlex.tsv';
 export const leipzigUrl = (year) => `https://downloads.wortschatz-leipzig.de/corpora/deu_news_${year}_300K.tar.gz`;
@@ -157,7 +161,7 @@ export async function buildIndex({ kaikkiLines, daflexText, leipzigText, deckKey
   }
   const leipzig = Object.fromEntries([...sum].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([k], i) => [k, i + 1]));
   return {
-    month, built: new Date().toISOString(), src,
+    month, v: INDEX_VERSION, built: new Date().toISOString(), src,
     forms: Object.fromEntries(forms), sep: Object.fromEntries(sep), fn: [...fn].sort(),
     facts: Object.fromEntries(facts), daflex: parseDaflex(daflexText), leipzig,
   };
@@ -197,7 +201,7 @@ export async function ensureIndex({ dir, deckKeys, log, now = new Date() }) {
   } catch {
     old = null;
   }
-  if (old?.month === month) return { index: old, rebuilt: false };
+  if (indexFresh(old, month)) return { index: old, rebuilt: false };
   try {
     mkdirSync(dir, { recursive: true });
     const kz = path.join(dir, 'kaikki-de.jsonl.gz');

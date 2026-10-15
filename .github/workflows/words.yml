@@ -42,11 +42,12 @@ jobs:
         run: echo "m=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
       # 복원과 저장을 나눈다 — actions/cache 하나로는 작업이 실패하면(검토 묶음 하나만 실패해도) 새 색인이 저장되지 않아
       # 다음 날 원본 ≈170MB 를 다시 받았다(최종 검토 반영)
+      # 열쇠 = 달 + 색인 만드는 코드(sources.mjs) — 규칙을 바꿔 판(INDEX_VERSION)을 올린 날 다시 만든 색인도 새 열쇠로 저장된다
       - id: cache
         uses: actions/cache/restore@v4
         with:
           path: .data/words-src/index.json
-          key: words-src-${{ steps.month.outputs.m }}
+          key: words-src-${{ steps.month.outputs.m }}-${{ hashFiles('scripts/words/sources.mjs') }}
           restore-keys: words-src-
       - name: news.mjs (넣은 단어 · 뉴스 · 새 단어 · 순서)
         run: node scripts/words/news.mjs $DRY
@@ -59,4 +60,4 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .data/words-src/index.json
-          key: words-src-${{ steps.month.outputs.m }}
+          key: words-src-${{ steps.month.outputs.m }}-${{ hashFiles('scripts/words/sources.mjs') }}
