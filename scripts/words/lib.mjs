@@ -21,12 +21,24 @@ export function lemmatize(tok, index, first = false) {
   return [];
 }
 
-/** 기사 묶음 → Map(열쇠 → {n: 나온 기사 수, url: 마지막 기사 링크}). 한 기사 안에서 같은 열쇠는 1번 */
+/**
+ * 기사 묶음 → Map(열쇠 → {n: 나온 기사 수, url: 마지막 기사 링크}). 한 기사 안에서 같은 열쇠는 1번.
+ * 기능어 글꼴(einen·auf)은 안 세고, 여러 기본형에 걸친 활용형은 Leipzig 순위가 가장 높은 하나에만 센다
+ * (양쪽에 다 셌더니 hatte 가 haten 을, auf 가 형용사 auf 를 「뉴스 단어」로 만들었다 — 10-15 실측)
+ */
 export function countNews(articles, index) {
+  const fn = new Set(index.fn ?? []);
+  const rank = (k) => own(index.leipzig, k) ?? Infinity;
   const out = new Map();
   for (const a of articles) {
     const seen = new Set();
-    for (const part of [a.title, a.text]) tokens(part).forEach((t, i) => lemmatize(t, index, i === 0).forEach((k) => seen.add(k)));
+    for (const part of [a.title, a.text]) {
+      tokens(part).forEach((t, i) => {
+        if (fn.has(t) || (i === 0 && fn.has(t[0].toLowerCase() + t.slice(1)))) return;
+        const ks = lemmatize(t, index, i === 0);
+        if (ks.length) seen.add(ks.reduce((a2, b) => (rank(b) < rank(a2) ? b : a2)));
+      });
+    }
     for (const k of seen) {
       const o = out.get(k) ?? { n: 0, url: null };
       o.n++;
@@ -37,13 +49,13 @@ export function countNews(articles, index) {
   return out;
 }
 
-/** tagesschau api2u/news 응답 → [{title, text, url}]. 모양이 다르면 빈 목록 */
+/** tagesschau api2u/news 응답 → [{title, text, url}]. 모양이 다르면 빈 목록. 윗줄(topline)은 지역명이 대부분이라 뺀다 */
 export function parseTagesschau(j) {
   const news = Array.isArray(j?.news) ? j.news : [];
   return news
     .filter((n) => n && typeof n.title === 'string')
     .map((n) => ({
-      title: [n.topline, n.title].filter((x) => typeof x === 'string' && x).join(' '),
+      title: n.title,
       text: typeof n.firstSentence === 'string' ? n.firstSentence : '',
       url: typeof n.shareURL === 'string' && n.shareURL.startsWith('https://') ? n.shareURL : null,
     }));

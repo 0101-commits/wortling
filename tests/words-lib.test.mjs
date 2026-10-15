@@ -45,9 +45,22 @@ test('countNews: 한 기사 안 같은 열쇠는 1번, 마지막 링크', () => 
   assert.deepEqual(m.get('ermitteln|verb'), { n: 1, url: 'https://a' });
 });
 
+test('countNews: 기능어 글꼴은 안 세고, 겹친 활용형은 Leipzig 순위가 높은 기본형 하나에만', () => {
+  const ix = {
+    ...INDEX,
+    forms: { ...INDEX.forms, hatte: ['haben|verb', 'haten|verb'], auf: ['auf|adj', 'auf|adv'] },
+    fn: ['auf', 'einen'],
+    leipzig: { ...INDEX.leipzig, 'haben|verb': 2, 'haten|verb': 40000 },
+  };
+  const m = countNews([{ title: 'Polizei hatte Vorfall auf dem Schirm', text: '', url: 'https://c' }], ix);
+  assert.deepEqual(m.get('haben|verb'), { n: 1, url: 'https://c' });
+  assert.equal(m.has('haten|verb'), false);
+  assert.equal(m.has('auf|adj') || m.has('auf|adv'), false);
+});
+
 test('parseTagesschau · parseRss: 이상한 응답은 빈 목록', () => {
   assert.deepEqual(parseTagesschau({ news: [{ title: 'Zuckersteuer kommt', topline: 'Saarland', firstSentence: 'Lange wurde gestritten.', shareURL: 'https://www.sr.de/x' }, { title: 7 }] }),
-    [{ title: 'Saarland Zuckersteuer kommt', text: 'Lange wurde gestritten.', url: 'https://www.sr.de/x' }]);
+    [{ title: 'Zuckersteuer kommt', text: 'Lange wurde gestritten.', url: 'https://www.sr.de/x' }], '윗줄(지역명)은 뺀다');
   for (const bad of [null, 'oops', {}, { news: 'x' }]) assert.deepEqual(parseTagesschau(bad), []);
   const xml = `<rss><channel><item><title><![CDATA[Prozess in Hamburg]]></title><description>&lt;p&gt;Es geht um &quot;Anschlag&quot; &amp; mehr&#8230;&lt;/p&gt;</description><link>https://www.ndr.de/a</link></item><item><title></title></item></channel></rss>`;
   assert.deepEqual(parseRss(xml), [{ title: 'Prozess in Hamburg', text: 'Es geht um "Anschlag" & mehr…', url: 'https://www.ndr.de/a' }]);
