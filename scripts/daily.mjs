@@ -276,9 +276,22 @@ try {
       const dir = path.join(ROOT, 'backup');
       mkdirSync(dir, { recursive: true });
       const sql = path.join(dir, `${log.day}.sql`);
-      execFileSync(process.execPath, [path.join(ROOT, 'node_modules', 'wrangler', 'bin', 'wrangler.js'), 'd1', 'export', 'wortling', '--remote', `--output=${sql}`], {
-        cwd: ROOT, stdio: 'ignore', timeout: 5 * 60 * 1000, windowsHide: true,
-      });
+      const args = [path.join(ROOT, 'node_modules', 'wrangler', 'bin', 'wrangler.js'), 'd1', 'export', 'wortling', '--remote', `--output=${sql}`];
+      // 로그인 토큰이 만료돼 이 실행 안에서 갱신되면 갓 받은 토큰이 바로 안 먹혀 「Authentication error [code: 10000]」 (10-15 12:00, 3분 뒤 같은 명령은 됨) → 15초 뒤 1번 더
+      for (let i = 0; ; i++) {
+        try {
+          execFileSync(process.execPath, args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', timeout: 5 * 60 * 1000, windowsHide: true });
+          break;
+        } catch (e) {
+          // wrangler 오류 = 「✘ [ERROR] …」 줄 + 다음 줄 코드
+          const lines = String(e.stderr || e.message).replace(/\x1b\[[0-9;]*m/g, '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+          const at = lines.findIndex((s) => s.includes('[ERROR]'));
+          const why = (at < 0 ? lines.slice(-2) : lines.slice(at, at + 2)).join(' / ');
+          if (i) throw new Error(why);
+          console.error(`백업 재시도: ${why}`);
+          await new Promise((r) => setTimeout(r, 15000));
+        }
+      }
       writeFileSync(`${sql}.gz`, gzipSync(readFileSync(sql)));
       unlinkSync(sql);
       const old = readdirSync(dir).filter((f) => /^\d{4}-\d{2}-\d{2}\.sql\.gz$/.test(f)).sort().slice(0, -30);
