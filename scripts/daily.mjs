@@ -168,7 +168,7 @@ try {
       errStreak = 0;
       return { png, check, why };
     };
-    const toJudge = (d) => ({ id: d.w.id, word: `${d.w.gender ? d.w.gender + ' ' : ''}${d.w.lemma}`, meaning_ko: d.w.gloss_ko, example_de: d.w.example_de, png: d.png });
+    const toJudge = (d) => ({ id: d.w.id, word: `${d.w.gender ? d.w.gender + ' ' : ''}${d.w.lemma}`, meaning_ko: d.w.gloss_ko, png: d.png });
     log.meaning = { judged: 0, retried: 0, failed: 0 };
 
     // 25단어씩: 장면 쓰기(claude) → 그리기 → 뜻 검사(claude) → 탈락은 고친 장면으로 한 번 더 → 올리기.
@@ -347,17 +347,18 @@ Items: ${JSON.stringify(list)}`;
 // ── claude -p 로 그림 장면 쓰기 ─────────────────────────────────────────────
 // 2026-10-14 실측(35장 검토): 장면에 장소 + 소품 3개 + 조연까지 넣으면 4b 모델이 소품을 빼먹고 보르티만 크게 그려
 // 뜻 단서가 사라졌다(los 의 기차 · verschwinden 의 빈 열쇠걸이 · einzig 의 무리 · Entscheidung 의 갈림길). → 짧게, 뜻을 맡은 물건 하나를 맨 앞에.
+// 2026-10-16 사용자 「그림이 예문 장면이 됨 — 단어 자체를 그려야」 → 예문은 넘기지 않고 단어·품사·뜻만으로 장면을 쓴다.
 function writeScenesWithClaude(words) {
-  const list = words.map((w) => ({ id: w.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, pos: w.pos, meaning_ko: w.gloss_ko, example_de: w.example_de, example_ko: w.example_ko }));
-  const prompt = `You write image scenes for German vocabulary flashcards. Each card shows the German word, its Korean meaning, one example sentence and a simple doodle. A small image model draws the scene and drops details, so keep it SIMPLE: the picture must make the WORD's meaning obvious at a glance, set in the example sentence's moment.
+  const list = words.map((w) => ({ id: w.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, pos: w.pos, meaning_ko: w.gloss_ko }));
+  const prompt = `You write image scenes for German vocabulary flashcards. Each card shows the German word, its Korean meaning and a simple doodle. The doodle illustrates the WORD ITSELF — its core dictionary meaning, the way a picture dictionary would — never a particular sentence or story. A small image model draws the scene and drops details, so keep it SIMPLE: one glance at the picture must say the word.
 Rules for each scene (ONE English line, max 28 words and 180 characters, start with "Borti"):
-- Borti (a chubby white puppy) is the speaker or main person of the sentence.
-- Begin with the key: what Borti does with the ONE object or action that stands for the word, drawn large.
-  · noun → the thing itself, big, in its typical use (Kühlschrank: Borti opens a big fridge full of food).
+- Borti (a chubby white puppy) shows the word; when the word has several meanings, draw the first Korean meaning.
+- Begin with the key: the ONE object or action that stands for the word, drawn large.
+  · noun → the thing itself, big and centered, in its most typical form or use (Kühlschrank: Borti opens a big fridge full of food).
   · verb → the action at its most unmistakable moment (springen: Borti mid-air, jumping over a puddle).
   · adjective → exaggerate the quality, add a contrasting opposite if it helps (eng: Borti squeezing through a very narrow gap).
-  · abstract word (adverb, conjunction, particle, pronoun, idea) → the sentence's moment with ONE clear prop, plus a symbol and Borti's expression (wieso: Borti frowning at a silent phone, a big question mark above his head).
-- At most 2 props and at most one other character (a puppy or kitten), only if the sentence needs them. Place = one word at most (kitchen, platform), no landscape.
+  · abstract word (adverb, conjunction, particle, pronoun, idea) → the most typical everyday situation that shows the concept itself, with ONE clear prop, plus a symbol and Borti's expression (wieso: Borti frowning, a big question mark above his head; Zukunft: Borti looking ahead along a path toward a rising sun).
+- At most 2 props and at most one other character (a puppy or kitten), only if the meaning needs them. Place = one word at most (kitchen, platform), no landscape.
 - A symbol (? ! heart, sweat drop, motion lines, arrow) only when it carries the meaning (? = asking or doubt, ! = urgency or surprise), at most one; no decorative sparkles. No text, letters, numbers, signs, logos, screens with writing or speech bubbles.
 Output ONLY a JSON array [{"id": "...", "scene_en": "..."}] with exactly ${list.length} items in the same order. No prose, no code fence.
 Items: ${JSON.stringify(list)}`;
