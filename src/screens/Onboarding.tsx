@@ -8,7 +8,7 @@ import { DiscordConnect } from './Setup.tsx'
 export default function Onboarding({ settings, onDone }: { settings: Settings; onDone: (p: Partial<Settings>) => void }) {
   const [step, setStep] = useState<1 | 2>(1)
   const [level, setLevel] = useState<Level>(settings.level)
-  const [perDay, setPerDay] = useState(Math.min(8, Math.max(3, settings.new_per_day)))
+  const [perDay, setPerDay] = useState(Math.min(50, Math.max(3, settings.new_per_day)))
 
   return (
     <>
@@ -32,7 +32,7 @@ export default function Onboarding({ settings, onDone }: { settings: Settings; o
             <div className="box">
               <div className="kv">
                 <span>하루 새 단어</span>
-                <Stepper label="하루 새 단어" value={perDay} min={3} max={8} onChange={setPerDay} />
+                <Stepper label="하루 새 단어" value={perDay} min={3} max={50} onChange={setPerDay} />
               </div>
               <div className="kv"><span>범위</span><b>{LEVELS.slice(0, LEVELS.indexOf(level) + 1).join(' → ')}</b></div>
             </div>

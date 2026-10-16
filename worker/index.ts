@@ -347,7 +347,7 @@ const putSettings: Handler = async ({ req, env }) => {
     if (!Number.isInteger(v) || (v as number) < lo || (v as number) > hi) throw bad(`${k} must be ${lo}..${hi}`);
     updates.push([k, String(v)]);
   };
-  intIn('new_per_day', 1, 20);
+  intIn('new_per_day', 1, 50);
   intIn('session_max', 5, 100);
   if ('level' in body) {
     if (body.level !== 'B1' && body.level !== 'B2' && body.level !== 'C1') throw bad('level must be B1|B2|C1');

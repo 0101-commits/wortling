@@ -68,7 +68,7 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
         <div className="box wh">
           <div className="kv">
             <span>하루 새 단어</span>
-            <Stepper label="하루 새 단어" value={settings.new_per_day} min={3} max={8} onChange={(v) => onChange({ new_per_day: v })} />
+            <Stepper label="하루 새 단어" value={settings.new_per_day} min={3} max={50} onChange={(v) => onChange({ new_per_day: v })} />
           </div>
           <div className="kv">
             <span>한 번에 볼 카드</span>

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { BottomNavigation, BottomNavigationItem, Button, Skeleton, TextField } from '@montage-ui/core'
 import { IconBook, IconBookFill, IconCalendar, IconCalendarFill, IconHome, IconHomeFill } from '@montage-ui/icon'
 import type { Settings } from '../shared/api.ts'
-import { ApiError, MOCK, api, errorText, getToken, retryUnsent, setToken, setUnauthorizedHandler } from './api.ts'
+import { ApiError, MOCK, api, errorText, getToken, prefetchToday, retryUnsent, setToken, setUnauthorizedHandler } from './api.ts'
 import { navigate, useRoute } from './router.ts'
 import Artikel from './screens/Artikel.tsx'
 import Drill from './screens/Drill.tsx'
@@ -45,11 +45,14 @@ export default function App() {
     if (needKey) return
     let live = true
     setBootError(undefined)
+    // 못 보낸 채점을 먼저 보내고(오늘 덱 요청이 그 전송을 기다림) 오늘 화면이면 덱을 설정과 동시에 받는다
+    const unsent = retryUnsent()
+    if (!MOCK && (route.parts[0] ?? 'today') === 'today') prefetchToday()
     api.settings().then(
       (s) => {
         if (!live) return
         setSettings(s)
-        retryUnsent().then((n) => n > 0 && toast(`지난번에 못 보낸 채점 ${n}개를 보냈어요`, 'positive'))
+        unsent.then((n) => live && n > 0 && toast(`지난번에 못 보낸 채점 ${n}개를 보냈어요`, 'positive'))
       },
       (e) => live && !(e instanceof ApiError && e.status === 401) && setBootError(errorText(e)),
     )

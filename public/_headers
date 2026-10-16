@@ -1,0 +1,4 @@
+# 빌드 파일은 이름에 내용 해시가 붙어 바뀌면 이름도 바뀜 → 1년 보관해도 안전(앱을 열 때마다 다시 확인하는 왕복을 없앰).
+# index.html 은 그대로(max-age=0) — 새 배포가 바로 보이게.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

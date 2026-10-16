@@ -124,8 +124,22 @@ export interface WebhookSaveResponse {
 // 채점 전송이 끝나기 전에 오늘 덱을 다시 받으면 방금 채점한 카드가 또 나온다 → 전송을 기다린다
 let inflight: Promise<unknown> = Promise.resolve()
 
+// 앱을 열 때 오늘 덱을 설정과 동시에 미리 받아 둔다(왕복 한 번 ≈ 0.4초 줄임 — 한국 접속이 미국 LA 를 거침).
+// 오늘 화면이 곧 열리면 그대로 쓰고, 15초가 지나면 버린다(다른 화면을 보다 돌아오면 새로 받음).
+let todayPrefetch: { at: number; p: Promise<TodayResponse> } | null = null
+export function prefetchToday() {
+  const p = inflight.then(() => request<TodayResponse>('GET', '/api/today'))
+  p.catch(() => undefined) // 안 쓰고 버려도 처리 안 된 실패로 남지 않게
+  todayPrefetch = { at: Date.now(), p }
+}
+
 export const api = {
-  today: () => inflight.then(() => request<TodayResponse>('GET', '/api/today')),
+  today: () => {
+    const pre = todayPrefetch
+    todayPrefetch = null
+    if (pre && Date.now() - pre.at < 15_000) return pre.p
+    return inflight.then(() => request<TodayResponse>('GET', '/api/today'))
+  },
   words: (q: WordsQuery) => request<WordsResponse>('GET', '/api/words?' + qs({ ...q })),
   word: (id: string) => request<WordDetailResponse>('GET', `/api/word/${encodeURIComponent(id)}`),
   /** 추가 연습 묶음(B4) — 일정은 안 바뀐다 */
@@ -137,7 +151,10 @@ export const api = {
   /** 알림 링크(?n=)로 열었을 때 한 번(A4) */
   markOpened: (n: number) => request<{ ok: boolean }>('POST', `/api/notifications/${n}/open`),
   settings: () => request<Settings>('GET', '/api/settings'),
-  saveSettings: (patch: Partial<Settings>) => request<Settings>('PUT', '/api/settings', patch),
+  saveSettings: (patch: Partial<Settings>) => {
+    todayPrefetch = null // 하루 새 단어·레벨이 바뀌면 미리 받은 덱은 옛 설정 기준
+    return request<Settings>('PUT', '/api/settings', patch)
+  },
   testNotification: () => request<TestNotificationResponse>('POST', '/api/test-notification'),
   webhook: () => request<WebhookStatus>('GET', '/api/webhook'),
   saveWebhook: (url: string) => request<WebhookSaveResponse>('PUT', '/api/webhook', { url }),
@@ -180,17 +197,22 @@ export function sendReviews(req: ReviewsRequest, keepalive = false): Promise<Rev
 }
 
 /** 앱을 열 때 지난번에 못 보낸 채점을 보낸다. 보낸 개수를 돌려준다. */
-export async function retryUnsent(): Promise<number> {
-  let sent = 0
-  for (const u of readUnsent()) {
-    try {
-      await sendReviews(u.req)
-      sent += u.req.reviews.length
-    } catch {
-      break // 아직 안 됨 → 다음에
+// 묶음이 여럿이면 둘째부터는 await 뒤에 보내져 그 사이 오늘 덱 요청이 먼저 나갈 수 있었다 → 다시 보내기 전체를 inflight 에 건다
+export function retryUnsent(): Promise<number> {
+  const run = (async () => {
+    let sent = 0
+    for (const u of readUnsent()) {
+      try {
+        await sendReviews(u.req)
+        sent += u.req.reviews.length
+      } catch {
+        break // 아직 안 됨 → 다음에
+      }
     }
-  }
-  return sent
+    return sent
+  })()
+  inflight = inflight.then(() => run).catch(() => undefined)
+  return run
 }
 
 // 목업 그림: public/mascot 에 있는 파일만 쓴다(없는 그림 404 = 콘솔 오류)
