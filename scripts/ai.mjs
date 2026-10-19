@@ -1,8 +1,14 @@
 // Gemini 한 번 불러 JSON 배열을 받는다. 매일 작업(글·장면 쓰기 · 카드 검토 · 뉴스 단어)과 그림 뜻 검사(judge.mjs)가 같이 쓴다.
 // 2026-10-19 사용자 「claude 말고 다른 AI 로」 — 예전 claude -p 는 구독 토큰(CLAUDE_CODE_OAUTH_TOKEN)이라 클로드 코드 한도를 같이 깎았다.
 // 이제 Gemini 무료 몫(GEMINI_API_KEY). 키는 헤더로(URL 에 넣으면 오류 문구에 찍힌다).
-// Google 이 모델을 조용히 퇴역시킨다(economic-site 2026-09-15 실측 404) → 별칭을 쓰고, 한도(429)·퇴역(404)이면 다음 모델로.
-const MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
+// Google 이 모델을 조용히 퇴역시킨다(economic-site 2026-09-15 실측 404) → 별칭(-latest)을 쓴다.
+// 2026-10-19 실측: Flash 무료 몫은 하루 약 20번(15번쯤 쓰고 429)이라 매일 작업(≈25번)에 모자람 → 역할을 나눈다(사용자 결정).
+//   글·장면·카드 검토·뉴스 단어 = Flash-Lite(하루 약 500번) · 그림 검사(judge.mjs) = Flash 만.
+//   Lite 를 그림 검사 대신 쓰지 않는다 — 같은 날 25장을 하나도 안 떨어뜨렸고 #3 판정을 #4 에 붙이는 등 번호도 섞었다.
+export const TEXT_MODELS = ['gemini-flash-lite-latest'];
+export const VISION_MODELS = ['gemini-flash-latest'];
+// 다시 묻기 전 기다림(429 분당 한도는 1분). 시험은 AI_RETRY_MS=0
+const WAIT_MS = process.env.AI_RETRY_MS ? Number(process.env.AI_RETRY_MS) : 15_000;
 
 const total = { calls: 0, input: 0, output: 0, thinking: 0 };
 process.on('exit', () => {
@@ -17,8 +23,12 @@ async function once(model, body, key) {
     signal: AbortSignal.timeout(5 * 60 * 1000),
   });
   const j = await res.json().catch(() => ({}));
-  // 하루 몫 소진(429 …PerDay…)은 1분 기다려도 그대로 → 곧장 다음 모델(final)
-  if (!res.ok) throw Object.assign(new Error(`${res.status} ${String(j.error?.message || '').slice(0, 200)}`), { status: res.status, final: /PerDay/i.test(JSON.stringify(j.error?.details ?? '')) });
+  // 하루 몫 소진(429 …PerDay…)은 1분 기다려도 그대로 → 곧장 다음 모델(final). 어느 한도인지 로그에 남게 quotaId 를 앞에
+  if (!res.ok) {
+    const details = JSON.stringify(j.error?.details ?? '');
+    const quota = details.match(/"quotaId":"([^"]+)"/)?.[1];
+    throw Object.assign(new Error(`${res.status}${quota ? ` [${quota}]` : ''} ${String(j.error?.message || '').slice(0, 200)}`), { status: res.status, final: /PerDay/i.test(details) });
+  }
   const u = j.usageMetadata || {};
   const n = { input: u.promptTokenCount || 0, output: u.candidatesTokenCount || 0, thinking: u.thoughtsTokenCount || 0 };
   total.calls++;
@@ -43,8 +53,9 @@ async function once(model, body, key) {
 }
 
 /** prompt → JSON 배열. images = [{label, png}](judge.mjs) — 글 뒤에 「label」 글 조각 + PNG 버퍼를 차례로 붙인다.
- *  모델마다 두 번까지: 429 는 1분, 5xx·끊김·깨진 JSON 은 5초 뒤 다시. 404·그 밖 4xx·하루 몫 소진·막힘은 곧장 다음 모델. 다 실패면 던진다 */
-export async function askJson(prompt, { images = [] } = {}) {
+ *  models 차례로, 모델마다 세 번까지: 429 는 1분, 5xx(혼잡 503 이 잦다)·끊김·깨진 JSON 은 15초 뒤 다시.
+ *  404·그 밖 4xx·하루 몫 소진·막힘은 곧장 다음 모델. 다 실패면 던진다 */
+export async function askJson(prompt, { images = [], models = TEXT_MODELS } = {}) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('GEMINI_API_KEY 가 없다(.env 또는 Actions 비밀값)');
   const parts = [{ text: prompt }];
@@ -54,15 +65,15 @@ export async function askJson(prompt, { images = [] } = {}) {
   }
   const body = { contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json' } };
   let err;
-  for (const model of MODELS) {
+  for (const model of models) {
     for (let attempt = 1; ; attempt++) {
       try {
         return await once(model, body, key);
       } catch (e) {
         err = e;
-        console.error(`AI 실패(${model} ${attempt}회): ${String(e.message).slice(0, 160)}`);
-        if (e.final || attempt >= 2 || (e.status >= 400 && e.status < 500 && e.status !== 429)) break;
-        await new Promise((r) => setTimeout(r, e.status === 429 ? 60_000 : 5_000));
+        console.error(`AI 실패(${model} ${attempt}회): ${String(e.message).slice(0, 200)}`);
+        if (e.final || attempt >= 3 || (e.status >= 400 && e.status < 500 && e.status !== 429)) break;
+        await new Promise((r) => setTimeout(r, e.status === 429 && WAIT_MS ? 60_000 : WAIT_MS));
       }
     }
   }

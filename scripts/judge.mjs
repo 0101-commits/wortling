@@ -2,15 +2,17 @@
 // 그림마다 「#n」 글 조각 + 그림(768×576)을 차례로 붙여 AI(Gemini)가 단어·뜻과 맞는지 판정한다.
 // 2026-10-19 사용자 「강아지 다리가 5개 같은 오류」 → 몸 구조(다리·귀·꼬리 수, 붙은 몸)도 본다. 다리를 세려면 모음 그림(9칸 400×300)은
 // 작아서 한 장씩 따로 보낸다(모음 그림은 claude Read 도구 시절에 파일 하나로 묶으려던 것).
-// 탈락이면 고친 장면(scene)도 받아 한 번 다시 그린다. AI 가 실패하면 판정 없음(빈 Map) → 부르는 쪽이 통과로 친다.
+// 탈락이면 고친 장면(scene)도 받아 한 번 다시 그린다.
+// AI 가 실패하면 null(판정 못 함). 예전엔 빈 Map = 통과였는데 그러면 몸 구조 오류가 검사 없이 올라간다 → 부르는 쪽이 그날은 올리지 않는다.
+// 모델은 Flash 만(ai.mjs VISION_MODELS) — 무료 몫이 하루 약 20번이라 글·장면 일은 Flash-Lite 로 뺐다.
 // 손 검사: node scripts/judge.mjs items.json   (items = [{id, word, meaning_ko, file}] → 줄마다 판정)
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { askJson } from './ai.mjs';
+import { VISION_MODELS, askJson } from './ai.mjs';
 
-/** items: [{id, word, meaning_ko, png}] → Map(id → {ok, why, scene}). png 는 PNG·JPEG·WebP 버퍼 무엇이든 */
+/** items: [{id, word, meaning_ko, png}] → Map(id → {ok, why, scene}) · AI 실패면 null. png 는 PNG·JPEG·WebP 버퍼 무엇이든 */
 // 2026-10-16 사용자 「단어 자체를 그려야」 → 예문 없이 단어·뜻만 보고 판정한다.
 export async function judgeImages(items) {
   const out = new Map();
@@ -31,7 +33,7 @@ Output ONLY a JSON array with exactly ${cards.length} items: [{"n":1,"ok":true,"
   try {
     const images = [];
     for (const [i, it] of items.entries()) images.push({ label: `#${i + 1}`, png: await sharp(it.png).resize(768, 576, { fit: 'contain', background: '#fff' }).png().toBuffer() });
-    const arr = await askJson(prompt, { images });
+    const arr = await askJson(prompt, { images, models: VISION_MODELS });
     for (const o of arr) {
       const it = items[Number(o?.n) - 1];
       if (!it || typeof o.ok !== 'boolean') continue;
@@ -39,7 +41,8 @@ Output ONLY a JSON array with exactly ${cards.length} items: [{"n":1,"ok":true,"
       out.set(it.id, { ok: o.ok, why: String(o.why ?? '').slice(0, 120), scene });
     }
   } catch (e) {
-    console.error(`뜻 검사 실패 — 판정 없이 진행: ${String(e.message || e).slice(0, 200)}`);
+    console.error(`그림 검사 실패 — 판정 못 함: ${String(e.message || e).slice(0, 200)}`);
+    return null;
   }
   return out;
 }
@@ -48,5 +51,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   await import('./admin.mjs'); // .env 를 읽는다(GEMINI_API_KEY)
   const items = JSON.parse(readFileSync(process.argv[2], 'utf8')).map((it) => ({ ...it, png: readFileSync(it.file) }));
   const res = await judgeImages(items);
-  for (const it of items) console.log(JSON.stringify({ id: it.id, word: it.word, ...(res.get(it.id) ?? { ok: null }) }));
+  for (const it of items) console.log(JSON.stringify({ id: it.id, word: it.word, ...(res?.get(it.id) ?? { ok: null }) }));
 }

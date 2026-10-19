@@ -112,6 +112,7 @@ try {
           } catch { /* 한 장 못 받으면 그 장만 건너뜀 */ }
         }
         const v = await judgeImages(items);
+        if (!v) { console.log('다시 검사 멈춤 — 그림 검사 AI 를 못 씀(남은 그림은 다음에)'); break; }
         judged += v.size;
         for (const it of items) {
           const x = v.get(it.id);
@@ -181,8 +182,9 @@ try {
     let checked = 0;
     let ocrSkipped = 0;
     let errStreak = 0; // 단어 탓이 아닌 오류(용량 부족·서버 오류)가 잇따르면 그날은 멈춤
+    let judgeDown = false; // 그림 검사 AI(Flash 무료 몫)를 못 씀 → 검사 없이 올리지 않으니 더 그려 봐야 헛몫
     // 그리기 상한에 닿으면 남은 단어·뜻 탈락 다시 그리기는 내일로(실패 표시 안 함)
-    const stopped = () => quotaOut || errStreak >= 3 || checked >= DRAW_MAX;
+    const stopped = () => quotaOut || judgeDown || errStreak >= 3 || checked >= DRAW_MAX;
     // 한 단어 그리기 + 자동 검사(C5). 탈락이면 한 번만 다시. → {png, check, why} · 그리기 오류면 null(실패 표시 안 함, 내일 다시)
     const drawChecked = async (w, scene) => {
       let png = null, check = null, why = [];
@@ -236,11 +238,19 @@ try {
         const r = await drawChecked(w, scene);
         if (r) done.push({ w, scene, t0, ...r });
       }
-      // 뜻 검사(2026-10-14 사용자 「그림이 단어 뜻과 안 이어진다」). AI 가 실패하면 판정 없음 = 통과
+      // 그림 검사 = 뜻(2026-10-14 사용자 「그림이 단어 뜻과 안 이어진다」) + 몸 구조(2026-10-19 「다리 5개」).
+      // AI 가 판정을 못 하면(null) 예전엔 통과였다 → 이제 그 그림은 올리지 않고 내일 다시(defer), 그날 그리기도 멈춘다
+      const unjudged = (list) => {
+        judgeDown = true;
+        for (const d of list) { d.png = null; d.defer = true; }
+        log.meaning.unjudged = (log.meaning.unjudged ?? 0) + list.length;
+        console.log(`그림 검사 AI 를 못 씀 — ${list.length}장은 올리지 않고 내일 다시`);
+      };
       if (!NO_JUDGE) {
         const v1 = await judgeImages(done.filter((d) => d.png).map(toJudge));
-        log.meaning.judged += v1.size;
-        const again = done.filter((d) => d.png && v1.get(d.w.id)?.ok === false);
+        if (!v1) unjudged(done.filter((d) => d.png));
+        log.meaning.judged += v1?.size ?? 0;
+        const again = v1 ? done.filter((d) => d.png && v1.get(d.w.id)?.ok === false) : [];
         for (const d of again) {
           const v = v1.get(d.w.id);
           console.log(`그림 ${d.w.id} ${d.w.lemma} 뜻 탈락(${v.why}) → 고친 장면으로 한 번 더`);
@@ -255,7 +265,8 @@ try {
           else if (r.png) Object.assign(d, { png: r.png, check: r.check, scene: v.scene, rescene: true, pending: true });
         }
         const v2 = await judgeImages(again.filter((d) => d.pending).map(toJudge));
-        for (const d of again.filter((x) => x.pending)) {
+        if (!v2) unjudged(again.filter((d) => d.pending));
+        else for (const d of again.filter((x) => x.pending)) {
           d.pending = false;
           const v = v2.get(d.w.id);
           if (v?.ok === false) { d.png = null; d.why = [`meaning: ${v.why}`]; }
