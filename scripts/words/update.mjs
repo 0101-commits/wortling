@@ -30,7 +30,7 @@ const TOKEN = process.env.API_TOKEN || '';
 const arg = (name) => process.argv.includes(name);
 const DRY = arg('--dry');
 const REFRESH = arg('--refresh');
-const NO_AI = arg('--no-ai');
+const NO_AI = arg('--no-ai') || arg('--no-claude'); // 예전 이름도 받는다(습관대로 쳐도 몫을 안 쓰게)
 const MAX = Number((process.argv.find((a) => a.startsWith('--max=')) || '').slice(6)) || 1000;
 const REFRESH_DAYS = 30;
 const BATCH = 40; // AI 한 번에 넣을 단어 수
@@ -92,6 +92,8 @@ try {
           writeFileSync(file, JSON.stringify([...saved.values()], null, 1)); // 묶음마다 저장 — 중간에 멈춰도 남는다
         } catch (e) {
           log.errors.push(`AI 묶음 실패(${batch[0].lemma}…): ${String(e.message || e).slice(0, 200)}`);
+          // 하루 무료 몫 소진(매일 작업과 같은 구글 프로젝트 몫) → 남은 묶음은 헛부르지 않고 그만. 못 채운 단어는 다음에 다시
+          if (e.final && e.status === 429) queue.length = 0;
         }
         console.log(`AI ${++done}/${Math.ceil(need.length / BATCH)}`);
       }
