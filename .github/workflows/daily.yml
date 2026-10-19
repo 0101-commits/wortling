@@ -1,6 +1,6 @@
 # 매일 작업(글 채우기 · 그림 · 뜻 검사)을 깃허브 서버에서 — PC 가 꺼져 있어도 돈다.
 # DB 백업은 공개 저장소라 여기서 하지 않는다(PC 작업 「Wortling Backup」, scripts/register-task.ps1).
-# 비밀값: APP_URL · API_TOKEN(.env 와 같음) · CLAUDE_CODE_OAUTH_TOKEN(`claude setup-token`) · DISCORD_WEBHOOK_URL
+# 비밀값: APP_URL · API_TOKEN(.env 와 같음) · GEMINI_API_KEY(aistudio.google.com/apikey, 무료 몫) · DISCORD_WEBHOOK_URL
 name: daily
 
 on:
@@ -42,17 +42,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: claude CLI
-        shell: bash
-        run: |
-          npm i -g @anthropic-ai/claude-code
-          echo "NPM_GLOBAL_ROOT=$(npm root -g)" >> "$GITHUB_ENV"
       - name: daily.mjs
         run: node scripts/daily.mjs --no-backup
         env:
           APP_URL: ${{ secrets.APP_URL }}
           API_TOKEN: ${{ secrets.API_TOKEN }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       - name: 그림 상태 되올리기
         if: always()

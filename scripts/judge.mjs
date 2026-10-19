@@ -1,12 +1,12 @@
 // 그림 뜻 검사(2026-10-14 사용자 「그림이 단어 뜻과 안 이어진다」). 매일 작업(daily.mjs)이 올리기 전에 부른다.
-// 그린 그림을 9장씩 번호(#n)만 붙인 모음 그림으로 만들고, claude 가 Read 로 보며 단어·뜻과 맞는지 판정한다.
-// 탈락이면 고친 장면(scene)도 받아 한 번 다시 그린다. claude 가 실패하면 판정 없음(빈 Map) → 부르는 쪽이 통과로 친다.
+// 그린 그림을 9장씩 번호(#n)만 붙인 모음 그림으로 만들고, AI(Gemini)가 그림을 받아 보며 단어·뜻과 맞는지 판정한다.
+// 탈락이면 고친 장면(scene)도 받아 한 번 다시 그린다. AI 가 실패하면 판정 없음(빈 Map) → 부르는 쪽이 통과로 친다.
 // 손 검사: node scripts/judge.mjs items.json   (items = [{id, word, meaning_ko, file}] → 줄마다 판정)
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { askJson } from './claude.mjs';
+import { askJson } from './ai.mjs';
 
 const TW = 400, TH = 300, LH = 28, COLS = 3, PER = 9;
 
@@ -35,8 +35,7 @@ export async function judgeImages(items, dir) {
   if (!items.length) return out;
   const files = await sheets(items, dir);
   const cards = items.map((it, i) => ({ n: i + 1, word: it.word, meaning_ko: it.meaning_ko }));
-  const prompt = `You check doodle pictures for German vocabulary flashcards (learner: Korean speaker). Each picture must illustrate the WORD ITSELF (its core meaning, like a picture dictionary), not a sentence or story. Use the Read tool to open these image files (tiles labeled #n):
-${files.map((f) => '- ' + f.replace(/\\/g, '/')).join('\n')}
+  const prompt = `You check doodle pictures for German vocabulary flashcards (learner: Korean speaker). Each picture must illustrate the WORD ITSELF (its core meaning, like a picture dictionary), not a sentence or story. The attached images are contact sheets of these pictures (tiles labeled #n, in order).
 Cards: ${JSON.stringify(cards)}
 For EACH n decide "ok". ok=true only if a learner who sees the picture next to the word and its Korean meaning immediately connects them:
 - the thing or action that stands for the WORD is actually drawn, large and clear (not missing, not tiny, not replaced by something else);
@@ -48,7 +47,7 @@ The puppy is the mascot Borti; style is not your concern, only meaning.
 For ok=false also write "scene": a better ONE-line English scene, max 30 words, starting with "Borti": the key object or action first and large, at most 2 props, at most one other character (a puppy or kitten), at most one symbol (? ! heart, sweat drop, motion lines) and only when it carries the meaning, no letters or numbers.
 Output ONLY a JSON array with exactly ${cards.length} items: [{"n":1,"ok":true,"why":"짧은 한국어 이유"}, {"n":2,"ok":false,"why":"…","scene":"Borti …"}]`;
   try {
-    const arr = askJson(prompt, { tools: ['Read'], cwd: dir });
+    const arr = await askJson(prompt, { images: files });
     for (const o of arr) {
       const it = items[Number(o?.n) - 1];
       if (!it || typeof o.ok !== 'boolean') continue;

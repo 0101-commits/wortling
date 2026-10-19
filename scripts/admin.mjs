@@ -14,7 +14,7 @@ export function requireEnv() {
   if (!APP_URL || !TOKEN) throw new Error('APP_URL · API_TOKEN 이 없다(.env 또는 Actions 비밀값)');
 }
 
-/** 관리 API. claude 를 기다리는 사이 묵은 연결이 끊기면 한 번 다시 */
+/** 관리 API. AI 를 기다리는 사이 묵은 연결이 끊기면 한 번 다시 */
 export async function api(p, { method = 'GET', body } = {}) {
   const init = {
     method,

@@ -1,10 +1,10 @@
 // 매일 아침 PC 에서 한 번 도는 스크립트(작업 스케줄러 → scripts/register-task.ps1).
 // 하는 일 둘:
-//   1) 글 채우기 — 다가오는 단어(학습 순서 앞쪽) 가운데 한국어 뜻·예문·장면이 빈 것을 claude -p 로 채운다.
+//   1) 글 채우기 — 다가오는 단어(학습 순서 앞쪽) 가운데 한국어 뜻·예문·장면이 빈 것을 AI(Gemini)로 채운다.
 //   2) 그림 만들기 — Worker 의 POST /api/admin/draw(Cloudflare Workers AI FLUX.2 klein 4b, 무료 하루 10,000 뉴런 ≈ 100장)로
 //      장면이 있는 단어의 그림을 만들어 올린다. 무료 몫을 다 쓰면 429(quota) → 그날은 멈춤.
 //      매일 이어서 그리다가 그릴 단어가 하나도 안 남으면 「전부 완료」 알림을 한 번 보낸다(새 단어가 들어오면 다시 그림).
-// Worker 관리 API 만 쓴다(그림은 wrangler 불필요). 준비물: .env(APP_URL · API_TOKEN), claude 로그인.
+// Worker 관리 API 만 쓴다(그림은 wrangler 불필요). 준비물: .env(APP_URL · API_TOKEN), GEMINI_API_KEY(.env 또는 비밀값).
 // 되풀이해도 안전하다 — 이미 채워진 단어·그림은 다시 하지 않는다.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'node:fs';
@@ -15,7 +15,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { STYLE_INTRO, BORTI, STYLE, REF_NOTE, REF_FILE } from './style.mjs';
 import { checkFile } from './imgcheck.mjs';
-import { askJson } from './claude.mjs';
+import { askJson } from './ai.mjs';
 import { judgeImages } from './judge.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -62,7 +62,7 @@ try {
   if (!NO_TEXT) {
     const runway = await api(`/api/admin/runway?text=${TEXT_AHEAD}&image=0`);
     if (runway.need_text.length) {
-      const items = writeTextWithClaude(runway.need_text);
+      const items = await writeText(runway.need_text);
       if (items.length && !DRY) {
         const r = await api('/api/admin/words', { method: 'POST', body: { items } });
         log.text = r.updated;
@@ -171,12 +171,12 @@ try {
     const toJudge = (d) => ({ id: d.w.id, word: `${d.w.gender ? d.w.gender + ' ' : ''}${d.w.lemma}`, meaning_ko: d.w.gloss_ko, png: d.png });
     log.meaning = { judged: 0, retried: 0, failed: 0 };
 
-    // 25단어씩: 장면 쓰기(claude) → 그리기 → 뜻 검사(claude) → 탈락은 고친 장면으로 한 번 더 → 올리기.
+    // 25단어씩: 장면 쓰기(AI) → 그리기 → 뜻 검사(AI) → 탈락은 고친 장면으로 한 번 더 → 올리기.
     // 장면은 그리기 직전에 묶음마다 — 무료 몫이 바닥이면 헛쓰는 장면이 한 묶음뿐
     for (let i = 0; i < need.length && !stopped(); i += 25) {
       const batch = need.slice(i, i + 25);
       // --dry 도 장면은 써 본다(저장·그리기는 안 함) → 장면 규칙 점검용
-      const briefs = writeScenesWithClaude(batch);
+      const briefs = await writeScenes(batch);
       if (briefs.size && !DRY) await api('/api/admin/words', { method: 'POST', body: { items: [...briefs].map(([id, scene_en]) => ({ id, scene_en })) } });
       console.log(`새 장면 ${briefs.size}/${batch.length}`);
       const done = [];
@@ -189,7 +189,7 @@ try {
         const r = await drawChecked(w, scene);
         if (r) done.push({ w, scene, t0, ...r });
       }
-      // 뜻 검사(2026-10-14 사용자 「그림이 단어 뜻과 안 이어진다」). claude 가 실패하면 판정 없음 = 통과
+      // 뜻 검사(2026-10-14 사용자 「그림이 단어 뜻과 안 이어진다」). AI 가 실패하면 판정 없음 = 통과
       if (!NO_JUDGE) {
         const v1 = await judgeImages(done.filter((d) => d.png).map(toJudge), TMP_DIR);
         log.meaning.judged += v1.size;
@@ -320,14 +320,14 @@ try {
   console.log(JSON.stringify({ text: log.text, images: log.images.length, failed: log.failed.length, quota: log.quota, meaning: log.meaning, progress: log.progress, neurons_est: log.neurons_est }));
 }
 
-// ── claude -p 로 글 채우기 ──────────────────────────────────────────────
-function writeTextWithClaude(words) {
+// ── AI(Gemini)로 글 채우기 ──────────────────────────────────────────────
+async function writeText(words) {
   const list = words.map((w) => ({ id: w.id, lemma: w.lemma, pos: w.pos, gender: w.gender, level: w.level, gloss_en: w.gloss_en }));
   const prompt = `You write Korean learning content for German vocabulary (learner: Korean speaker, level B1~B2). For EACH item below return one object:
 {"id": "<same id>", "gloss_ko": "짧은 한국어 뜻 1~3개, 쉼표 구분, 20자 이내(명사는 관사 없이 명사형, 동사는 ~하다 형)", "example_de": "B1~B2 수준의 자연스러운 독일어 예문 1문장, 70자 이내, 표제어(활용형 가능) 포함", "example_ko": "예문의 자연스러운 한국어 번역, 40자 이내, ~해요체", "scene_en": "ONE English line (max 25 words) starting with 'Borti ' — a concrete visual scene where the mascot Borti (a chubby white puppy with tan floppy ears) acts out the word's meaning with ONE concrete prop or action; no text, letters, numbers, signs or logos; only Borti unless a second character is required"}
 Output ONLY a JSON array (no prose, no code fence) with exactly ${list.length} objects in the same order.
 Items: ${JSON.stringify(list)}`;
-  const arr = askJson(prompt);
+  const arr = await askJson(prompt);
   const ids = new Set(list.map((w) => w.id));
   const items = [];
   for (const o of arr) {
@@ -344,11 +344,11 @@ Items: ${JSON.stringify(list)}`;
   return items;
 }
 
-// ── claude -p 로 그림 장면 쓰기 ─────────────────────────────────────────────
+// ── AI(Gemini)로 그림 장면 쓰기 ─────────────────────────────────────────────
 // 2026-10-14 실측(35장 검토): 장면에 장소 + 소품 3개 + 조연까지 넣으면 4b 모델이 소품을 빼먹고 보르티만 크게 그려
 // 뜻 단서가 사라졌다(los 의 기차 · verschwinden 의 빈 열쇠걸이 · einzig 의 무리 · Entscheidung 의 갈림길). → 짧게, 뜻을 맡은 물건 하나를 맨 앞에.
 // 2026-10-16 사용자 「그림이 예문 장면이 됨 — 단어 자체를 그려야」 → 예문은 넘기지 않고 단어·품사·뜻만으로 장면을 쓴다.
-function writeScenesWithClaude(words) {
+async function writeScenes(words) {
   const list = words.map((w) => ({ id: w.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, pos: w.pos, meaning_ko: w.gloss_ko }));
   const prompt = `You write image scenes for German vocabulary flashcards. Each card shows the German word, its Korean meaning and a simple doodle. The doodle illustrates the WORD ITSELF — its core dictionary meaning, the way a picture dictionary would — never a particular sentence or story. A small image model draws the scene and drops details, so keep it SIMPLE: one glance at the picture must say the word.
 Rules for each scene (ONE English line, max 28 words and 180 characters, start with "Borti"):
@@ -364,7 +364,7 @@ Output ONLY a JSON array [{"id": "...", "scene_en": "..."}] with exactly ${list.
 Items: ${JSON.stringify(list)}`;
   const out = new Map();
   try {
-    const arr = askJson(prompt);
+    const arr = await askJson(prompt);
     const ids = new Set(list.map((w) => w.id));
     // 「Borti」로 시작하라 했지만 「In a kitchen, Borti …」 처럼 와도 받는다
     for (const o of arr) if (ids.has(o?.id) && typeof o.scene_en === 'string' && /\bBorti\b/.test(o.scene_en)) out.set(o.id, o.scene_en.trim().slice(0, 300));
@@ -394,7 +394,7 @@ async function api(p, { method = 'GET', body, raw, headers = {}, bin = false } =
   try {
     res = await fetch(APP_URL + p, init);
   } catch (e) {
-    // claude 를 기다리는 사이 서버가 묵은 연결을 닫으면 「fetch failed」 → 한 번 다시
+    // AI 를 기다리는 사이 서버가 묵은 연결을 닫으면 「fetch failed」 → 한 번 다시
     console.error(`재시도 ${method} ${p}: ${e.cause?.code || e.message}`);
     await new Promise((r) => setTimeout(r, 2000));
     res = await fetch(APP_URL + p, init);

@@ -3,7 +3,7 @@
 // 옵션: --dry(서버에 안 씀, 수만) · --max=N(새 단어 상한, 기본 30). 환경: NEWS_FEEDS=0 이면 tagesschau·NDR 을 읽지 않는다.
 // 뉴스 글은 어디에도 남기지 않는다 — 기본형별 기사 수와 링크 1개만 서버로, 로그엔 수만(공개 저장소의 Actions 로그).
 import path from 'node:path';
-import { askJson } from '../claude.mjs';
+import { askJson } from '../ai.mjs';
 import { ROOT, addDays, api, kstDay, notify, requireEnv, setOutput } from '../admin.mjs';
 import { ensureIndex } from './sources.mjs';
 import {
@@ -57,7 +57,7 @@ async function requests(index, keys) {
   const q = (await api('/api/admin/requests?status=queued')).items;
   log.requests = { queued: q.length, added: 0, exists: 0, rejected: 0 };
   if (!q.length) return;
-  const got = acceptRequests(askJson(requestPrompt(q.map((r) => ({ id: r.id, text: r.text })))), q.map((r) => r.id));
+  const got = acceptRequests(await askJson(requestPrompt(q.map((r) => ({ id: r.id, text: r.text })))), q.map((r) => r.id));
   const have = lowerKeys(keys.items);
   const settle = [];
   const fresh = [];
@@ -121,7 +121,7 @@ async function news(index) {
   for (let i = 0; i < items.length; i += CHUNK) await api('/api/admin/news', { method: 'POST', body: { day, items: items.slice(i, i + CHUNK) } });
 }
 
-/** 새 단어: 후보 → claude 카드 글(keep 판정) → 넣기 · 뺀 것은 word_skips 로 */
+/** 새 단어: 후보 → AI 카드 글(keep 판정) → 넣기 · 뺀 것은 word_skips 로 */
 async function candidates(index) {
   const keys = await api('/api/admin/keys');
   const hits = new Map((await api(`/api/admin/news?since=${addDays(day, -29)}`)).items.map((x) => [x.key, { n: x.n, url: x.url }]));
@@ -129,7 +129,7 @@ async function candidates(index) {
   log.candidates = picks.length;
   if (!picks.length || DRY) return;
   const list = picks.map((c) => ({ key: c.key, lemma: c.lemma, pos: c.pos, gender: own(index.facts, c.key)?.g?.[0] ?? null, level: c.level, gloss_en: own(index.facts, c.key)?.en ?? null }));
-  const done = new Map(acceptContent(askJson(contentPrompt(list, 'German news-frequency lists')), list).map((x) => [x.key, x]));
+  const done = new Map(acceptContent(await askJson(contentPrompt(list, 'German news-frequency lists')), list).map((x) => [x.key, x]));
   const items = [];
   const skips = [];
   for (const c of picks) {

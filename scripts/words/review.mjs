@@ -1,9 +1,9 @@
-// 매일 단어 작업 2/2(words.yml, news.mjs 다음): 카드 검토 — 고르기(서버) → 기계 근거(색인) → claude 25개씩 → decide → 고치기·기록.
+// 매일 단어 작업 2/2(words.yml, news.mjs 다음): 카드 검토 — 고르기(서버) → 기계 근거(색인) → AI 25개씩 → decide → 고치기·기록.
 // 설계 docs/superpowers/specs/2026-10-15-word-review-news-design.md 「2. 검토 규칙」
 // 옵션: --dry(서버에 안 씀, 앞 10건 판정을 보여 줌) · --max=N(하루 검토 수, 기본 250)
 import path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-import { askJson } from '../claude.mjs';
+import { askJson } from '../ai.mjs';
 import { ROOT, api, kstDay, notify, requireEnv } from '../admin.mjs';
 import { acceptVerdicts, adminItem, decide, factsFor, reviewPrompt, summaryText } from './lib.mjs';
 
@@ -32,7 +32,7 @@ try {
     const facts = new Map(batch.map((w) => [w.id, factsFor(w, index)]));
     let verdicts;
     try {
-      verdicts = acceptVerdicts(askJson(reviewPrompt(batch, (w) => facts.get(w.id))), batch.map((w) => w.id));
+      verdicts = acceptVerdicts(await askJson(reviewPrompt(batch, (w) => facts.get(w.id))), batch.map((w) => w.id));
       fails = 0;
     } catch (e) {
       log.failedBatches++;
