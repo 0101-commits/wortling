@@ -95,12 +95,8 @@ try {
     // 다시 그려도 두 번 탈락하면 머리글자 칸으로 남는다. 판정이 준 고친 장면(단순한 자세)은 fix 에 두었다가 그날 첫 그리기에 쓴다
     const fix = new Map();
     if (RECHECK && !REDO.length) {
-      const have = [];
-      for (let page = 1; ; page++) {
-        const r = await api(`/api/words?size=200&page=${page}`);
-        have.push(...r.items.map((x) => x.word).filter((w) => w.image));
-        if (page * 200 >= r.total) break;
-      }
+      // 질의 한 번. /api/words 를 43쪽 넘기던 때는 한 번에 D1 행 읽기 ≈130만 → 하루 무료 5M 을 넘겼다(2026-10-19)
+      const have = (await api('/api/admin/images')).items;
       const bad = [];
       let judged = 0;
       for (let i = 0; i < have.length; i += 25) {

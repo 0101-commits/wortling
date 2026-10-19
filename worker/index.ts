@@ -25,7 +25,7 @@ import { LATER_MS, WEBHOOK_KEY, WEBHOOK_RE, laterAllowed, sendTest, webhookUrl }
 import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
 import { HttpError, bad } from './http.ts';
 import {
-  LIST_ORDER, addReport, addRequest, getNews, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
+  LIST_ORDER, addReport, addRequest, getNews, imageWords, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
   reseq, revertChange, reviewQueue, reviewStats, settleRequest, wordKeys,
 } from './words.ts';
 
@@ -460,6 +460,7 @@ const pushUnsubscribe: Handler = async ({ req, env }) => {
 // ---------- 단어 관리(worker/words.ts) ----------
 
 const adminKeys: Handler = async ({ env }) => json(await wordKeys(env.DB));
+const adminImages: Handler = async ({ env }) => json(await imageWords(env.DB));
 const adminInsert: Handler = async ({ req, env }) =>
   json(await insertWords(env.DB, (await readJson<{ items?: Array<Record<string, unknown>> }>(req))?.items));
 /** 단어 칸 고치기 + 고침 기록(scripts/words/review.mjs) · 글 채우기(daily.mjs) */
@@ -621,6 +622,7 @@ const routes: Route[] = [
   ['POST', /^\/api\/admin\/requests\/(\d+)$/, adminSettle],
   ['GET', /^\/api\/admin\/review-stats$/, adminReviewStats],
   ['GET', /^\/api\/admin\/keys$/, adminKeys],
+  ['GET', /^\/api\/admin\/images$/, adminImages],
   ['POST', /^\/api\/admin\/words\/insert$/, adminInsert],
 ];
 

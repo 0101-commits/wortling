@@ -134,6 +134,13 @@ export async function insertWords(db: D1Database, items: Array<Record<string, un
   return { inserted: stmts.length / 2, first_id: first, last_id: last };
 }
 
+/** 그림 다시 검사용(daily.mjs --recheck): 그림이 올라간 단어. 질의 한 번 —
+ *  /api/words 를 쪽마다 넘기면 쪽마다 count(*)·정렬로 표 전체를 읽어 하루 무료 행 읽기(5M)를 넘겼다(2026-10-19, 11.5M) */
+export async function imageWords(db: D1Database) {
+  const r = await db.prepare("SELECT id, lemma, gender, gloss_ko FROM words WHERE image_status = 'ok' ORDER BY id").all();
+  return { items: r.results.map(plain) };
+}
+
 /** 정기 작업용: 있는 단어 열쇠(+ 뉴스 순위) · 후보에서 뺀 기본형 */
 export async function wordKeys(db: D1Database) {
   const [w, s] = await db.batch([db.prepare('SELECT id, lemma, pos, news_rank FROM words ORDER BY id'), db.prepare('SELECT key FROM word_skips ORDER BY key')]);
