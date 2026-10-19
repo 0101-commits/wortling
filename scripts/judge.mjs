@@ -1,5 +1,7 @@
 // 그림 뜻 검사(2026-10-14 사용자 「그림이 단어 뜻과 안 이어진다」). 매일 작업(daily.mjs)이 올리기 전에 부른다.
-// 그린 그림을 9장씩 번호(#n)만 붙인 모음 그림으로 만들고, AI(Gemini)가 그림을 받아 보며 단어·뜻과 맞는지 판정한다.
+// 그린 그림을 4장씩 번호(#n)만 붙인 모음 그림으로 만들고, AI(Gemini)가 그림을 받아 보며 단어·뜻과 맞는지 판정한다.
+// 2026-10-19 사용자 「강아지 다리가 5개 같은 오류」 → 몸 구조(다리·귀·꼬리 수, 붙은 몸)도 본다. 다리를 세려면 작은 칸으론 모자라
+// 9장(400×300) → 4장(600×450)씩.
 // 탈락이면 고친 장면(scene)도 받아 한 번 다시 그린다. AI 가 실패하면 판정 없음(빈 Map) → 부르는 쪽이 통과로 친다.
 // 손 검사: node scripts/judge.mjs items.json   (items = [{id, word, meaning_ko, file}] → 줄마다 판정)
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
@@ -8,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { askJson } from './ai.mjs';
 
-const TW = 400, TH = 300, LH = 28, COLS = 3, PER = 9;
+const TW = 600, TH = 450, LH = 28, COLS = 2, PER = 4;
 
 async function sheets(items, dir) {
   mkdirSync(dir, { recursive: true });
@@ -43,8 +45,9 @@ For EACH n decide "ok". ok=true only if a learner who sees the picture next to t
 - the picture is not a specific story that needs a sentence to explain it;
 - nothing in the picture contradicts the meaning.
 Be strict: if the learner would have to guess why this picture fits the word, ok=false.
-The puppy is the mascot Borti; style is not your concern, only meaning.
-For ok=false also write "scene": a better ONE-line English scene, max 30 words, starting with "Borti": the key object or action first and large, at most 2 props, at most one other character (a puppy or kitten), at most one symbol (? ! heart, sweat drop, motion lines) and only when it carries the meaning, no letters or numbers.
+ALSO check every animal's BODY (the puppy is the mascot Borti; another puppy or kitten may appear). Before deciding, count each animal's legs/paws, ears, eyes, tails and heads one by one. ok=false if any animal has: more than four legs or paws, an extra or missing head, ear, eye or tail, a limb growing from the wrong place, floating or detached body parts, bodies merged with each other or with an object, or Borti drawn twice. Legs hidden behind the body are fine; extra ones are not. When the body is wrong, "why" names it (e.g. "다리가 5개").
+Line style and colors are not your concern; only meaning and correct bodies.
+For ok=false also write "scene": a better ONE-line English scene, max 30 words, starting with "Borti": the key object or action first and large, at most 2 props, at most one other character (a puppy or kitten), at most one symbol (? ! heart, sweat drop, motion lines) and only when it carries the meaning, no letters or numbers. If the body was wrong, keep the idea but use a simpler pose with fewer overlapping limbs (Borti sitting or standing still, side or front view, at most one paw raised).
 Output ONLY a JSON array with exactly ${cards.length} items: [{"n":1,"ok":true,"why":"짧은 한국어 이유"}, {"n":2,"ok":false,"why":"…","scene":"Borti …"}]`;
   try {
     const arr = await askJson(prompt, { images: files });

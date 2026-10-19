@@ -7,6 +7,11 @@ on:
   schedule:
     - cron: '17 3 * * *' # 한국 12:17(정각은 깃허브 대기열이 붐벼 늦게 돈다)
   workflow_dispatch:
+    inputs:
+      recheck:
+        description: '이미 올라간 그림 전부 다시 검사(몸 구조·뜻) — 탈락은 다시 그리기 목록 맨 앞'
+        type: boolean
+        default: false
 
 concurrency: daily
 
@@ -43,7 +48,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: daily.mjs
-        run: node scripts/daily.mjs --no-backup
+        run: node scripts/daily.mjs --no-backup ${{ inputs.recheck && '--recheck' || '' }}
         env:
           APP_URL: ${{ secrets.APP_URL }}
           API_TOKEN: ${{ secrets.API_TOKEN }}

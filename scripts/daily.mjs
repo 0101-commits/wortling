@@ -33,6 +33,8 @@ const DRY = process.argv.includes('--dry');
 const NO_IMAGE = process.argv.includes('--no-image');
 const NO_TEXT = process.argv.includes('--no-text');
 const NO_JUDGE = process.argv.includes('--no-judge');
+// 이미 올라간 그림을 전부 다시 검사(손 실행, daily.yml 의 recheck) — 탈락은 다시 그리기 목록 맨 앞에
+const RECHECK = process.argv.includes('--recheck');
 
 const REDO = (process.argv.find((a) => a.startsWith('--redo=')) || '').slice(7).split(',').filter(Boolean);
 // Worker 는 2,000자까지 받음. 고정 문장(그림체·보르티·참고 그림) ≈ 900자 + 장면 ≈ 250자
@@ -88,6 +90,38 @@ try {
     // 오늘 덱을 따로 앞세우던 단계는 뺐다 — ②와 같은 순서인데 검사 탈락(failed) 단어까지 매일 다시 그렸다
     const restyle = existsSync(RESTYLE_FILE) ? JSON.parse(readFileSync(RESTYLE_FILE, 'utf8')) : [];
     const saveRestyle = () => writeFileSync(RESTYLE_FILE, JSON.stringify(restyle));
+    // 2026-10-19 사용자 「강아지 다리 5개 같은 오류」 — 판정에 몸 구조를 넣기 전에 올라간 그림을 같은 판정으로 다시 본다.
+    // 탈락은 restyle 맨 앞 → 오늘(몫이 남으면)·다음 날 먼저 다시 그린다. 다시 그려도 두 번 탈락이면 있던 그림을 둔다(restyle_gave_up)
+    if (RECHECK && !REDO.length) {
+      const have = [];
+      for (let page = 1; ; page++) {
+        const r = await api(`/api/words?size=200&page=${page}`);
+        have.push(...r.items.map((x) => x.word).filter((w) => w.image));
+        if (page * 200 >= r.total) break;
+      }
+      const bad = [];
+      let judged = 0;
+      for (let i = 0; i < have.length; i += 25) {
+        const items = [];
+        for (const w of have.slice(i, i + 25)) {
+          const res = await fetch(`${APP_URL}/img/${w.id}.webp`);
+          if (res.ok) items.push({ id: w.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, meaning_ko: w.gloss_ko, png: Buffer.from(await res.arrayBuffer()) });
+        }
+        const v = await judgeImages(items, TMP_DIR);
+        judged += v.size;
+        for (const it of items) {
+          const x = v.get(it.id);
+          if (x?.ok === false) {
+            bad.push(it.id);
+            console.log(`다시 검사 탈락 ${it.id} ${it.word}: ${x.why}`);
+          }
+        }
+      }
+      for (const id of bad.reverse()) if (!restyle.includes(id)) restyle.unshift(id);
+      if (!DRY) saveRestyle();
+      log.recheck = { images: have.length, judged, bad: bad.length };
+      console.log(`다시 검사 ${judged}/${have.length}장 · 탈락 ${bad.length}장 → 다시 그리기 목록 맨 앞`);
+    }
     const redo = new Set(REDO.length ? REDO : restyle);
     const ids = [];
     const add = (list) => {

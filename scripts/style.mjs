@@ -11,8 +11,10 @@ export const REF_FILE = fileURLToPath(new URL('./borti-ref.png', import.meta.url
 export const STYLE_INTRO = 'Cute simple hand-drawn doodle, like a Korean messenger emoticon sticker.';
 export const REF_NOTE =
   'Borti looks exactly like the white puppy in the reference image (same face, tan ears, round body, line style); only his pose and expression change.';
+// 2026-10-19 사용자 「강아지 다리가 5개 같은 오류」 → 몸 구조를 숫자로 못 박는다(걸러 내는 건 judge.mjs 몫)
 export const BORTI =
-  'Borti: chubby white puppy, round pear-shaped body, floppy tan ears, black dot eyes, small black nose, pink blush cheeks, stubby legs, short curled tail.';
+  'Borti: chubby white puppy, round pear-shaped body, floppy tan ears, black dot eyes, small black nose, pink blush cheeks, ' +
+  'exactly four stubby legs and one short curled tail; one head; never extra legs, paws or tails.';
 export const STYLE =
   'Medium-thin slightly wobbly black pen outlines, flat fills, no shading, no gradients, no shine. ' +
   'Mostly white with at most three pastel accents (butter yellow, baby pink, sky blue, mint). ' +
