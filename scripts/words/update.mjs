@@ -5,18 +5,19 @@
 //   2) 씨앗 빌드(scripts/seed/build.mjs) → seed/words.json
 //   3) 실서버에 이미 있는 단어 목록(GET /api/admin/keys)
 //   4) words.json 가운데 DB 에 없고 keep 이 false 가 아닌 단어를 빌드 순서(B1 → B2 → C1, 빈도순)대로 고름
-//   5) 한국어 뜻이 없는 단어는 claude -p 로 판정·채움(40개씩, 동시 3) → scripts/seed/data/content_auto_<KST 날짜>.json 에 덧붙임
+//   5) 한국어 뜻이 없는 단어는 AI(Gemini, scripts/ai.mjs)로 판정·채움(40개씩, 동시 3) → scripts/seed/data/content_auto_<KST 날짜>.json 에 덧붙임
 //   6) keep 인 새 단어를 POST /api/admin/words/insert 로 200개씩 넣음(서버가 id·seq 를 이어 매기고 cards 도 만듦)
 //   7) backup/words/<날짜>.json 에 보고를 남기고 디스코드로 알림
-// 옵션: --dry(받기·claude·넣기 없이 수만 출력) · --refresh(30일과 상관없이 받기) · --max=N(한 번에 넣을 상한, 기본 1000) · --no-claude(뜻 없는 단어는 건너뜀)
-// 되풀이해도 안전하다 — DB 에 있는 단어는 (lemma,pos)로 걸러 다시 넣지 않고, claude 결과는 파일에 남아 다음 빌드에도 쓰인다.
+// 옵션: --dry(받기·AI·넣기 없이 수만 출력) · --refresh(30일과 상관없이 받기) · --max=N(한 번에 넣을 상한, 기본 1000) · --no-ai(뜻 없는 단어는 건너뜀)
+// 되풀이해도 안전하다 — DB 에 있는 단어는 (lemma,pos)로 걸러 다시 넣지 않고, AI 결과는 파일에 남아 다음 빌드에도 쓰인다.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, renameSync, unlinkSync, createWriteStream } from 'node:fs';
-import { spawn, spawnSync, execFileSync } from 'node:child_process';
+import { spawnSync, execFileSync } from 'node:child_process';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { askJson } from '../ai.mjs';
 import { acceptContent, contentPrompt } from './lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -29,17 +30,12 @@ const TOKEN = process.env.API_TOKEN || '';
 const arg = (name) => process.argv.includes(name);
 const DRY = arg('--dry');
 const REFRESH = arg('--refresh');
-const NO_CLAUDE = arg('--no-claude');
+const NO_AI = arg('--no-ai');
 const MAX = Number((process.argv.find((a) => a.startsWith('--max=')) || '').slice(6)) || 1000;
 const REFRESH_DAYS = 30;
-const BATCH = 40; // claude 한 번에 넣을 단어 수
-const PARALLEL = 3; // claude 동시 실행 수
+const BATCH = 40; // AI 한 번에 넣을 단어 수
+const PARALLEL = 3; // AI 동시 호출 수
 const INSERT_BATCH = 200;
-const CLAUDE_EXE =
-  process.platform === 'win32'
-    ? path.join(npmGlobalRoot(), '@anthropic-ai', 'claude-code', 'bin', 'claude.exe')
-    : 'claude';
-const CLAUDE_ARGS = ['-p', '--output-format', 'json', '--model', 'sonnet', '--max-turns', '1', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}'];
 const FIELDS = ['lemma', 'pos', 'gender', 'plural', 'ipa', 'level', 'level_src', 'gloss_en', 'gloss_ko', 'gloss_status',
   'example_de', 'example_ko', 'example_src', 'scene_en', 'freq_rank'];
 const keyOf = (w) => `${w.lemma.toLowerCase()}|${w.pos}`; // DB 와 비교할 때는 대소문자 무시(빌드도 같은 규칙으로 중복을 거름)
@@ -81,8 +77,8 @@ try {
 
   // 5) 한국어 뜻 채우기
   const need = pick.filter((w) => !w.gloss_ko);
-  const got = new Map(); // key → claude 결과
-  if (need.length && !DRY && !NO_CLAUDE) {
+  const got = new Map(); // key → AI 결과
+  if (need.length && !DRY && !NO_AI) {
     const file = path.join(SEED_DATA, `content_auto_${day}.json`);
     const saved = new Map(existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).map((c) => [c.key, c]) : []);
     const queue = [];
@@ -95,14 +91,14 @@ try {
           for (const c of await writeContent(batch)) { got.set(c.key, c); saved.set(c.key, c); }
           writeFileSync(file, JSON.stringify([...saved.values()], null, 1)); // 묶음마다 저장 — 중간에 멈춰도 남는다
         } catch (e) {
-          log.errors.push(`claude 묶음 실패(${batch[0].lemma}…): ${String(e.message || e).slice(0, 200)}`);
+          log.errors.push(`AI 묶음 실패(${batch[0].lemma}…): ${String(e.message || e).slice(0, 200)}`);
         }
-        console.log(`claude ${++done}/${Math.ceil(need.length / BATCH)}`);
+        console.log(`AI ${++done}/${Math.ceil(need.length / BATCH)}`);
       }
     }));
   }
 
-  // 6) 넣을 줄 만들기: 뜻이 이미 있는 단어 + claude 가 keep 으로 채운 단어
+  // 6) 넣을 줄 만들기: 뜻이 이미 있는 단어 + AI 가 keep 으로 채운 단어
   const items = [];
   for (const w of pick) {
     const k = `${w.lemma}|${w.pos}`;
@@ -115,16 +111,16 @@ try {
   }
   log.byLevel = countBy(items, (w) => w.level);
   if (DRY) {
-    console.log(`[dry] 넣을 수 있는 단어 ${items.length}건 ${JSON.stringify(log.byLevel)} · claude 로 채울 단어 ${need.length}건(${Math.ceil(need.length / BATCH)}묶음, 건너뜀)`);
+    console.log(`[dry] 넣을 수 있는 단어 ${items.length}건 ${JSON.stringify(log.byLevel)} · AI 로 채울 단어 ${need.length}건(${Math.ceil(need.length / BATCH)}묶음, 건너뜀)`);
   } else {
     for (let i = 0; i < items.length; i += INSERT_BATCH) {
       const r = await api('/api/admin/words/insert', { method: 'POST', body: { items: items.slice(i, i + INSERT_BATCH) } });
       log.inserted += r.inserted;
       if (r.inserted) log.ranges.push(`${r.first_id}~${r.last_id}`); // 서버가 이미 있는 (lemma,pos)는 건너뛰므로 0건일 수 있다
     }
-    console.log(`넣음 ${log.inserted}건 ${log.ranges.join(', ')} · claude 채움 ${log.filled} · 판정 제외 ${log.rejected} · 못 채움 ${log.unfilled}`);
+    console.log(`넣음 ${log.inserted}건 ${log.ranges.join(', ')} · AI 채움 ${log.filled} · 판정 제외 ${log.rejected} · 못 채움 ${log.unfilled}`);
     const extra = [
-      `claude 채움 ${log.filled} · 판정 제외 ${log.rejected} · 못 채움 ${log.unfilled} · 남은 후보 ${fresh.length - pick.length}`,
+      `AI 채움 ${log.filled} · 판정 제외 ${log.rejected} · 못 채움 ${log.unfilled} · 남은 후보 ${fresh.length - pick.length}`,
       ...log.refresh.filter((s) => s.error).map((s) => `원본 받기 실패 ${s.name}: ${s.error.slice(0, 120)}`),
       ...log.errors.slice(0, 3),
     ].join('\n');
@@ -231,33 +227,11 @@ function applyGoethe(file) {
   return `B1 목록 바뀜 +${added.length} −${removed.length}: ${[...added.map((x) => '+' + x), ...removed.map((x) => '−' + x)].slice(0, 10).join(', ')}`;
 }
 
-// ── 5) claude -p 로 판정·채우기 (프롬프트·검사는 lib.mjs — news.mjs 와 같음) ─────────────────
+// ── 5) AI(Gemini)로 판정·채우기 (프롬프트·검사는 lib.mjs — news.mjs 와 같음) ─────────────────
+// 2026-10-19 사용자 「words update 도 제미나이로」 — 예전엔 claude -p(구독 토큰)
 async function writeContent(batch) {
   const list = batch.map((w) => ({ key: `${w.lemma}|${w.pos}`, lemma: w.lemma, pos: w.pos, gender: w.gender, level: w.level, gloss_en: w.gloss_en }));
-  const out = await runClaude(contentPrompt(list));
-  const text = String(JSON.parse(out).result ?? '').trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
-  let arr;
-  try { arr = JSON.parse(text); } catch { throw new Error(`claude 결과가 JSON 이 아님: ${text.slice(0, 200)}`); }
-  return acceptContent(arr, list);
-}
-
-// 예전 daily.mjs(2026-10-19 Gemini 로 바꾸기 전)와 같은 claude.exe·플래그. 동시에 여럿 돌리려고 spawn 으로 기다린다.
-function runClaude(input) {
-  return new Promise((resolve, reject) => {
-    const p = spawn(CLAUDE_EXE, CLAUDE_ARGS, { windowsHide: true });
-    let out = '';
-    let err = '';
-    p.stdout.setEncoding('utf8').on('data', (d) => { out += d; });
-    p.stderr.setEncoding('utf8').on('data', (d) => { err += d; });
-    const timer = setTimeout(() => p.kill(), 10 * 60 * 1000);
-    p.on('error', (e) => { clearTimeout(timer); reject(e); });
-    p.on('close', (code) => {
-      clearTimeout(timer);
-      if (code === 0) resolve(out);
-      else reject(new Error(`claude -p 실패(${code}): ${(err || out).slice(0, 300)}`));
-    });
-    p.stdin.end(input);
-  });
+  return acceptContent(await askJson(contentPrompt(list)), list);
 }
 
 // ── Worker 관리 API (daily.mjs 와 같은 방식) ─────────────────────────────────
@@ -271,7 +245,7 @@ async function api(p, { method = 'GET', body } = {}) {
   try {
     res = await fetch(APP_URL + p, init);
   } catch (e) {
-    // claude 를 기다리는 사이 서버가 묵은 연결을 닫으면 「fetch failed」 → 한 번 다시
+    // AI 를 기다리는 사이 서버가 묵은 연결을 닫으면 「fetch failed」 → 한 번 다시
     console.error(`재시도 ${method} ${p}: ${e.cause?.code || e.message}`);
     await new Promise((r) => setTimeout(r, 2000));
     res = await fetch(APP_URL + p, init);
@@ -296,11 +270,6 @@ function loadEnv(file) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
     if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
   }
-}
-function npmGlobalRoot() {
-  if (process.env.NPM_GLOBAL_ROOT) return process.env.NPM_GLOBAL_ROOT;
-  if (process.platform === 'win32' && process.env.APPDATA) return path.join(process.env.APPDATA, 'npm', 'node_modules');
-  return execFileSync('npm', ['root', '-g'], { encoding: 'utf8' }).trim();
 }
 function kstDay(d = new Date()) {
   return new Date(d.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);

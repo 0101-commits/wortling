@@ -17,7 +17,7 @@ B1~C1 단어 8,347개를 틴더처럼 밀어서 채점(ts-fsrs)하고, 아침 07
 | `scripts/seed/` | 단어 시드 — Goethe B1(DWDS) 1,800 + WordHoard B2 → DWDS 대조 → 사람 판정 = 2,220, kaikki 보강, 한국어 뜻·예문·장면 100% |
 | `scripts/daily.mjs` | **매일 깃허브 서버에서**(`.github/workflows/daily.yml`, 12:17) 빈 글 채우기(Gemini) + 그림 생성(Workers AI FLUX.2 klein 4b, 무료 하루 ≈ 100장) |
 | `scripts/words/` | **매일 서버에서**(`.github/workflows/words.yml`, 05:17) 카드 검토(뜻·예문·번역·관사·레벨, 자동 고침 + 기록·되돌리기) · 내가 넣은 단어 · 뉴스 단어 추가 · 학습 순서 |
-| `scripts/words/update.mjs` | 손으로 돌리는 예전 단어 갱신(WordHoard·DWDS, PC 전용) |
+| `scripts/words/update.mjs` | 손으로 돌리는 예전 단어 갱신(WordHoard·DWDS, PC 전용, 뜻 채우기는 Gemini — `.env` 에 `GEMINI_API_KEY`) |
 | `shared/api.ts` | Worker ↔ 앱 계약(JSON 키) |
 
 알림은 cron 대신 Durable Object 알람이다. 무료 계정 cron 5칸을 다른 Worker 가 다 쓰고 있어서다. 알람은 울릴 때마다 다음 칸(22:30Z · 12:00Z)을 스스로 다시 예약하고, 앱에서 오늘 화면을 열 때마다 비어 있으면 다시 채운다. 그림 저장은 R2 대신 Workers KV 다(계정에서 R2 가 꺼져 있음).
