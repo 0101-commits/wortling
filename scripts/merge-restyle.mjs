@@ -8,6 +8,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export function mergeRestyle(base, main, run) {
+  // 실행 쪽이 안 바꿨으면 main 그대로 — 손으로 순서만 바꾼 것(있던 id 를 맨 앞으로)이 되돌려지지 않게
+  if (run.length === base.length && run.every((id, i) => id === base[i])) return main;
   const inBase = new Set(base), inMain = new Set(main);
   const removed = new Set(base.filter((id) => !inMain.has(id)));
   return [...new Set([...main.filter((id) => !inBase.has(id)), ...run.filter((id) => !removed.has(id))])];

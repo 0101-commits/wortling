@@ -11,6 +11,10 @@ test('도는 사이 main 에 손으로 넣은 id 는 앞에 살린다', () => {
   assert.deepEqual(mergeRestyle(['a', 'b'], ['x', 'y', 'a', 'b'], ['b', 'z']), ['x', 'y', 'b', 'z'])
 })
 
+test('실행 쪽이 안 바꿨으면 main 그대로 — 손으로 바꾼 순서를 지킨다', () => {
+  assert.deepEqual(mergeRestyle(['a', 'b', 'c'], ['c', 'a', 'b'], ['a', 'b', 'c']), ['c', 'a', 'b'])
+})
+
 test('main 에서 손으로 뺀 id 는 실행 쪽에서도 뺀다 · 겹치면 한 번만', () => {
   assert.deepEqual(mergeRestyle(['a', 'b'], ['b', 'x'], ['a', 'b', 'x']), ['x', 'b'])
 })
