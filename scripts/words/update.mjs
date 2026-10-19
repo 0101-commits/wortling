@@ -241,7 +241,7 @@ async function writeContent(batch) {
   return acceptContent(arr, list);
 }
 
-// daily.mjs 의 writeTextWithClaude 와 같은 claude.exe·플래그. 동시에 여럿 돌리려고 spawn 으로 기다린다.
+// 예전 daily.mjs(2026-10-19 Gemini 로 바꾸기 전)와 같은 claude.exe·플래그. 동시에 여럿 돌리려고 spawn 으로 기다린다.
 function runClaude(input) {
   return new Promise((resolve, reject) => {
     const p = spawn(CLAUDE_EXE, CLAUDE_ARGS, { windowsHide: true });

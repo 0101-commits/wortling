@@ -62,12 +62,19 @@ try {
   if (!NO_TEXT) {
     const runway = await api(`/api/admin/runway?text=${TEXT_AHEAD}&image=0`);
     if (runway.need_text.length) {
-      const items = await writeText(runway.need_text);
-      if (items.length && !DRY) {
-        const r = await api('/api/admin/words', { method: 'POST', body: { items } });
-        log.text = r.updated;
-      } else log.text = items.length;
-      console.log(`글 채움 ${items.length}/${runway.need_text.length}`);
+      // AI 가 실패해도(무료 몫 429 등) 그림은 그린다 — 예전에는 여기서 그날 작업 전체가 멈췄다
+      try {
+        const items = await writeText(runway.need_text);
+        if (items.length && !DRY) {
+          const r = await api('/api/admin/words', { method: 'POST', body: { items } });
+          log.text = r.updated;
+        } else log.text = items.length;
+        console.log(`글 채움 ${items.length}/${runway.need_text.length}`);
+      } catch (e) {
+        log.text_error = String(e.message || e).slice(0, 300);
+        console.error(`글 채우기 실패 — 그림은 계속: ${log.text_error}`);
+        await notify('error', 'Wortling 글 채우기 실패', log.text_error);
+      }
     } else console.log('글 채울 단어 없음');
   }
 

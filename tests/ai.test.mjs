@@ -38,3 +38,35 @@ test('퇴역(404)이면 다음 모델 · 키는 헤더 · 그림은 inline_data 
   assert.equal(parts[0].text, '판정')
   assert.deepEqual(parts[1], { inline_data: { mime_type: 'image/png', data: Buffer.from('PNG').toString('base64') } })
 })
+
+test('항목 하나가 {…} 로 와도 · {"items":[…]} 로 감싸 와도 배열로', async () => {
+  process.env.GEMINI_API_KEY = 'k-test'
+  const orig = globalThis.fetch
+  try {
+    globalThis.fetch = async () => answer('{"n":1,"ok":false,"why":"x"}')
+    assert.deepEqual(await askJson('a'), [{ n: 1, ok: false, why: 'x' }])
+    globalThis.fetch = async () => answer('{"items":[{"n":1},{"n":2}]}')
+    assert.deepEqual(await askJson('b'), [{ n: 1 }, { n: 2 }])
+  } finally {
+    globalThis.fetch = orig
+  }
+})
+
+test('하루 몫 소진(429 PerDay)이면 기다리지 않고 다음 모델', { timeout: 5000 }, async () => {
+  process.env.GEMINI_API_KEY = 'k-test'
+  const urls = []
+  const orig = globalThis.fetch
+  globalThis.fetch = async (url) => {
+    urls.push(url)
+    return urls.length === 1
+      ? reply(429, { error: { message: 'quota', details: [{ violations: [{ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier' }] }] } })
+      : answer('[1]')
+  }
+  try {
+    assert.deepEqual(await askJson('c'), [1])
+  } finally {
+    globalThis.fetch = orig
+  }
+  assert.equal(urls.length, 2)
+  assert.match(urls[1], /flash-lite/)
+})

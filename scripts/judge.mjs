@@ -63,6 +63,7 @@ Output ONLY a JSON array with exactly ${cards.length} items: [{"n":1,"ok":true,"
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await import('./admin.mjs'); // .env 를 읽는다(GEMINI_API_KEY)
   const items = JSON.parse(readFileSync(process.argv[2], 'utf8')).map((it) => ({ ...it, png: readFileSync(it.file) }));
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.data', 'img-tmp');
   const res = await judgeImages(items, dir);
