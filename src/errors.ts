@@ -7,6 +7,7 @@ const TEXT: Record<string, string> = {
   bad_url: '링크는 https:// 로 시작하는 주소만 넣을 수 있어요.',
   'bad kind': '이상한 곳을 하나 골라 주세요.',
   bad_webhook_url: '디스코드 웹후크 주소가 아니에요.',
+  db_quota: '오늘 데이터베이스 무료 사용량을 다 썼어요. 한국 시간 오전 9시에 다시 열려요.',
 }
 
 export function serverErrorText(status: number, code?: string): string {

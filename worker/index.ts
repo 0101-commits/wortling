@@ -660,6 +660,8 @@ export default {
       throw new HttpError(pathMatched ? 405 : 404, pathMatched ? 'method_not_allowed' : 'not_found');
     } catch (e) {
       if (e instanceof HttpError) return json({ error: e.message }, e.status);
+      // 계정 D1 하루 무료 한도(행 읽기 5M) 초과 = UTC 0시(한국 9시)까지 모든 질의가 막힌다(2026-10-19). 500 대신 원인이 보이게
+      if (/free tier daily row/i.test(String(e))) return json({ error: 'db_quota' }, 503);
       console.error('unhandled', e);
       return json({ error: 'internal', detail: String(e) }, 500);
     }

@@ -22,6 +22,7 @@ test('서버 오류 문구: 알려진 코드는 우리말, 모르는 코드는 �
   assert.equal(serverErrorText(400, 'bad_text'), '글자로 된 단어 하나(60자 이내)만 넣어 주세요.');
   assert.equal(serverErrorText(400, 'bad_url'), '링크는 https:// 로 시작하는 주소만 넣을 수 있어요.');
   assert.equal(serverErrorText(500, 'internal'), '서버 오류 500 · internal');
+  assert.equal(serverErrorText(503, 'db_quota'), '오늘 데이터베이스 무료 사용량을 다 썼어요. 한국 시간 오전 9시에 다시 열려요.');
   assert.equal(serverErrorText(502), '서버 오류 502');
 });
 
