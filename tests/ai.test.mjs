@@ -45,8 +45,26 @@ test('항목 하나가 {…} 로 와도 · {"items":[…]} 로 감싸 와도 배
   try {
     globalThis.fetch = async () => answer('{"n":1,"ok":false,"why":"x"}')
     assert.deepEqual(await askJson('a'), [{ n: 1, ok: false, why: 'x' }])
-    globalThis.fetch = async () => answer('{"items":[{"n":1},{"n":2}]}')
+    globalThis.fetch = async () => answer('{"items":[{"n":1},{"n":2}],"note":"x"}')
     assert.deepEqual(await askJson('b'), [{ n: 1 }, { n: 2 }])
+    globalThis.fetch = async () => answer('{"id":"w1","ok":true,"issues":["a"]}')
+    assert.deepEqual(await askJson('c'), [{ id: 'w1', ok: true, issues: ['a'] }])
+  } finally {
+    globalThis.fetch = orig
+  }
+})
+
+test('{"error":…} · 잘린 응답(MAX_TOKENS)은 성공으로 치지 않는다', { timeout: 30000 }, async () => {
+  process.env.GEMINI_API_KEY = 'k-test'
+  const orig = globalThis.fetch
+  let n = 0
+  try {
+    // 항목처럼 안 생긴 객체: 네 번(모델 둘 × 두 번) 다 실패 → 던짐
+    globalThis.fetch = async () => (n++, reply(200, { candidates: [{ content: { parts: [{ text: '{"error":"cannot"}' }] }, finishReason: 'STOP' }] }))
+    await assert.rejects(askJson('d'), /JSON 배열이 아님/)
+    assert.equal(n, 4)
+    globalThis.fetch = async () => reply(200, { candidates: [{ content: { parts: [{ text: '[{"n":1,"ok":true},{"n":2,"ok' }] }, finishReason: 'MAX_TOKENS' }] })
+    await assert.rejects(askJson('e'), /MAX_TOKENS/)
   } finally {
     globalThis.fetch = orig
   }

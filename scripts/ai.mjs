@@ -28,16 +28,16 @@ async function once(model, body, key) {
   console.error(`AI 사용량(${model}): 입력 ${n.input} · 출력 ${n.output} · 생각 ${n.thinking}`);
   const c = j.candidates?.[0];
   const text = (c?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('').trim();
+  // 잘린 응답의 앞부분만 받으면 나머지 항목이 조용히 빠진다 → 다시 묻는다
+  if (c?.finishReason === 'MAX_TOKENS') throw new Error(`응답이 잘림(MAX_TOKENS): ${text.slice(-120)}`);
   // 그대로 → 앞뒤 말·코드 울타리를 떼고 [ … ] → { … } 차례로 읽어 본다
   let v;
   for (const s of [text, text.slice(text.indexOf('['), text.lastIndexOf(']') + 1), text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)]) {
     try { v = JSON.parse(s); break; } catch { /* 다음 */ }
   }
-  // 항목이 하나면 [{…}] 대신 {…} 로, 가끔 {"items": […]} 처럼 감싸 온다
-  if (v && typeof v === 'object' && !Array.isArray(v)) {
-    const vals = Object.values(v);
-    v = vals.length === 1 && Array.isArray(vals[0]) ? vals[0] : [v];
-  }
+  // 항목이 하나면 [{…}] 대신 {…} 로, 가끔 {"items": […]} 처럼 감싸 온다. 항목(id·n·key)처럼 생긴 것만 감싸고
+  // {"error": …} 같은 것은 실패로 둔다(감싸면 부르는 쪽이 맞는 항목 0개를 조용히 성공으로 받는다)
+  if (v && typeof v === 'object' && !Array.isArray(v)) v = 'id' in v || 'n' in v || 'key' in v ? [v] : Object.values(v).find(Array.isArray);
   if (Array.isArray(v)) return v;
   // 막힌 응답은 다시 물어도 같다 → final
   const blocked = Boolean(j.promptFeedback?.blockReason) || ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII'].includes(c?.finishReason);
