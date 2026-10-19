@@ -26,9 +26,10 @@ const TOKEN = process.env.API_TOKEN || '';
 const TEXT_AHEAD = Number(process.env.DAILY_TEXT_AHEAD || 60); // 글을 미리 채워 둘 단어 수
 // 하루 그림 상한. 10,000 뉴런 ÷ (그림 78 + 참고 그림 입력) — 뜻 검사 탈락 다시 그리기 몫을 남김. 넘치면 429 로 멈출 뿐
 const IMAGE_MAX = Number(process.env.DAILY_IMAGE_MAX || 100);
-// 하루 그리기 횟수 상한(검사·뜻 탈락 다시 그리기 포함). 한 번 ≈ 83 뉴런(출력 3칸 78 + 참고 그림 입력 1칸 5.37) → 110번 ≈ 9,100.
-// 몫을 끝까지 쓰면 안 된다 — 2026-10-14 에 다 쓴 뒤 10-15 는 사용 0 인데도 하루 종일 4006(문서는 「UTC 0시 초기화」)
-const DRAW_MAX = Number(process.env.DAILY_DRAW_MAX) || 110; // 숫자가 아니면(NaN) 상한이 꺼지지 않게 기본값
+// 하루 그리기 횟수 상한(검사·뜻 탈락 다시 그리기 포함). 계산상 한 번 ≈ 83 뉴런이었는데 대시보드 실측은 ≈ 109
+// (10-16·10-17 110번 = 12k, 어림 9,174) → 110번은 무료 10,000 을 넘겼고 10-18·10-19 는 하루 종일 4006 으로 0장.
+// 80번 ≈ 8,700(87%). 몫을 끝까지 쓰면 안 된다 — 다 쓴 다음 날도 막힌 적이 있다(10-15, 문서는 「UTC 0시 초기화」)
+const DRAW_MAX = Number(process.env.DAILY_DRAW_MAX) || 80; // 숫자가 아니면(NaN) 상한이 꺼지지 않게 기본값
 const DRY = process.argv.includes('--dry');
 const NO_IMAGE = process.argv.includes('--no-image');
 const NO_TEXT = process.argv.includes('--no-text');
@@ -314,8 +315,8 @@ try {
     }
     // G15: 검사 통과율(생성 1번 = 1건)
     log.checks = { drawn: checked, draw_max: DRAW_MAX, passed: log.images.length, rate: checked ? +(log.images.length / checked).toFixed(2) : null, ocr_skipped: ocrSkipped, ref: !!ref };
-    // 뉴런 어림(1024×768 한 장 ≈ 78 + 참고 그림 입력 5.37, 실패 요청은 안 셈)
-    log.neurons_est = Math.round(checked * (refWorked ? 83.4 : 78)); // 참고 그림이 중간에 끊겨도 넉넉히
+    // 뉴런 어림 — 대시보드 실측 한 장 ≈ 109(계산 83.4 의 1.3배, 2026-10-19). 실패 요청은 안 셈
+    log.neurons_est = Math.round(checked * 109);
 
     // 진행률 · 전부 완료 알림(그릴 단어가 하나도 안 남은 첫날 한 번)
     // 남은 것 = 그림 없는 단어 + 글(장면)이 아직 빈 단어 + 예전 그림체 목록. 이 블록이 실패해도 백업은 한다
