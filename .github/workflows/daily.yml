@@ -57,14 +57,33 @@ jobs:
       - name: 그림 상태 되올리기
         if: always()
         shell: bash
+        # 도는 사이 main 에 커밋이 올라오면 그냥 push 는 거절되고, restyle.json 을 main 에서도 고쳤으면(한 줄 JSON) rebase 는
+        # 늘 충돌해 그날 목록이 사라졌다(2026-10-19) → main 을 받아 3-방향으로 합친 뒤(scripts/merge-restyle.mjs)
+        # main 위에 두 파일만 커밋. push 가 또 밀리면 세 번까지(그때는 방금 합친 main 이 다음 합치기의 바탕)
+        # Windows 러너의 Git Bash 는 「origin/main:.data/…」 같은 인자를 경로로 바꿔 git show 가 실패한다(시뮬레이션 실측) →
+        # 경로 바꾸기를 끄고, 커밋은 이름 대신 해시로. main 쪽을 못 읽으면 main 은 안 바뀐 것으로(빈 목록으로 두면 다 지워진다)
+        env:
+          MSYS_NO_PATHCONV: '1'
         run: |
-          for f in .data/restyle.json .data/images-done.json; do
-            if [ -f "$f" ]; then git add -f "$f"; else git rm -q --cached --ignore-unmatch "$f"; fi
-          done
-          git diff --cached --quiet && exit 0
           git config user.name 'github-actions[bot]'
           git config user.email '41898283+github-actions[bot]@users.noreply.github.com'
-          git commit -q -m 'chore(daily): 그림 상태 갱신'
-          # 도는 사이 main 에 다른 커밋이 올라오면 그냥 push 는 거절되어 그날 restyle 이 사라졌다(2026-10-19) → 위에 얹어 올린다
-          git pull -q --rebase --autostash
-          git push
+          base=$(git rev-parse HEAD)
+          for i in 1 2 3; do
+            git fetch -q origin main
+            main=$(git rev-parse origin/main)
+            if [ -f .data/restyle.json ]; then
+              git show "$base:.data/restyle.json" > .data/.rs-base.json 2>/dev/null || echo '[]' > .data/.rs-base.json
+              git show "$main:.data/restyle.json" > .data/.rs-main.json 2>/dev/null || cp .data/.rs-base.json .data/.rs-main.json
+              node scripts/merge-restyle.mjs .data/.rs-base.json .data/.rs-main.json .data/restyle.json
+            fi
+            git reset -q "$main"
+            for f in .data/restyle.json .data/images-done.json; do
+              if [ -f "$f" ]; then git add -f "$f"; else git rm -q --cached --ignore-unmatch "$f"; fi
+            done
+            git diff --cached --quiet && exit 0
+            git commit -q -m 'chore(daily): 그림 상태 갱신'
+            git push -q origin HEAD:main && exit 0
+            echo "push 밀림 — 다시 합침($i)"
+            base=$main
+          done
+          exit 1

@@ -94,6 +94,7 @@ try {
     // 탈락은 곧바로 그림을 내리고(failed = 머리글자 칸, 결함 그림을 보이지 않게) restyle 맨 앞 → 오늘(몫이 남으면)·다음 날 먼저 다시 그린다.
     // 다시 그려도 두 번 탈락하면 머리글자 칸으로 남는다. 판정이 준 고친 장면(단순한 자세)은 fix 에 두었다가 그날 첫 그리기에 쓴다
     const fix = new Map();
+    let judgeDown = false; // 그림 검사 AI(Flash 무료 몫)를 못 씀 → 검사 없이 올리지 않으니 더 그려 봐야 헛몫
     if (RECHECK && !REDO.length) {
       // 질의 한 번. /api/words 를 43쪽 넘기던 때는 한 번에 D1 행 읽기 ≈130만 → 하루 무료 5M 을 넘겼다(2026-10-19)
       const have = (await api('/api/admin/images')).items;
@@ -108,7 +109,11 @@ try {
           } catch { /* 한 장 못 받으면 그 장만 건너뜀 */ }
         }
         const v = await judgeImages(items);
-        if (!v) { console.log('다시 검사 멈춤 — 그림 검사 AI 를 못 씀(남은 그림은 다음에)'); break; }
+        if (!v) {
+          judgeDown = true; // 그리기 첫 묶음을 그린 뒤에야 알면 그림 몫 ≈25% 를 헛쓴다
+          console.log('다시 검사 멈춤 — 그림 검사 AI 를 못 씀(남은 그림은 다음에, 오늘 그리기도 안 함)');
+          break;
+        }
         judged += v.size;
         for (const it of items) {
           const x = v.get(it.id);
@@ -178,7 +183,6 @@ try {
     let checked = 0;
     let ocrSkipped = 0;
     let errStreak = 0; // 단어 탓이 아닌 오류(용량 부족·서버 오류)가 잇따르면 그날은 멈춤
-    let judgeDown = false; // 그림 검사 AI(Flash 무료 몫)를 못 씀 → 검사 없이 올리지 않으니 더 그려 봐야 헛몫
     // 그리기 상한에 닿으면 남은 단어·뜻 탈락 다시 그리기는 내일로(실패 표시 안 함)
     const stopped = () => quotaOut || judgeDown || errStreak >= 3 || checked >= DRAW_MAX;
     // 한 단어 그리기 + 자동 검사(C5). 탈락이면 한 번만 다시. → {png, check, why} · 그리기 오류면 null(실패 표시 안 함, 내일 다시)
@@ -235,16 +239,19 @@ try {
         if (r) done.push({ w, scene, t0, ...r });
       }
       // 그림 검사 = 뜻(2026-10-14 사용자 「그림이 단어 뜻과 안 이어진다」) + 몸 구조(2026-10-19 「다리 5개」).
-      // AI 가 판정을 못 하면(null) 예전엔 통과였다 → 이제 그 그림은 올리지 않고 내일 다시(defer), 그날 그리기도 멈춘다
-      const unjudged = (list) => {
-        judgeDown = true;
+      // AI 가 판정을 못 하면(null) 예전엔 통과였다 → 이제 그 그림은 올리지 않고 내일 다시(defer), 그날 그리기도 멈춘다(down).
+      // 판정은 왔는데 그 그림만 빠진 것(모델이 n 을 빠뜨림)도 검사 안 된 그림이라 올리지 않는다(그리기는 계속)
+      const unjudged = (list, down) => {
+        if (!list.length) return;
+        if (down) judgeDown = true;
         for (const d of list) { d.png = null; d.defer = true; }
         log.meaning.unjudged = (log.meaning.unjudged ?? 0) + list.length;
-        console.log(`그림 검사 AI 를 못 씀 — ${list.length}장은 올리지 않고 내일 다시`);
+        console.log(`그림 검사 ${down ? 'AI 를 못 씀' : '판정에서 빠짐'} — ${list.length}장은 올리지 않고 내일 다시`);
       };
       if (!NO_JUDGE) {
         const v1 = await judgeImages(done.filter((d) => d.png).map(toJudge));
-        if (!v1) unjudged(done.filter((d) => d.png));
+        if (!v1) unjudged(done.filter((d) => d.png), true);
+        else unjudged(done.filter((d) => d.png && !v1.has(d.w.id)), false);
         log.meaning.judged += v1?.size ?? 0;
         const again = v1 ? done.filter((d) => d.png && v1.get(d.w.id)?.ok === false) : [];
         for (const d of again) {
@@ -261,8 +268,9 @@ try {
           else if (r.png) Object.assign(d, { png: r.png, check: r.check, scene: v.scene, rescene: true, pending: true });
         }
         const v2 = await judgeImages(again.filter((d) => d.pending).map(toJudge));
-        if (!v2) unjudged(again.filter((d) => d.pending));
-        else for (const d of again.filter((x) => x.pending)) {
+        if (!v2) unjudged(again.filter((d) => d.pending), true);
+        else unjudged(again.filter((d) => d.pending && !v2.has(d.w.id)), false);
+        if (v2) for (const d of again.filter((x) => x.pending)) {
           d.pending = false;
           const v = v2.get(d.w.id);
           if (v?.ok === false) { d.png = null; d.why = [`meaning: ${v.why}`]; }
