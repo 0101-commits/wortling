@@ -91,7 +91,9 @@ try {
     const restyle = existsSync(RESTYLE_FILE) ? JSON.parse(readFileSync(RESTYLE_FILE, 'utf8')) : [];
     const saveRestyle = () => writeFileSync(RESTYLE_FILE, JSON.stringify(restyle));
     // 2026-10-19 사용자 「강아지 다리 5개 같은 오류」 — 판정에 몸 구조를 넣기 전에 올라간 그림을 같은 판정으로 다시 본다.
-    // 탈락은 restyle 맨 앞 → 오늘(몫이 남으면)·다음 날 먼저 다시 그린다. 다시 그려도 두 번 탈락이면 있던 그림을 둔다(restyle_gave_up)
+    // 탈락은 곧바로 그림을 내리고(failed = 머리글자 칸, 결함 그림을 보이지 않게) restyle 맨 앞 → 오늘(몫이 남으면)·다음 날 먼저 다시 그린다.
+    // 다시 그려도 두 번 탈락하면 머리글자 칸으로 남는다. 판정이 준 고친 장면(단순한 자세)은 fix 에 두었다가 그날 첫 그리기에 쓴다
+    const fix = new Map();
     if (RECHECK && !REDO.length) {
       const have = [];
       for (let page = 1; ; page++) {
@@ -104,17 +106,20 @@ try {
       for (let i = 0; i < have.length; i += 25) {
         const items = [];
         for (const w of have.slice(i, i + 25)) {
-          const res = await fetch(`${APP_URL}/img/${w.id}.webp`);
-          if (res.ok) items.push({ id: w.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, meaning_ko: w.gloss_ko, png: Buffer.from(await res.arrayBuffer()) });
+          try {
+            const res = await fetch(`${APP_URL}/img/${w.id}.webp`);
+            if (res.ok) items.push({ id: w.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, meaning_ko: w.gloss_ko, png: Buffer.from(await res.arrayBuffer()) });
+          } catch { /* 한 장 못 받으면 그 장만 건너뜀 */ }
         }
-        const v = await judgeImages(items, TMP_DIR);
+        const v = await judgeImages(items);
         judged += v.size;
         for (const it of items) {
           const x = v.get(it.id);
-          if (x?.ok === false) {
-            bad.push(it.id);
-            console.log(`다시 검사 탈락 ${it.id} ${it.word}: ${x.why}`);
-          }
+          if (x?.ok !== false) continue;
+          bad.push(it.id);
+          if (x.scene) fix.set(it.id, x.scene);
+          console.log(`다시 검사 탈락 ${it.id} ${it.word}: ${x.why}`);
+          if (!DRY) await api(`/api/admin/image/${it.id}?status=failed`, { method: 'PUT' }).catch((e) => console.error(String(e.message).slice(0, 200)));
         }
       }
       for (const id of bad.reverse()) if (!restyle.includes(id)) restyle.unshift(id);
@@ -218,6 +223,7 @@ try {
       const batch = need.slice(i, i + 25);
       // --dry 도 장면은 써 본다(저장·그리기는 안 함) → 장면 규칙 점검용
       const briefs = await writeScenes(batch);
+      for (const w of batch) if (fix.has(w.id)) briefs.set(w.id, fix.get(w.id)); // 다시 검사가 준 몸 구조용 장면이 먼저
       if (briefs.size && !DRY) await api('/api/admin/words', { method: 'POST', body: { items: [...briefs].map(([id, scene_en]) => ({ id, scene_en })) } });
       console.log(`새 장면 ${briefs.size}/${batch.length}`);
       const done = [];
@@ -232,7 +238,7 @@ try {
       }
       // 뜻 검사(2026-10-14 사용자 「그림이 단어 뜻과 안 이어진다」). AI 가 실패하면 판정 없음 = 통과
       if (!NO_JUDGE) {
-        const v1 = await judgeImages(done.filter((d) => d.png).map(toJudge), TMP_DIR);
+        const v1 = await judgeImages(done.filter((d) => d.png).map(toJudge));
         log.meaning.judged += v1.size;
         const again = done.filter((d) => d.png && v1.get(d.w.id)?.ok === false);
         for (const d of again) {
@@ -248,7 +254,7 @@ try {
           if (!r) d.defer = true;
           else if (r.png) Object.assign(d, { png: r.png, check: r.check, scene: v.scene, rescene: true, pending: true });
         }
-        const v2 = await judgeImages(again.filter((d) => d.pending).map(toJudge), TMP_DIR);
+        const v2 = await judgeImages(again.filter((d) => d.pending).map(toJudge));
         for (const d of again.filter((x) => x.pending)) {
           d.pending = false;
           const v = v2.get(d.w.id);

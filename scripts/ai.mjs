@@ -2,8 +2,6 @@
 // 2026-10-19 사용자 「claude 말고 다른 AI 로」 — 예전 claude -p 는 구독 토큰(CLAUDE_CODE_OAUTH_TOKEN)이라 클로드 코드 한도를 같이 깎았다.
 // 이제 Gemini 무료 몫(GEMINI_API_KEY). 키는 헤더로(URL 에 넣으면 오류 문구에 찍힌다).
 // Google 이 모델을 조용히 퇴역시킨다(economic-site 2026-09-15 실측 404) → 별칭을 쓰고, 한도(429)·퇴역(404)이면 다음 모델로.
-import { readFileSync } from 'node:fs';
-
 const MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
 
 const total = { calls: 0, input: 0, output: 0, thinking: 0 };
@@ -44,12 +42,16 @@ async function once(model, body, key) {
   throw Object.assign(new Error(`결과가 JSON 배열이 아님(${c?.finishReason || j.promptFeedback?.blockReason || '?'}): ${text.slice(0, 200)}`), { final: blocked });
 }
 
-/** prompt → JSON 배열. images = PNG 파일 경로(judge.mjs 의 모음 그림) — 글 뒤에 차례대로 붙인다.
+/** prompt → JSON 배열. images = [{label, png}](judge.mjs) — 글 뒤에 「label」 글 조각 + PNG 버퍼를 차례로 붙인다.
  *  모델마다 두 번까지: 429 는 1분, 5xx·끊김·깨진 JSON 은 5초 뒤 다시. 404·그 밖 4xx·하루 몫 소진·막힘은 곧장 다음 모델. 다 실패면 던진다 */
 export async function askJson(prompt, { images = [] } = {}) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('GEMINI_API_KEY 가 없다(.env 또는 Actions 비밀값)');
-  const parts = [{ text: prompt }, ...images.map((f) => ({ inline_data: { mime_type: 'image/png', data: readFileSync(f).toString('base64') } }))];
+  const parts = [{ text: prompt }];
+  for (const im of images) {
+    if (im.label) parts.push({ text: im.label });
+    parts.push({ inline_data: { mime_type: 'image/png', data: im.png.toString('base64') } });
+  }
   const body = { contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json' } };
   let err;
   for (const model of MODELS) {
