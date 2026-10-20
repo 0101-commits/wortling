@@ -30,6 +30,9 @@ const IMAGE_MAX = Number(process.env.DAILY_IMAGE_MAX || 100);
 // (10-16·10-17 110번 = 12k, 어림 9,174) → 110번은 무료 10,000 을 넘겼고 10-18·10-19 는 하루 종일 4006 으로 0장.
 // 80번 ≈ 8,700(87%). 몫을 끝까지 쓰면 안 된다 — 다 쓴 다음 날도 막힌 적이 있다(10-15, 문서는 「UTC 0시 초기화」)
 const DRAW_MAX = Number(process.env.DAILY_DRAW_MAX) || 80; // 숫자가 아니면(NaN) 상한이 꺼지지 않게 기본값
+// 위 상한은 실행마다가 아니라 하루(UTC = Workers AI 무료 몫 기준)마다. 예전엔 daily.yml guard 가 「오늘 성공한 실행이 있으면」
+// 예약 실행을 통째로 건너뛰어, 몫이 막혀 0장 그린 손 실행(다시 검사)만 있던 10-19 저녁에도 그리지 않았다
+const DRAW_DAY_FILE = path.join(ROOT, '.data', 'draw-day.json');
 const DRY = process.argv.includes('--dry');
 const NO_IMAGE = process.argv.includes('--no-image');
 const NO_TEXT = process.argv.includes('--no-text');
@@ -182,10 +185,20 @@ try {
       }
     };
     let checked = 0;
+    const utcDay = new Date().toISOString().slice(0, 10);
+    let drawnBefore = 0; // 오늘 앞선 실행이 그린 횟수
+    try {
+      const d = JSON.parse(readFileSync(DRAW_DAY_FILE, 'utf8'));
+      if (d.day === utcDay) drawnBefore = Number(d.drawn) || 0;
+    } catch { /* 없으면 0 */ }
+    // 한 번 그릴 때마다 적어 둔다 — 도중에 죽어도 다음 실행이 쓴 몫을 안다
+    const saveDrawDay = () => { if (!DRY) writeFileSync(DRAW_DAY_FILE, JSON.stringify({ day: utcDay, drawn: drawnBefore + checked })); };
+    if (drawnBefore) console.log(`오늘(UTC) 앞선 실행이 ${drawnBefore}번 그림 — 남은 몫 ${Math.max(0, DRAW_MAX - drawnBefore)}번`);
     let ocrSkipped = 0;
     let errStreak = 0; // 단어 탓이 아닌 오류(용량 부족·서버 오류)가 잇따르면 그날은 멈춤
     // 그리기 상한에 닿으면 남은 단어·뜻 탈락 다시 그리기는 내일로(실패 표시 안 함)
-    const stopped = () => quotaOut || judgeDown || errStreak >= 3 || checked >= DRAW_MAX;
+    // UTC 자정을 넘기면 멈춤 — 그 뒤 그림은 새 날 몫인데 파일엔 옛 날로 적혀 다음 실행이 또 80번 그린다
+    const stopped = () => quotaOut || judgeDown || errStreak >= 3 || drawnBefore + checked >= DRAW_MAX || new Date().toISOString().slice(0, 10) !== utcDay;
     // 한 단어 그리기 + 자동 검사(C5). 탈락이면 한 번만 다시. → {png, check, why} · 그리기 오류면 null(실패 표시 안 함, 내일 다시)
     const drawChecked = async (w, scene) => {
       let png = null, check = null, why = [];
@@ -193,6 +206,7 @@ try {
         for (let attempt = 1; attempt <= 2 && !png; attempt++) {
           const p = await drawOnce(scene);
           checked++;
+          saveDrawDay();
           // 실측: 가끔 새까만 그림이 온다(w0010, 편차 0)
           const { channels } = await sharp(p).stats();
           if (channels.every((c) => c.stdev < 4)) { why = ['blank_image']; continue; }
@@ -314,7 +328,7 @@ try {
       }
     }
     // G15: 검사 통과율(생성 1번 = 1건)
-    log.checks = { drawn: checked, draw_max: DRAW_MAX, passed: log.images.length, rate: checked ? +(log.images.length / checked).toFixed(2) : null, ocr_skipped: ocrSkipped, ref: !!ref };
+    log.checks = { drawn: checked, drawn_before: drawnBefore, draw_max: DRAW_MAX, passed: log.images.length, rate: checked ? +(log.images.length / checked).toFixed(2) : null, ocr_skipped: ocrSkipped, ref: !!ref };
     // 뉴런 어림 — 대시보드 실측 한 장 ≈ 109(계산 83.4 의 1.3배, 2026-10-19). 실패 요청은 안 셈
     log.neurons_est = Math.round(checked * 109);
 

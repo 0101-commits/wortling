@@ -16,28 +16,12 @@ on:
 concurrency: daily
 
 permissions:
-  contents: write # .data/restyle.json · images-done.json 을 되올린다
-  actions: read # 오늘 이미 돈 실행 찾기
+  contents: write # .data/restyle.json · images-done.json · draw-day.json 을 되올린다
 
 jobs:
-  # 예약 실행은 오늘(UTC) 이미 성공한 실행(손 실행 포함)이 있으면 건너뜀 — 두 번 돌면 무료 몫을 다 써서 다음 날까지 막힌다
-  guard:
-    runs-on: ubuntu-latest
-    outputs:
-      skip: ${{ steps.c.outputs.skip }}
-    steps:
-      - id: c
-        if: github.event_name == 'schedule'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          n=$(gh run list -R "$GITHUB_REPOSITORY" --workflow daily.yml --created ">=$(date -u +%F)" --status success --json databaseId --jq "map(select(.databaseId != $GITHUB_RUN_ID)) | length")
-          echo "오늘 성공한 실행 $n"
-          echo "skip=$([ "$n" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-
+  # 하루 그리기 몫(무료 Workers AI)은 daily.mjs 가 .data/draw-day.json 으로 날짜(UTC)마다 센다 — 여러 번 돌아도 넘지 않는다.
+  # 예전 guard(오늘 성공한 실행이 있으면 예약 실행 건너뜀)는 0장 그린 손 실행에도 걸려 10-19 저녁을 통째로 건너뛰었다
   daily:
-    needs: guard
-    if: needs.guard.outputs.skip != 'true'
     runs-on: windows-latest # 그림 글자 검사가 Windows OCR(scripts/winocr.ps1)
     timeout-minutes: 180
     steps:
@@ -77,7 +61,7 @@ jobs:
               node scripts/merge-restyle.mjs .data/.rs-base.json .data/.rs-main.json .data/restyle.json
             fi
             git reset -q "$main"
-            for f in .data/restyle.json .data/images-done.json; do
+            for f in .data/restyle.json .data/images-done.json .data/draw-day.json; do
               if [ -f "$f" ]; then git add -f "$f"; else git rm -q --cached --ignore-unmatch "$f"; fi
             done
             git diff --cached --quiet && exit 0
