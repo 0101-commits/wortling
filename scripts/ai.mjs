@@ -6,7 +6,8 @@
 //   글·장면·카드 검토·뉴스 단어 = Flash-Lite(하루 약 500번) · 그림 검사(judge.mjs) = Flash 만.
 //   Lite 를 그림 검사 대신 쓰지 않는다 — 같은 날 25장을 하나도 안 떨어뜨렸고 #3 판정을 #4 에 붙이는 등 번호도 섞었다.
 export const TEXT_MODELS = ['gemini-flash-lite-latest'];
-export const VISION_MODELS = ['gemini-flash-latest'];
+// 2026-10-20 Flash 가 종일 503 「high demand」·5분 시간 초과 → 고정 판 이름을 예비로(무료 몫도 모델마다 따로). 퇴역했으면 404 로 곧장 넘어간다
+export const VISION_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash'];
 // 다시 묻기 전 기다림(429 분당 한도는 1분). 시험은 AI_RETRY_MS=0
 const WAIT_MS = process.env.AI_RETRY_MS ? Number(process.env.AI_RETRY_MS) : 15_000;
 
@@ -33,7 +34,8 @@ async function once(model, body, key) {
   const n = { input: u.promptTokenCount || 0, output: u.candidatesTokenCount || 0, thinking: u.thoughtsTokenCount || 0 };
   total.calls++;
   for (const k of Object.keys(n)) total[k] += n[k];
-  console.error(`AI 사용량(${model}): 입력 ${n.input} · 출력 ${n.output} · 생각 ${n.thinking}`);
+  // 별칭(-latest)이 실제로 어느 판인지 남긴다
+  console.error(`AI 사용량(${model}${j.modelVersion && j.modelVersion !== model ? ` = ${j.modelVersion}` : ''}): 입력 ${n.input} · 출력 ${n.output} · 생각 ${n.thinking}`);
   const c = j.candidates?.[0];
   const text = (c?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('').trim();
   // 잘린 응답의 앞부분만 받으면 나머지 항목이 조용히 빠진다 → 다시 묻는다
@@ -53,7 +55,7 @@ async function once(model, body, key) {
 }
 
 /** prompt → JSON 배열. images = [{label, png}](judge.mjs) — 글 뒤에 「label」 글 조각 + PNG 버퍼를 차례로 붙인다.
- *  models 차례로, 모델마다 세 번까지: 429 는 1분, 5xx(혼잡 503 이 잦다)·끊김·깨진 JSON 은 15초 뒤 다시.
+ *  models 차례로, 모델마다 세 번까지: 429·503(혼잡) 은 1분, 그 밖 5xx·끊김·깨진 JSON 은 15초 뒤 다시.
  *  404·그 밖 4xx·하루 몫 소진·막힘은 곧장 다음 모델. 다 실패면 던진다 */
 export async function askJson(prompt, { images = [], models = TEXT_MODELS } = {}) {
   const key = process.env.GEMINI_API_KEY;
@@ -73,7 +75,8 @@ export async function askJson(prompt, { images = [], models = TEXT_MODELS } = {}
         err = e;
         console.error(`AI 실패(${model} ${attempt}회): ${String(e.message).slice(0, 200)}`);
         if (e.final || attempt >= 3 || (e.status >= 400 && e.status < 500 && e.status !== 429)) break;
-        await new Promise((r) => setTimeout(r, e.status === 429 && WAIT_MS ? 60_000 : WAIT_MS));
+        // 429(분당 한도)·503(혼잡)은 15초로는 안 풀린다(10-20 503 세 번 연속) → 1분
+        await new Promise((r) => setTimeout(r, (e.status === 429 || e.status === 503) && WAIT_MS ? 60_000 : WAIT_MS));
       }
     }
   }

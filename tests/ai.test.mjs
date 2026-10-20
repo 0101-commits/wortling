@@ -26,7 +26,9 @@ test('키가 없으면 부르지 않고 던진다', async () => {
 test('글 일은 Flash-Lite, 그림 검사는 Flash 만 — 무료 몫 나누기', async () => {
   process.env.GEMINI_API_KEY = 'k-test'
   assert.deepEqual(TEXT_MODELS, ['gemini-flash-lite-latest'])
-  assert.deepEqual(VISION_MODELS, ['gemini-flash-latest'])
+  // 그림 검사는 Flash 만(예비 고정 판 포함) — Lite 는 그림을 다 통과시키고 번호를 섞었다
+  assert.equal(VISION_MODELS[0], 'gemini-flash-latest')
+  assert.ok(VISION_MODELS.every((m) => /flash/.test(m) && !/lite/.test(m)), VISION_MODELS.join())
   const urls = []
   await withFetch(async (url) => (urls.push(url), answer('[1]')), () => askJson('a'))
   assert.match(urls[0], /gemini-flash-lite-latest:generateContent$/)
