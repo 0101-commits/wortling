@@ -33,6 +33,9 @@ const DRAW_MAX = Number(process.env.DAILY_DRAW_MAX) || 80; // 숫자가 아니�
 // 위 상한은 실행마다가 아니라 하루(UTC = Workers AI 무료 몫 기준)마다. 예전엔 daily.yml guard 가 「오늘 성공한 실행이 있으면」
 // 예약 실행을 통째로 건너뛰어, 몫이 막혀 0장 그린 손 실행(다시 검사)만 있던 10-19 저녁에도 그리지 않았다
 const DRAW_DAY_FILE = path.join(ROOT, '.data', 'draw-day.json');
+// 그리기·그림 검사 한 묶음. 25장이던 10-20 첫 실행은 Gemini Flash 가 5분 시간 초과 3번 → 그린 19장을 못 올리고 멈췄다.
+// 묶음이 작으면 판정이 가볍고, 검사 AI 가 막혀도 헛그림이 묶음 하나뿐. Flash 무료 몫(하루 ≈20번) 안: 80 ÷ 10 = 8번 + 다시 그린 것 판정
+const BATCH = 10;
 const DRY = process.argv.includes('--dry');
 const NO_IMAGE = process.argv.includes('--no-image');
 const NO_TEXT = process.argv.includes('--no-text');
@@ -104,9 +107,9 @@ try {
       const have = (await api('/api/admin/images')).items;
       const bad = [];
       let judged = 0;
-      for (let i = 0; i < have.length; i += 25) {
+      for (let i = 0; i < have.length; i += BATCH) {
         const items = [];
-        for (const w of have.slice(i, i + 25)) {
+        for (const w of have.slice(i, i + BATCH)) {
           try {
             const res = await fetch(`${APP_URL}/img/${w.id}.webp`);
             if (res.ok) items.push({ id: w.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, meaning_ko: w.gloss_ko, png: Buffer.from(await res.arrayBuffer()) });
@@ -114,7 +117,7 @@ try {
         }
         const v = await judgeImages(items);
         if (!v) {
-          judgeDown = true; // 그리기 첫 묶음을 그린 뒤에야 알면 그림 몫 ≈25% 를 헛쓴다
+          judgeDown = true; // 그리기 첫 묶음을 그린 뒤에야 알면 그 묶음 그림 몫을 헛쓴다
           console.log('다시 검사 멈춤 — 그림 검사 AI 를 못 씀(남은 그림은 다음에, 오늘 그리기도 안 함)');
           break;
         }
@@ -234,10 +237,10 @@ try {
     const toJudge = (d) => ({ id: d.w.id, word: `${d.w.gender ? d.w.gender + ' ' : ''}${d.w.lemma}`, meaning_ko: d.w.gloss_ko, png: d.png });
     log.meaning = { judged: 0, retried: 0, failed: 0 };
 
-    // 25단어씩: 장면 쓰기(AI) → 그리기 → 뜻 검사(AI) → 탈락은 고친 장면으로 한 번 더 → 올리기.
+    // BATCH 단어씩: 장면 쓰기(AI) → 그리기 → 뜻 검사(AI) → 탈락은 고친 장면으로 한 번 더 → 올리기.
     // 장면은 그리기 직전에 묶음마다 — 무료 몫이 바닥이면 헛쓰는 장면이 한 묶음뿐
-    for (let i = 0; i < need.length && !stopped(); i += 25) {
-      const batch = need.slice(i, i + 25);
+    for (let i = 0; i < need.length && !stopped(); i += BATCH) {
+      const batch = need.slice(i, i + BATCH);
       // --dry 도 장면은 써 본다(저장·그리기는 안 함) → 장면 규칙 점검용
       const briefs = await writeScenes(batch);
       for (const w of batch) if (fix.has(w.id)) briefs.set(w.id, fix.get(w.id)); // 다시 검사가 준 몸 구조용 장면이 먼저
