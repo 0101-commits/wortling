@@ -6,8 +6,9 @@
 //   글·장면·카드 검토·뉴스 단어 = Flash-Lite(하루 약 500번) · 그림 검사(judge.mjs) = Flash 만.
 //   Lite 를 그림 검사 대신 쓰지 않는다 — 같은 날 25장을 하나도 안 떨어뜨렸고 #3 판정을 #4 에 붙이는 등 번호도 섞었다.
 export const TEXT_MODELS = ['gemini-flash-lite-latest'];
-// 2026-10-20 Flash 가 종일 503 「high demand」·5분 시간 초과 → 고정 판 이름을 예비로(무료 몫도 모델마다 따로). 퇴역했으면 404 로 곧장 넘어간다
-export const VISION_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash'];
+// 기본 모델 하나만. 예비로 두었던 gemini-2.5-flash 는 퇴역해 404 「no longer available to new users」(2026-10-25 실측)라 뺐다.
+// 다른 예비 모델도 두지 않기로 했다(2026-10-26) — 503 「high demand」로 막히면 그린 그림을 검사 대기로 맡겨 다음 날 검사한다(scripts/pending.mjs)
+export const VISION_MODELS = ['gemini-flash-latest'];
 // 다시 묻기 전 기다림(429 분당 한도는 1분). 시험은 AI_RETRY_MS=0
 const WAIT_MS = process.env.AI_RETRY_MS ? Number(process.env.AI_RETRY_MS) : 15_000;
 

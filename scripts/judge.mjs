@@ -3,7 +3,7 @@
 // 2026-10-19 사용자 「강아지 다리가 5개 같은 오류」 → 몸 구조(다리·귀·꼬리 수, 붙은 몸)도 본다. 다리를 세려면 모음 그림(9칸 400×300)은
 // 작아서 한 장씩 따로 보낸다(모음 그림은 claude Read 도구 시절에 파일 하나로 묶으려던 것).
 // 탈락이면 고친 장면(scene)도 받아 한 번 다시 그린다.
-// AI 가 실패하면 null(판정 못 함). 예전엔 빈 Map = 통과였는데 그러면 몸 구조 오류가 검사 없이 올라간다 → 부르는 쪽이 그날은 올리지 않는다.
+// AI 가 실패하면 null(판정 못 함). 예전엔 빈 Map = 통과였는데 그러면 몸 구조 오류가 검사 없이 올라간다 → 부르는 쪽이 올리지 않고 「검사 대기」로 맡긴다(daily.mjs).
 // 모델은 Flash 만(ai.mjs VISION_MODELS) — 무료 몫이 하루 약 20번이라 글·장면 일은 Flash-Lite 로 뺐다.
 // 손 검사: node scripts/judge.mjs items.json   (items = [{id, word, meaning_ko, file}] → 줄마다 판정)
 import { readFileSync } from 'node:fs';
