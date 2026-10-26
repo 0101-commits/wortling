@@ -3,6 +3,8 @@
 //   1) 글 채우기 — 다가오는 단어(학습 순서 앞쪽) 가운데 한국어 뜻·예문·장면이 빈 것을 AI(Gemini)로 채운다.
 //   2) 그림 만들기 — Worker 의 POST /api/admin/draw(Cloudflare Workers AI FLUX.2 klein 4b, 무료 하루 10,000 뉴런 ≈ 100장)로
 //      장면이 있는 단어의 그림을 만들어 올린다. 무료 몫을 다 쓰면 429(quota) → 그날은 멈춤.
+//      그림 검사 AI(Gemini Flash)가 막히면 그린 그림을 버리지 않고 Worker 의 「검사 대기」(KV pending/<id>.webp)에 맡기고,
+//      다음 실행이 맨 먼저 검사해 올린다(scripts/pending.mjs). 대기가 80장이면 그리기를 멈춘다. 탈락 그림은 .data/rejected/ 에 남긴다.
 //      매일 이어서 그리다가 그릴 단어가 하나도 안 남으면 「전부 완료」 알림을 한 번 보낸다(새 단어가 들어오면 다시 그림).
 // Worker 관리 API 만 쓴다(그림은 wrangler 불필요). 준비물: .env(APP_URL · API_TOKEN), GEMINI_API_KEY(.env 또는 비밀값).
 // 되풀이해도 안전하다 — 이미 채워진 단어·그림은 다시 하지 않는다.
@@ -17,6 +19,7 @@ import { STYLE_INTRO, BORTI, STYLE, REF_NOTE, REF_FILE } from './style.mjs';
 import { checkFile } from './imgcheck.mjs';
 import { askJson } from './ai.mjs';
 import { judgeImages } from './judge.mjs';
+import { processPending, sortByVerdict } from './pending.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 loadEnv(path.join(ROOT, '.env'));
@@ -36,6 +39,10 @@ const DRAW_DAY_FILE = path.join(ROOT, '.data', 'draw-day.json');
 // 그리기·그림 검사 한 묶음. 25장이던 10-20 첫 실행은 Gemini Flash 가 5분 시간 초과 3번 → 그린 19장을 못 올리고 멈췄다.
 // 묶음이 작으면 판정이 가볍고, 검사 AI 가 막혀도 헛그림이 묶음 하나뿐. Flash 무료 몫(하루 ≈20번) 안: 80 ÷ 10 = 8번 + 다시 그린 것 판정
 const BATCH = 10;
+// 검사 대기(검사 AI 가 막혀 못 올린 그림) 상한. 이만큼 쌓이면 그리기를 멈춘다 — 검사 AI 가 며칠 막혀도 무한히 쌓이지 않게. 하루 그리기 상한과 같은 80
+const PENDING_MAX = Number(process.env.DAILY_PENDING_MAX) || 80;
+// 자동 검사·판정에서 떨어진 그림(근거용, 장당 수십 KB). 깃허브 실행이면 daily.yml 이 artifact 로 올린다. .data 는 git 제외
+const REJECT_DIR = path.join(ROOT, '.data', 'rejected');
 const DRY = process.argv.includes('--dry');
 const NO_IMAGE = process.argv.includes('--no-image');
 const NO_TEXT = process.argv.includes('--no-text');
@@ -62,7 +69,7 @@ function imagePrompt(scene, withRef) {
   return head + sc + tail;
 }
 
-const log = { day: kstDay(), started: new Date().toISOString(), text: 0, images: [], failed: [], quota: null };
+const log = { day: kstDay(), started: new Date().toISOString(), text: 0, images: [], failed: [], quota: null, pending: { before: 0, sent: 0, uploaded: 0, rejected: 0, dropped: 0, left: 0 }, rejected_saved: 0 };
 
 try {
   if (!APP_URL || !TOKEN) throw new Error('.env 에 APP_URL · API_TOKEN 이 없다');
@@ -101,7 +108,8 @@ try {
     // 탈락은 곧바로 그림을 내리고(failed = 머리글자 칸, 결함 그림을 보이지 않게) restyle 맨 앞 → 오늘(몫이 남으면)·다음 날 먼저 다시 그린다.
     // 다시 그려도 두 번 탈락하면 머리글자 칸으로 남는다. 판정이 준 고친 장면(단순한 자세)은 fix 에 두었다가 그날 첫 그리기에 쓴다
     const fix = new Map();
-    let judgeDown = false; // 그림 검사 AI(Flash 무료 몫)를 못 씀 → 검사 없이 올리지 않으니 더 그려 봐야 헛몫
+    // 그림 검사 AI(Flash 무료 몫)를 못 씀 → 검사 없이는 올리지 않는다. 그래도 그날 몫까지는 그리고, 자동 검사를 통과한 그림은 「검사 대기」로 맡겨 다음 실행이 먼저 검사한다
+    let judgeDown = false;
     if (RECHECK && !REDO.length) {
       // 질의 한 번. /api/words 를 43쪽 넘기던 때는 한 번에 D1 행 읽기 ≈130만 → 하루 무료 5M 을 넘겼다(2026-10-19)
       const have = (await api('/api/admin/images')).items;
@@ -118,7 +126,7 @@ try {
         const v = await judgeImages(items);
         if (!v) {
           judgeDown = true; // 그리기 첫 묶음을 그린 뒤에야 알면 그 묶음 그림 몫을 헛쓴다
-          console.log('다시 검사 멈춤 — 그림 검사 AI 를 못 씀(남은 그림은 다음에, 오늘 그리기도 안 함)');
+          console.log('다시 검사 멈춤 — 그림 검사 AI 를 못 씀(남은 그림은 다음에, 오늘 그린 그림은 판정 없이 검사 대기로)');
           break;
         }
         judged += v.size;
@@ -128,6 +136,7 @@ try {
           bad.push(it.id);
           if (x.scene) fix.set(it.id, x.scene);
           console.log(`다시 검사 탈락 ${it.id} ${it.word}: ${x.why}`);
+          if (!DRY) await saveRejected(it.id, 'recheck', x.why, it.png);
           if (!DRY) await api(`/api/admin/image/${it.id}?status=failed`, { method: 'PUT' }).catch((e) => console.error(String(e.message).slice(0, 200)));
         }
       }
@@ -136,15 +145,42 @@ try {
       log.recheck = { images: have.length, judged, bad: bad.length };
       console.log(`다시 검사 ${judged}/${have.length}장 · 탈락 ${bad.length}장 → 다시 그리기 목록 맨 앞`);
     }
+    // 검사 대기 그림부터(2026-10-26 기획 G1) — 어제 검사 AI 가 막혀 맡긴 그림. 통과면 올리고, 탈락이면 고친 장면으로 오늘 첫 그리기
+    const pend = await processPending({
+      api,
+      judge: NO_JUDGE ? async (items) => new Map(items.map((it) => [it.id, { ok: true }])) : judgeImages,
+      batch: BATCH,
+      wantsNew: (id) => REDO.includes(id) || restyle.includes(id),
+      saveRejected: (...a) => (DRY ? undefined : saveRejected(...a)),
+      dry: DRY,
+    });
+    const holdOk = !pend.unavailable; // 대기 길이 안 열리면(Worker 가 옛 판) 예전처럼 검사 못 한 그림은 올리지 않고 내일 다시
+    let pendingTotal = pend.left.size; // 대기에 남은 장수(오늘 맡긴 것도 더한다)
+    let inflight = 0; // 이번 묶음에서 그렸고 곧 대기로 갈 장수(검사 AI 가 막힌 줄 알 때만) — 상한을 묶음 중간에도 지키려고
+    if (pend.judgeDown) judgeDown = true;
+    for (const [id, sc] of pend.fix) fix.set(id, sc);
+    for (const id of pend.uploaded) if (restyle.includes(id)) restyle.splice(restyle.indexOf(id), 1);
+    for (const id of pend.gaveUp) {
+      // 고친 장면 없이 탈락 — 다시 그리기 탈락과 같은 규칙: 새 단어만 실패 표시, 예전 그림체 목록이면 예전 그림을 두고 목록에서 뺌
+      if (!REDO.includes(id) && !restyle.includes(id)) await api(`/api/admin/image/${id}?status=failed`, { method: 'PUT' }).catch((e) => console.error(String(e.message).slice(0, 200)));
+      if (restyle.includes(id)) {
+        restyle.splice(restyle.indexOf(id), 1);
+        (log.restyle_gave_up ??= []).push(id);
+      }
+    }
+    if (!DRY) saveRestyle();
+    Object.assign(log.pending, { before: pend.total, uploaded: pend.uploaded.length, rejected: pend.rejected.length, dropped: pend.dropped.length });
     const redo = new Set(REDO.length ? REDO : restyle);
     const ids = [];
+    // 대기에 있는 단어는 다시 그리지 않는다(그리기 몫 이중 사용)
     const add = (list) => {
-      for (const id of list) if (ids.length < budget && !ids.includes(id)) ids.push(id);
+      for (const id of list) if (ids.length < budget && !ids.includes(id) && !pend.left.has(id)) ids.push(id);
     };
     if (REDO.length) add(REDO);
     else if (budget > 0) {
+      add(pend.front);
       add(restyle);
-      if (budget > ids.length) add((await api(`/api/admin/runway?text=0&image=${budget - ids.length + 5}`)).need_image.map((w) => w.id));
+      if (budget > ids.length) add((await api(`/api/admin/runway?text=0&image=${budget - ids.length + 5 + pend.left.size}`)).need_image.map((w) => w.id));
     }
     if (DRY) console.log(`[dry] 그릴 차례(다시 그리기 ${ids.filter((id) => redo.has(id)).length}): ${ids.join(',')}`);
     const need = [];
@@ -201,7 +237,8 @@ try {
     let errStreak = 0; // 단어 탓이 아닌 오류(용량 부족·서버 오류)가 잇따르면 그날은 멈춤
     // 그리기 상한에 닿으면 남은 단어·뜻 탈락 다시 그리기는 내일로(실패 표시 안 함)
     // UTC 자정을 넘기면 멈춤 — 그 뒤 그림은 새 날 몫인데 파일엔 옛 날로 적혀 다음 실행이 또 80번 그린다
-    const stopped = () => quotaOut || judgeDown || errStreak >= 3 || drawnBefore + checked >= DRAW_MAX || new Date().toISOString().slice(0, 10) !== utcDay;
+    // 검사 AI 가 막혔어도(judgeDown) 그리기는 계속한다 — 대기가 상한(PENDING_MAX)에 닿거나 대기 길이 없을 때만 멈춤
+    const stopped = () => quotaOut || (judgeDown && !holdOk) || pendingTotal + inflight >= PENDING_MAX || errStreak >= 3 || drawnBefore + checked >= DRAW_MAX || new Date().toISOString().slice(0, 10) !== utcDay;
     // 한 단어 그리기 + 자동 검사(C5). 탈락이면 한 번만 다시. → {png, check, why} · 그리기 오류면 null(실패 표시 안 함, 내일 다시)
     const drawChecked = async (w, scene) => {
       let png = null, check = null, why = [];
@@ -222,6 +259,7 @@ try {
           else {
             why = check.why;
             console.log(`그림 ${w.id} ${w.lemma} 검사 탈락(${why.join(', ')})${attempt === 1 ? ' → 한 번 더' : ''}`);
+            await saveRejected(w.id, 'check', why.join('+'), p);
           }
         }
       } catch (e) {
@@ -255,47 +293,82 @@ try {
         const t0 = Date.now();
         const r = await drawChecked(w, scene);
         if (r) done.push({ w, scene, t0, ...r });
+        if (judgeDown && !NO_JUDGE) inflight = done.filter((d) => d.png).length;
       }
       // 그림 검사 = 뜻(2026-10-14 사용자 「그림이 단어 뜻과 안 이어진다」) + 몸 구조(2026-10-19 「다리 5개」).
-      // AI 가 판정을 못 하면(null) 예전엔 통과였다 → 이제 그 그림은 올리지 않고 내일 다시(defer), 그날 그리기도 멈춘다(down).
-      // 판정은 왔는데 그 그림만 빠진 것(모델이 n 을 빠뜨림)도 검사 안 된 그림이라 올리지 않는다(그리기는 계속)
-      const unjudged = (list, down) => {
+      // AI 가 판정을 못 하면(null) 예전엔 통과였다 → 검사 없이 올리면 안 되니 그 그림은 「검사 대기」로 맡긴다(다음 실행이 먼저 검사).
+      // 판정은 왔는데 그 그림만 빠진 것(모델이 n 을 빠뜨림)도 검사 안 된 그림이라 같다. 막혔다는 걸 안 뒤로는 판정을 부르지 않고(헛 호출·재시도 대기) 자동 검사 통과분을 곧장 대기로
+      // 대기 길이 없으면(holdOk 아님) 예전처럼 올리지 않고 내일 다시(defer) + 그날 그리기도 멈춤
+      const hold = (list) => {
         if (!list.length) return;
-        if (down) judgeDown = true;
-        for (const d of list) { d.png = null; d.defer = true; }
+        for (const d of list) {
+          if (holdOk) d.hold = true;
+          else { d.png = null; d.defer = true; }
+        }
         log.meaning.unjudged = (log.meaning.unjudged ?? 0) + list.length;
-        console.log(`그림 검사 ${down ? 'AI 를 못 씀' : '판정에서 빠짐'} — ${list.length}장은 올리지 않고 내일 다시`);
+        console.log(`그림 검사 못 받음 — ${list.length}장은 ${holdOk ? '검사 대기로 맡김' : '올리지 않고 내일 다시'}`);
       };
       if (!NO_JUDGE) {
-        const v1 = await judgeImages(done.filter((d) => d.png).map(toJudge));
-        if (!v1) unjudged(done.filter((d) => d.png), true);
-        else unjudged(done.filter((d) => d.png && !v1.has(d.w.id)), false);
-        log.meaning.judged += v1?.size ?? 0;
-        const again = v1 ? done.filter((d) => d.png && v1.get(d.w.id)?.ok === false) : [];
-        for (const d of again) {
-          const v = v1.get(d.w.id);
-          console.log(`그림 ${d.w.id} ${d.w.lemma} 뜻 탈락(${v.why}) → 고친 장면으로 한 번 더`);
-          d.png = null;
-          d.why = [`meaning: ${v.why}`];
-          // 몫 소진·서버 오류로 다시 그리지 못하면 단어 탓이 아니니 내일 다시(실패 표시 안 함)
-          if (stopped()) { d.defer = true; continue; }
-          if (!v.scene) continue;
-          log.meaning.retried++;
-          const r = await drawChecked(d.w, v.scene);
-          if (!r) d.defer = true;
-          else if (r.png) Object.assign(d, { png: r.png, check: r.check, scene: v.scene, rescene: true, pending: true });
+        const first = done.filter((d) => d.png);
+        let again = [];
+        if (judgeDown) hold(first);
+        else {
+          const v1 = await judgeImages(first.map(toJudge));
+          const s1 = sortByVerdict(first, v1);
+          if (s1.down) judgeDown = true;
+          hold(s1.hold);
+          log.meaning.judged += v1?.size ?? 0;
+          again = s1.reject;
+          for (const d of again) {
+            const v = v1.get(d.w.id);
+            console.log(`그림 ${d.w.id} ${d.w.lemma} 뜻 탈락(${v.why}) → 고친 장면으로 한 번 더`);
+            await saveRejected(d.w.id, 'meaning', v.why, d.png);
+            d.png = null;
+            d.why = [`meaning: ${v.why}`];
+            // 몫 소진·서버 오류로 다시 그리지 못하면 단어 탓이 아니니 내일 다시(실패 표시 안 함)
+            if (stopped()) { d.defer = true; continue; }
+            if (!v.scene) continue;
+            log.meaning.retried++;
+            const r = await drawChecked(d.w, v.scene);
+            if (!r) d.defer = true;
+            else if (r.png) Object.assign(d, { png: r.png, check: r.check, scene: v.scene, rescene: true, pending: true });
+          }
         }
-        const v2 = await judgeImages(again.filter((d) => d.pending).map(toJudge));
-        if (!v2) unjudged(again.filter((d) => d.pending), true);
-        else unjudged(again.filter((d) => d.pending && !v2.has(d.w.id)), false);
-        if (v2) for (const d of again.filter((x) => x.pending)) {
-          d.pending = false;
-          const v = v2.get(d.w.id);
-          if (v?.ok === false) { d.png = null; d.why = [`meaning: ${v.why}`]; }
+        const redrawn = again.filter((d) => d.pending);
+        if (judgeDown) hold(redrawn);
+        else if (redrawn.length) {
+          const v2 = await judgeImages(redrawn.map(toJudge));
+          const s2 = sortByVerdict(redrawn, v2);
+          if (s2.down) judgeDown = true;
+          hold(s2.hold);
+          for (const d of s2.reject) {
+            const v = v2.get(d.w.id);
+            await saveRejected(d.w.id, 'meaning', v.why, d.png);
+            d.png = null;
+            d.why = [`meaning: ${v.why}`];
+          }
         }
+        for (const d of redrawn) d.pending = false;
       }
+      // 검사 대기로 맡길 그림(고친 장면으로 다시 그린 것이면 장면도 그것으로 — 그림·장면이 같은 것을 가리키게)
+      for (const d of done.filter((x) => x.hold && x.png)) {
+        const { w } = d;
+        try {
+          await api(`/api/admin/pending/${w.id}`, { method: 'PUT', raw: await toWebp(d.png), headers: { 'content-type': 'image/webp' } });
+        } catch (e) {
+          log.failed.push({ id: w.id, error: `pending: ${String(e.message || e).slice(0, 200)}` });
+          d.png = null; d.defer = true; d.hold = false; // 맡기지 못한 그림은 버림 — 내일 다시
+          continue;
+        }
+        pendingTotal++;
+        log.pending.sent++;
+        if (d.rescene) await api('/api/admin/words', { method: 'POST', body: { items: [{ id: w.id, scene_en: d.scene }] } }).catch((e) => console.error(String(e.message).slice(0, 200)));
+        console.log(`그림 ${w.id} ${w.lemma} 검사 대기로 맡김(대기 ${pendingTotal}장)`);
+      }
+      inflight = 0;
       for (const d of done) {
         const { w } = d;
+        if (d.hold && d.png) continue; // 위에서 검사 대기로 맡김
         if (!d.png) {
           if (d.defer) continue;
           if (d.why?.[0]?.startsWith('meaning')) log.meaning.failed++;
@@ -352,6 +425,17 @@ try {
         log.progress_error = String(e.message || e).slice(0, 200);
       }
     }
+
+    // 막힘 알림(2026-10-26 G3) — 한 실행에 한 통. 검사 못 해 대기로 맡긴 그림이 생겼거나, 대기에서 검사 AI 가 계속 막혔거나,
+    // 그림을 그렸는데 올린 그림이 0장이면. 예전엔 0장 올린 날도 Actions 는 success 에 알림도 없었다(10-21~25 나흘)
+    log.pending.left = pendingTotal;
+    console.log(`검사 대기 ${pendingTotal}장(이번에 맡김 ${log.pending.sent} · 대기에서 올림 ${log.pending.uploaded} · 탈락 ${log.pending.rejected} · 정리 ${log.pending.dropped})`);
+    const uploadedToday = log.images.length + log.pending.uploaded;
+    const blocked = log.pending.sent > 0 || (judgeDown && pendingTotal > 0);
+    if (!DRY && (blocked || (checked > 0 && uploadedToday === 0))) {
+      const head = `대기 ${pendingTotal}장 · 오늘 올림 ${uploadedToday}장`;
+      await notify('error', blocked ? 'Wortling 그림 검사 막힘' : 'Wortling 오늘 올린 그림 0장', blocked ? `${head} · 다음 실행에서 먼저 검사` : `${head} · 그린 ${checked}번 모두 검사 탈락·실패(Actions 의 rejected 그림 확인)`);
+    }
   }
 
   // 3) D1 백업 — PC 의 wrangler 로그인으로 내려받아 backup/ 에 30개 보관(공개 저장소엔 올리지 않음)
@@ -397,7 +481,7 @@ try {
   const dir = path.join(ROOT, 'backup', 'daily');
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, `${log.day}.json`), JSON.stringify(log, null, 2));
-  console.log(JSON.stringify({ text: log.text, images: log.images.length, failed: log.failed.length, quota: log.quota, meaning: log.meaning, progress: log.progress, neurons_est: log.neurons_est }));
+  console.log(JSON.stringify({ text: log.text, images: log.images.length, failed: log.failed.length, quota: log.quota, meaning: log.meaning, pending: log.pending, progress: log.progress, neurons_est: log.neurons_est }));
 }
 
 // ── AI(Gemini)로 글 채우기 ──────────────────────────────────────────────
@@ -453,6 +537,21 @@ Items: ${JSON.stringify(list)}`;
     console.error(`장면 쓰기 실패 — 예전 장면으로 그림: ${String(e.message || e).slice(0, 200)}`);
   }
   return out;
+}
+
+/** 탈락 그림을 .data/rejected/<단어 id>_<어디서>_<사유>.webp 로 남긴다(작게). 저장 실패는 무시 — 근거 남기기가 매일 작업을 막으면 안 된다 */
+async function saveRejected(id, kind, why, buf) {
+  try {
+    mkdirSync(REJECT_DIR, { recursive: true });
+    const slug = String(why).replace(/[^\p{L}\p{N}.+_-]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'x';
+    let n = 0;
+    let file;
+    do file = path.join(REJECT_DIR, `${id}_${kind}_${slug}${n ? `_${n}` : ''}.webp`); while (existsSync(file) && ++n);
+    writeFileSync(file, await toWebp(buf));
+    log.rejected_saved++;
+  } catch (e) {
+    console.error(`탈락 그림 저장 실패 ${id}: ${String(e.message || e).slice(0, 120)}`);
+  }
 }
 
 async function toWebp(png) {

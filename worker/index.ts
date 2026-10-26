@@ -26,6 +26,7 @@ import type { Payload } from './discord.ts';
 import { LATER_MS, WEBHOOK_KEY, WEBHOOK_RE, laterAllowed, sendTest, webhookUrl } from './notify.ts';
 import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
 import { HttpError, bad } from './http.ts';
+import { MAX_IMAGE_BYTES, deletePending, getPending, listPending, putPending } from './pending.ts';
 import {
   LIST_ORDER, addReport, addRequest, getNews, imageWords, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
   reseq, revertChange, reviewQueue, reviewStats, settleRequest, wordKeys,
@@ -526,8 +527,6 @@ const runway: Handler = async ({ env, url }) => {
   return json({ need_text: t.results, need_image: i.results } as RunwayResponse);
 };
 
-const MAX_IMAGE_BYTES = 200 * 1024;
-
 /** 그림 올리기(webp 200KB 이하) 또는 ?status=failed 로 실패 표시 */
 const putImage: Handler = async ({ req, env, url, params: [id] }) => {
   const word = await env.DB.prepare('SELECT id FROM words WHERE id = ?').bind(id).first();
@@ -636,6 +635,10 @@ const routes: Route[] = [
   ['POST', /^\/api\/admin\/words$/, adminWords],
   ['PUT', /^\/api\/admin\/image\/([\w-]+)$/, putImage],
   ['POST', /^\/api\/admin\/draw$/, draw],
+  ['GET', /^\/api\/admin\/pending$/, listPending],
+  ['PUT', /^\/api\/admin\/pending\/([\w-]+)$/, putPending],
+  ['GET', /^\/api\/admin\/pending\/([\w-]+)$/, getPending],
+  ['DELETE', /^\/api\/admin\/pending\/([\w-]+)$/, deletePending],
   ['GET', /^\/api\/admin\/review-queue$/, adminReviewQueue],
   ['POST', /^\/api\/admin\/reseq$/, adminReseq],
   ['GET', /^\/api\/admin\/news$/, adminNewsGet],
