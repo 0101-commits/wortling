@@ -36,6 +36,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
+          check-latest: true
       - id: month
         run: echo "m=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
       # 복원과 저장을 나눈다 — actions/cache 하나로는 작업이 실패하면(검토 묶음 하나만 실패해도) 새 색인이 저장되지 않아
