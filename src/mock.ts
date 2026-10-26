@@ -177,13 +177,33 @@ function stats(): StatsResponse {
   }
 }
 
+// 오늘 몫(기획 v8): 오늘 학습일 끝(다음 날 04:00 KST)까지 마감되는 복습 + 오늘 새 단어(+ 더 받은 것)
+let extra = 0
+const gradedToday = new Set<string>()
+const rated = { good: 0, again: 0 }
 function today(): TodayResponse {
   const t = Date.now()
-  const due = words.map(item).filter((it) => it.card.state > 0 && new Date(it.card.due).getTime() <= t)
-  const fresh = words.map(item).filter((it) => it.card.state === 0).slice(0, settings.new_per_day)
   const date = new Date(t + 5 * 3_600_000).toISOString().slice(0, 10) // 학습일(04시 경계)
-  return { date, due, fresh: settings.review_only_day === date ? [] : fresh, new_done_today: 0, reviewed_today: 3, settings }
+  const dayEnd = new Date(Date.parse(`${date}T04:00:00+09:00`) + DAY).toISOString()
+  const end = Date.parse(dayEnd)
+  const due = words.map(item).filter((it) => it.card.state > 0 && new Date(it.card.due).getTime() < end)
+  const fresh = words.map(item).filter((it) => it.card.state === 0).slice(0, Math.max(0, settings.new_per_day + extra - gradedNew()))
+  const shown = settings.review_only_day === date ? [] : fresh
+  const done = [...gradedToday].filter((id) => !due.some((d) => d.word.id === id)).length
+  return {
+    date,
+    day_end: dayEnd,
+    due,
+    fresh: shown,
+    new_done_today: gradedNew(),
+    reviewed_today: rated.good + rated.again,
+    plan: { total: done + due.length + shown.length, done, fresh_total: settings.review_only_day === date ? 0 : settings.new_per_day + extra, extra, extra_max: 20 },
+    ratings: rated,
+    settings,
+  }
 }
+const newGraded = new Set<string>()
+const gradedNew = () => newGraded.size
 
 function applyReviews(body: ReviewsRequest) {
   const touched: Card[] = []
@@ -191,6 +211,10 @@ function applyReviews(body: ReviewsRequest) {
     const c = cards.find((x) => x.word_id === r.word_id)
     if (!c) continue
     const days = r.rating === 1 ? 0 : r.rating === 2 ? 1 : r.rating === 3 ? 3 : 8
+    if (c.state === 0) newGraded.add(c.word_id)
+    gradedToday.add(c.word_id)
+    if (r.rating >= 3) rated.good++
+    else rated.again++
     Object.assign(c, { state: r.rating === 1 ? 3 : 2, due: later(days || 0.01), reps: c.reps + 1, lapses: c.lapses + (r.rating === 1 ? 1 : 0), last_review: r.reviewed_at, scheduled_days: days })
     if (!touched.includes(c)) touched.push(c)
   }
@@ -213,6 +237,16 @@ export async function mockHandle(method: string, path: string, body?: unknown): 
   const url = new URL(path, 'http://mock')
   const p = url.pathname
   if (p === '/api/today') return today()
+  if (p === '/api/today/more' && method === 'POST') {
+    extra = Math.min(20, extra + 5)
+    return today()
+  }
+  if (p === '/api/practice' && method === 'GET') {
+    const n = Number(url.searchParams.get('n') ?? 10)
+    const learned = words.map(item).filter((it) => it.card.state !== 0)
+    return { items: learned.slice(0, n * 2), pool: words.map(({ id, lemma, pos, gender, gloss_ko }) => ({ id, lemma, pos, gender, gloss_ko })) }
+  }
+  if (p === '/api/practice' && method === 'POST') return { ok: true, count: (body as { results: unknown[] }).results.length }
   if (p === '/api/reviews' && method === 'POST') return applyReviews(body as ReviewsRequest)
   if (p === '/api/words') return wordsList(url.searchParams)
   if (p.startsWith('/api/word/')) {

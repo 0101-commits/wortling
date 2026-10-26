@@ -1168,3 +1168,416 @@ code {
 .chg .diff del {
   color: var(--ink3);
 }
+
+/* ── 오늘 화면(기획 v8 안 A): 오늘 몫 카드 + 더 공부하기 ── */
+.plan {
+  border: 1px solid var(--line2);
+  border-radius: 20px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  background: #fff;
+}
+.plan-top {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.plan-txt {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.plan-txt h1 {
+  font-size: 20px;
+  margin: 0;
+}
+.plan-txt p {
+  margin: 0;
+  color: var(--ink2);
+}
+.plan-txt .accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+.plan .revonly {
+  justify-self: start;
+}
+.ring {
+  --p: 0;
+  width: 76px;
+  height: 76px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--bg2) 0);
+  position: relative;
+}
+.ring::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+.ring span {
+  position: relative;
+  font-size: 18px;
+  font-weight: 700;
+}
+.ring small {
+  font-size: 11px;
+  color: var(--ink3);
+  font-weight: 600;
+}
+.ring.big {
+  width: 120px;
+  height: 120px;
+  justify-self: center;
+}
+.ring.big::before {
+  inset: 11px;
+}
+.ring.big span {
+  font-size: 30px;
+}
+.ring.big small {
+  font-size: 15px;
+}
+.plan-mini {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.plan-mini div {
+  background: var(--bg2);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+.plan-mini b {
+  display: block;
+  font-size: 20px;
+  color: var(--ink);
+}
+.more {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.more-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.more-h h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.more-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line2);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+}
+.more-list li + li {
+  border-top: 1px solid var(--line2);
+}
+.more-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 20px;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.more-row:hover {
+  background: var(--bg);
+}
+.more-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.more-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-bg);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 700;
+  word-break: keep-all;
+}
+.more-t {
+  display: grid;
+  min-width: 0;
+}
+.more-t b {
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.more-chev {
+  width: 18px;
+  height: 18px;
+  color: var(--ink3);
+}
+.new-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0 6px;
+  line-height: 16px;
+}
+
+/* 방식 시작 창(native dialog). 폰에서는 아래에 붙는 시트 */
+.sheet-dlg {
+  border: 0;
+  padding: 0;
+  border-radius: 20px;
+  width: min(calc(100vw - 32px), 440px);
+  background: var(--paper);
+  color: var(--ink);
+}
+.sheet-dlg::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+@media (max-width: 520px) {
+  .sheet-dlg {
+    width: 100vw;
+    max-width: 100vw;
+    margin: auto 0 0;
+    border-radius: 20px 20px 0 0;
+  }
+  .sheet-in {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+}
+.sheet-in {
+  padding: 20px;
+  display: grid;
+  gap: 8px;
+}
+.sheet-in h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.sheet-in p {
+  margin: 0;
+}
+.sheet-l {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink2);
+  margin-top: 6px !important;
+}
+.sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.sheet-grid.four {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.pill {
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink2);
+  cursor: pointer;
+}
+.pill.on {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.sheet-act {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+/* ── 더 공부하기 문제 화면 ── */
+.pbar {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--bg2);
+  overflow: hidden;
+}
+.pbar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.25s ease;
+}
+.pcard {
+  border: 1px solid var(--line2);
+  border-radius: 20px;
+  background: #fff;
+  padding: 22px 18px;
+  min-height: 170px;
+  display: grid;
+  gap: 10px;
+  align-content: center;
+}
+.pcard p {
+  margin: 0;
+}
+.pde {
+  font-size: 19px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+.blank {
+  display: inline-block;
+  min-width: 72px;
+  height: 1em;
+  border-bottom: 2px solid var(--accent);
+  margin: 0 3px;
+  vertical-align: -2px;
+}
+mark.hit {
+  background: var(--ok-bg);
+  color: var(--ok);
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 0 3px;
+}
+.pword {
+  font-size: 30px;
+  text-align: center;
+}
+.pword.ko {
+  font-size: 24px;
+  font-weight: 700;
+}
+.pcard .pword + p {
+  text-align: center;
+}
+.popts {
+  display: grid;
+  gap: 8px;
+}
+.popts.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.popt {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 48px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.popt:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.popt:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.popt.ok {
+  border-color: var(--ok);
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.popt.ng {
+  border-color: var(--bad);
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+.popt.off {
+  color: var(--ink3);
+}
+.popt:disabled {
+  cursor: default;
+}
+.pprompt {
+  font-weight: 700;
+}
+.ptokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ptok {
+  font: inherit;
+  font-size: 17px;
+  padding: 6px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ptok:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.ptok:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.ptok.ok {
+  border-color: var(--ok);
+  background: var(--ok-bg);
+  color: var(--ok);
+  font-weight: 700;
+}
+.ptok.ng {
+  border-color: var(--bad);
+  color: var(--bad);
+  text-decoration: line-through;
+}
+.ptok:disabled {
+  cursor: default;
+}
+.pgloss {
+  background: var(--bg2);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+.pgloss p {
+  margin: 0;
+}
+.practice-done {
+  justify-items: stretch;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pbar i {
+    transition: none;
+  }
+}

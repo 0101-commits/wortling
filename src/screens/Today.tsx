@@ -1,246 +1,293 @@
-// 오늘 = 덱. 채점은 쌓았다가 세션 끝(또는 탭을 떠날 때) 한 번에 보낸다.
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+// 오늘 화면(기획 v8 안 A): 오늘 몫 카드 + 더 공부하기. 덱은 #/deck 에서 넘긴다.
+// 오늘 몫 = 오늘 학습일(04:00 경계)이 끝나기 전에 마감되는 복습 + 아침에 정한 새 단어 — 다 하면 그날은 더 생기지 않는다.
+import { useEffect, useRef, useState } from 'react'
 import { Button, SegmentedControl, SegmentedControlItem, Skeleton } from '@montage-ui/core'
-import { IconFlipBackward } from '@montage-ui/icon'
-import type { DrillScope, Settings, TodayResponse } from '../../shared/api.ts'
-import { api, errorText, sendReviews } from '../api.ts'
-import { buildSession, deckReducer, initDeck } from '../deck.ts'
+import { IconChevronRight } from '@montage-ui/icon'
+import type { PracticeMode, Settings, TodayResponse } from '../../shared/api.ts'
+import { api, errorText } from '../api.ts'
 import { fmtDay } from '../format.ts'
 import { useAsync } from '../hooks.ts'
+import { MODES } from '../practice.ts'
 import { navigate, useRoute } from '../router.ts'
-import { ReportButton } from '../Report.tsx'
-import { SwipeDeck } from '../SwipeDeck.tsx'
 import { CountUp, Emoji, ErrorBox, Top, useToaster } from '../ui.tsx'
 
+/** 더 공부하기 목록. 방식을 늘리면 여기 한 줄(문제 꼴은 practice.ts · Practice.tsx) */
+interface Entry {
+  key: string
+  title: string
+  desc: string
+  short: string
+  kind: 'practice' | 'swipe' | 'artikel'
+  mode?: PracticeMode
+  /** 「새」 표시 끝나는 날(학습일) */
+  newUntil?: string
+}
+const NEW_UNTIL = '2026-11-09'
+const ENTRIES: Entry[] = [
+  { key: 'cloze', ...MODES.cloze, kind: 'practice', mode: 'cloze', newUntil: NEW_UNTIL },
+  { key: 'pick', ...MODES.pick, kind: 'practice', mode: 'pick', newUntil: NEW_UNTIL },
+  { key: 'meaning', title: '뜻 고르기', desc: '독일어 → 뜻, 뜻 → 독일어', short: '뜻', kind: 'practice', mode: 'meaning', newUntil: NEW_UNTIL },
+  { key: 'artikel', title: '관사 1분', desc: 'der · die · das 빠르게', short: '관사', kind: 'artikel' },
+  { key: 'swipe', title: '다시 넘겨 보기', desc: '배운 카드를 넘기며 뜻 확인', short: '넘김', kind: 'swipe' },
+]
+
+/** 한 장 ≈ 6초(알림 「약 N분」과 같은 셈 — worker/discord.ts minutesFor) */
+const minutesFor = (n: number) => Math.max(1, Math.ceil((n * 6) / 60))
+
 export default function Today({ onSettings }: { onSettings: (p: Partial<Settings>) => Promise<void> }) {
-  const today = useAsync(() => api.today(), [])
-  // 오늘은 복습만(B6): 이 학습일만 새 카드 0. 다음 학습일엔 저절로 풀린다
-  const setReviewOnly = async (on: boolean) => {
-    if (!today.data) return
-    await onSettings({ review_only_day: on ? today.data.date : '' })
-    today.reload()
-  }
-  // 아침 알림 빈칸 문제의 정답 카드(?first=w0002)를 덱 맨 앞으로(A1). 이미 열린 앱에서 해시만 바뀌어도 따라간다
+  // 알림의 빈칸 문제 링크(?first=)는 덱으로 바로
   const first = useRoute().query.get('first')
+  useEffect(() => {
+    if (first) navigate(`/deck?first=${encodeURIComponent(first)}`, true)
+  }, [first])
+  const today = useAsync(() => api.today(), [])
+  const [sheet, setSheet] = useState<Entry | null>(null)
+  const d = today.data
   return (
     <>
       <Top title="오늘" actions />
-      <main className="page deck-page">
-        {today.data ? (
-          <Session
-            key={today.data.date + today.data.settings.review_only_day + (first ?? '')}
-            data={today.data}
-            first={first}
-            onReviewOnly={setReviewOnly}
-          />
+      <main className="page">
+        {d ? (
+          <PlanCard key={d.date} d={d} onSettings={onSettings} onChanged={today.reload} />
         ) : today.error ? (
           <ErrorBox error={today.error} onRetry={today.reload} />
         ) : (
-          <>
-            <Skeleton variant="text" width="40%" height={20} />
-            <Skeleton variant="rectangle" width="100%" height={420} radius={20} />
-          </>
+          <Skeleton variant="rectangle" width="100%" height={196} radius={20} />
         )}
+        <section className="more" aria-labelledby="more-h">
+          <div className="more-h">
+            <h2 id="more-h">더 공부하기</h2>
+            <span className="small muted">일정은 안 바뀌어요</span>
+          </div>
+          <ul className="more-list">
+            {ENTRIES.map((e) => (
+              <li key={e.key}>
+                <button
+                  type="button"
+                  className="more-row"
+                  onClick={() => (e.kind === 'artikel' ? navigate('/artikel') : setSheet(e))}
+                >
+                  <span className="more-ico" aria-hidden>
+                    {e.short}
+                  </span>
+                  <span className="more-t">
+                    <b>
+                      {e.title}
+                      {e.newUntil && d && d.date <= e.newUntil && <span className="new-badge">새</span>}
+                    </b>
+                    <span className="small muted">{e.desc}</span>
+                  </span>
+                  <IconChevronRight className="more-chev" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       </main>
+      <StartSheet entry={sheet} studiedToday={(d?.plan.done ?? 0) > 0} onClose={() => setSheet(null)} />
     </>
   )
 }
 
-function Session({
-  data,
-  first,
-  onReviewOnly,
-}: {
-  data: TodayResponse
-  first: string | null
-  onReviewOnly: (on: boolean) => void
-}) {
-  const reviewOnly = data.settings.review_only_day === data.date
-  const toast = useToaster()
-  const [s, dispatch] = useReducer(deckReducer, data, (d) => initDeck(buildSession(d, first)))
-  const [sid] = useState(() => Date.now().toString(36) + Math.random().toString(36).slice(2, 8))
-  const [tomorrow, setTomorrow] = useState<number | null>(null)
-  const [mix] = useState(() => {
-    const fresh = s.queue.filter((it) => it.card.state === 0).length
-    return { fresh, review: s.queue.length - fresh }
-  })
-
-  // 보내기: 아직 안 보낸 채점만. 이벤트 처리기에서 최신 상태를 읽으려고 ref 에 둔다.
-  const latest = useRef(s)
-  useEffect(() => {
-    latest.current = s
-  }, [s])
-  const flush = useCallback(
-    (keepalive: boolean) => {
-      const st = latest.current
-      const reviews = st.pending.slice(st.sentCount)
-      if (!reviews.length) return null
-      latest.current = { ...st, sentCount: st.pending.length }
-      dispatch({ type: 'flush' })
-      return sendReviews({ session_id: sid, reviews }, keepalive)
-    },
-    [sid],
-  )
-
-  // 세션 끝 → 한 번 전송 → 내일 예정 수
-  useEffect(() => {
-    if (!s.finished) return
-    const p = flush(false)
-    if (!p) return
-    p.then(() => api.stats())
-      .then((st) => setTomorrow(st.due_tomorrow))
-      .catch((e) => toast(`채점을 못 보냈어요(${errorText(e)}). 기기에 적어 두고 다음에 열 때 다시 보내요.`, 'negative'))
-  }, [s.finished, flush, toast])
-
-  // 앱을 내리거나 다른 탭으로 가면 그때까지의 채점을 보낸다
-  useEffect(() => {
-    const onHide = () => {
-      if (document.visibilityState === 'hidden') flush(true)?.catch(() => undefined)
-    }
-    document.addEventListener('visibilitychange', onHide)
-    return () => {
-      document.removeEventListener('visibilitychange', onHide)
-      flush(false)?.catch(() => undefined)
-    }
-  }, [flush])
-
-  if (s.queue.length === 0)
-    return <Rest vacation={data.settings.vacation_until} date={data.date} reviewOnly={reviewOnly} onReviewOnly={onReviewOnly} />
-
-  if (s.finished) {
-    const good = s.pending.filter((p) => p.rating >= 3).length
-    return (
-      <section className="done">
-        <Emoji name="happy" size={112} />
-        <h1>오늘 끝</h1>
-        <p className="tomorrow">
-          내일 {tomorrow === null ? <span className="num">…</span> : <CountUp value={tomorrow} />}장
-        </p>
-        <div className="bento">
-          <div className="b">
-            <div className="v num">{good}</div>
-            <div className="l">좋음 · 쉬움</div>
-          </div>
-          <div className="b">
-            <div className="v num">{s.pending.length - good}</div>
-            <div className="l">다시 · 어려움</div>
-          </div>
-          <div className="b wide">
-            <div className="v num">
-              {s.pending.length}
-              <small>번</small>
-            </div>
-            <div className="l">오늘 채점 · 카드 {new Set(s.pending.map((p) => p.word_id)).size}장</div>
-          </div>
-        </div>
-        <ExtraPractice />
-        <Button fullWidth size="large" variant="outlined" color="assistive" onClick={() => navigate('/words')}>
-          단어 보기
-        </Button>
-      </section>
-    )
-  }
-
-  const cards = s.queue.slice(s.index, s.index + 3).map((item, k) => ({ key: String(s.index + k), item }))
+function Ring({ done, total }: { done: number; total: number }) {
+  const p = total ? Math.round((done / total) * 100) : 100
   return (
-    <>
-      <div className="tophint">
-        <button type="button" className="undo" disabled={!s.history} onClick={() => dispatch({ type: 'undo' })}>
-          <IconFlipBackward aria-hidden /> 되돌리기
-        </button>
-        <span className="mix">
-          새 {mix.fresh} · 복습 {mix.review}
-          {/* 덱을 시작하기 전에만: 새 카드를 오늘 빼거나 되돌림 */}
-          {s.index === 0 && (mix.fresh > 0 || reviewOnly) && (
-            <button type="button" className={'revonly' + (reviewOnly ? ' on' : '')} aria-pressed={reviewOnly} onClick={() => onReviewOnly(!reviewOnly)}>
-              {reviewOnly ? '복습만 · 끄기' : '오늘은 복습만'}
-            </button>
-          )}
-        </span>
-        <span className="counter num" data-testid="progress" aria-live="polite">
-          {s.index + 1} / {s.queue.length}
-        </span>
-      </div>
-      <SwipeDeck
-        cards={cards}
-        mode={data.settings.swipe_mode}
-        onGrade={(rating) => dispatch({ type: 'grade', rating, at: new Date().toISOString() })}
-        onUndo={() => dispatch({ type: 'undo' })}
-      />
-      {/* 윗줄(되돌리기 · 새/복습 · 진행 수)은 390px 에서 꽉 차 두 줄로 꺾였다 → 덱 아래 오른쪽에 */}
-      {s.queue[s.index] && (
-        <div className="report-row">
-          <ReportButton key={s.queue[s.index].word.id} wordId={s.queue[s.index].word.id} lemma={s.queue[s.index].word.lemma} />
-        </div>
-      )}
-    </>
-  )
-}
-
-/** 오늘 몫 뒤 추가 연습(B4): 범위 × 분량. 일정은 안 바뀐다 */
-const SCOPES: Array<[DrillScope, string]> = [
-  ['today', '오늘 본 단어'],
-  ['week', '최근 7일'],
-  ['all', '배운 전체'],
-]
-function ExtraPractice() {
-  const [scope, setScope] = useState<DrillScope>('today')
-  const [n, setN] = useState('10')
-  return (
-    <div className="box wh extra">
-      <b>조금 더 할까요?</b>
-      <SegmentedControl size="small" value={scope} onValueChange={(v) => setScope(v as DrillScope)}>
-        {SCOPES.map(([v, l]) => (
-          <SegmentedControlItem key={v} value={v}>{l}</SegmentedControlItem>
-        ))}
-      </SegmentedControl>
-      <SegmentedControl size="small" value={n} onValueChange={setN}>
-        {['10', '30', '50'].map((v) => (
-          <SegmentedControlItem key={v} value={v}>{v}장</SegmentedControlItem>
-        ))}
-      </SegmentedControl>
-      <p className="small muted">일정은 안 바뀌어요. 모르면 줄 뒤로 가요.</p>
-      <Button fullWidth onClick={() => navigate(`/drill?scope=${scope}&n=${n}`)}>
-        추가 연습 시작
-      </Button>
-      <Button fullWidth variant="outlined" color="primary" onClick={() => navigate('/artikel')}>
-        관사만 1분
-      </Button>
+    <div className="ring" style={{ ['--p' as string]: p }} role="img" aria-label={`오늘 몫 ${total}장 중 ${done}장 끝`}>
+      <span className="num">
+        {done}
+        <small>/{total}</small>
+      </span>
     </div>
   )
 }
 
-function Rest({
-  vacation,
-  date,
-  reviewOnly,
-  onReviewOnly,
-}: {
-  vacation: string
-  date: string
-  reviewOnly: boolean
-  onReviewOnly: (on: boolean) => void
-}) {
-  const away = vacation && vacation >= date
+function PlanCard({ d, onSettings, onChanged }: { d: TodayResponse; onSettings: (p: Partial<Settings>) => Promise<void>; onChanged: () => void }) {
+  const toast = useToaster()
+  const [busy, setBusy] = useState(false)
+  const left = d.due.length + d.fresh.length
+  const { total, done, extra, extra_max } = d.plan
+  const reviewOnly = d.settings.review_only_day === d.date
+  const away = d.settings.vacation_until && d.settings.vacation_until >= d.date ? d.settings.vacation_until : ''
+  const canMore = !reviewOnly && extra < extra_max
+
+  const setReviewOnly = async (on: boolean) => {
+    await onSettings({ review_only_day: on ? d.date : '' })
+    onChanged()
+  }
+  const more = async () => {
+    setBusy(true)
+    try {
+      await api.todayMore()
+      onChanged()
+    } catch (e) {
+      toast(`새 단어를 못 받았어요 · ${errorText(e)}`, 'negative')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // 남은 카드가 있음 → 시작 · 이어서
+  if (left > 0) {
+    const max = d.settings.session_max
+    return (
+      <section className="plan" aria-label="오늘 몫">
+        <div className="plan-top">
+          <Ring done={done} total={total} />
+          <div className="plan-txt">
+            <h1>{done > 0 ? '오늘 몫 · 이어서' : '오늘 몫'}</h1>
+            <p className="small">
+              {d.due.length > 0 && `복습 ${d.due.length}`}
+              {d.due.length > 0 && d.fresh.length > 0 && ' · '}
+              {d.fresh.length > 0 && `새 단어 ${d.fresh.length}`} · 약 {minutesFor(left)}분
+            </p>
+            {left > max && <p className="small accent">한 번에 {max}장씩 · 남은 {left}장</p>}
+            {away && <p className="small muted">휴가 모드 · {fmtDay(away)}까지 알림을 쉬어요</p>}
+          </div>
+        </div>
+        <Button fullWidth size="large" onClick={() => navigate('/deck')}>
+          {done > 0 ? `이어서 ${Math.min(left, max)}장` : '시작'}
+        </Button>
+        {done === 0 && (d.fresh.length > 0 || reviewOnly) && (
+          <button type="button" className={'revonly' + (reviewOnly ? ' on' : '')} aria-pressed={reviewOnly} onClick={() => setReviewOnly(!reviewOnly)}>
+            {reviewOnly ? '복습만 · 끄기' : '오늘은 복습만'}
+          </button>
+        )}
+      </section>
+    )
+  }
+
+  // 오늘 몫 끝(또는 처음부터 없음) → 결과 · 새 단어 더
+  const ended = total > 0
   return (
-    <section className="empty">
-      <Emoji name="sleep" size={160} />
-      <h2>오늘은 쉬어도 돼요</h2>
-      <p>
-        {away
-          ? `휴가 모드 · ${fmtDay(vacation)}까지 알림을 쉬어요.`
-          : reviewOnly
-            ? '오늘은 복습만 하기로 했고, 복습할 카드가 없어요.'
-            : '복습할 카드도 새 단어도 없어요.'}
-      </p>
-      {reviewOnly && (
-        <Button variant="outlined" color="primary" onClick={() => onReviewOnly(false)}>
+    <section className="plan" aria-label="오늘 몫">
+      <div className="plan-top">
+        <Emoji name={ended ? 'happy' : 'sleep'} size={76} />
+        <div className="plan-txt">
+          <h1>{ended ? '오늘 몫 끝' : '오늘 몫이 없어요'}</h1>
+          {ended ? (
+            <p className="small">
+              {total}장 끝 · <Tomorrow />
+            </p>
+          ) : (
+            <p className="small">{reviewOnly ? '오늘은 복습만 하기로 했고, 복습할 카드가 없어요.' : '복습할 카드도 새 단어도 없어요.'}</p>
+          )}
+          {away && <p className="small muted">휴가 모드 · {fmtDay(away)}까지 알림을 쉬어요</p>}
+        </div>
+      </div>
+      {ended && (
+        <div className="plan-mini">
+          <div>
+            <b className="num">{d.ratings.good}</b>좋음 · 쉬움
+          </div>
+          <div>
+            <b className="num">{d.ratings.again}</b>다시 · 어려움
+          </div>
+        </div>
+      )}
+      {reviewOnly ? (
+        <Button fullWidth variant="outlined" color="primary" onClick={() => setReviewOnly(false)}>
           새 단어 오늘 받기
         </Button>
+      ) : (
+        canMore && (
+          <>
+            <Button fullWidth variant="outlined" color="primary" loading={busy} onClick={more}>
+              새 단어 5개 {ended ? '더 ' : ''}받기
+            </Button>
+            <p className="small muted center">
+              내일부터 복습이 그만큼 늘어요{extra > 0 ? ` · 오늘 ${extra}/${extra_max}개 더 받음` : ''}
+            </p>
+          </>
+        )
       )}
-      <Button variant="outlined" color="assistive" onClick={() => navigate('/words')}>
-        단어 보기
-      </Button>
     </section>
+  )
+}
+
+/** 내일 볼 카드 수(오늘 몫을 끝냈을 때만 부른다) */
+function Tomorrow() {
+  const st = useAsync(() => api.stats(), [])
+  return <>내일 {st.data ? <CountUp value={st.data.due_tomorrow} /> : <span className="num">…</span>}장</>
+}
+
+const PRACTICE_SCOPES: Array<[string, string]> = [
+  ['today', '오늘 본 단어'],
+  ['week', '최근 7일'],
+  ['all', '배운 전체'],
+  ['wrong', '틀린 단어'],
+]
+
+/** 방식 고르면 뜨는 창: 범위 × 분량(뜻 고르기는 방향도) → 시작 */
+function StartSheet({ entry, studiedToday, onClose }: { entry: Entry | null; studiedToday: boolean; onClose: () => void }) {
+  const dlg = useRef<HTMLDialogElement>(null)
+  const swipe = entry?.kind === 'swipe'
+  const [scope, setScope] = useState('today')
+  const [n, setN] = useState('10')
+  const [dir, setDir] = useState<'meaning' | 'meaning_rev'>('meaning')
+  useEffect(() => {
+    if (!entry) return
+    // 오늘 아직 안 했으면 「최근 7일」부터
+    setScope(studiedToday ? 'today' : 'week')
+    setN('10')
+    if (!dlg.current?.open) dlg.current?.showModal()
+  }, [entry, studiedToday])
+  const close = () => dlg.current?.close()
+  const start = () => {
+    if (!entry) return
+    const path = swipe
+      ? `/drill?scope=${scope}&n=${n}`
+      : `/practice?mode=${entry.mode === 'meaning' ? dir : entry.mode}&scope=${scope}&n=${n}`
+    close()
+    navigate(path)
+  }
+  const scopes = swipe ? PRACTICE_SCOPES.slice(0, 3) : PRACTICE_SCOPES
+  const sizes = swipe ? ['10', '30', '50'] : ['10', '20', '30']
+  return (
+    <dialog
+      ref={dlg}
+      className="sheet-dlg"
+      aria-label={entry ? `${entry.title} 시작` : '연습 시작'}
+      onClick={(e) => e.target === dlg.current && close()}
+      onClose={onClose}
+    >
+      {entry && (
+        <div className="sheet-in">
+          <h2>{entry.title}</h2>
+          <p className="small muted">{entry.desc}</p>
+          {entry.mode === 'meaning' && (
+            <>
+              <p className="sheet-l">방향</p>
+              <SegmentedControl size="small" value={dir} onValueChange={(v) => setDir(v as typeof dir)}>
+                <SegmentedControlItem value="meaning">독일어 → 뜻</SegmentedControlItem>
+                <SegmentedControlItem value="meaning_rev">뜻 → 독일어</SegmentedControlItem>
+              </SegmentedControl>
+            </>
+          )}
+          <p className="sheet-l">어떤 단어로</p>
+          <div className={'sheet-grid' + (scopes.length === 4 ? ' four' : '')} role="radiogroup" aria-label="범위">
+            {scopes.map(([v, l]) => (
+              <button key={v} type="button" role="radio" aria-checked={scope === v} className={'pill' + (scope === v ? ' on' : '')} onClick={() => setScope(v)}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <p className="sheet-l">{swipe ? '몇 장' : '몇 문제'}</p>
+          <SegmentedControl size="small" value={n} onValueChange={setN}>
+            {sizes.map((v) => (
+              <SegmentedControlItem key={v} value={v}>
+                {v}
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+          <p className="small muted">{swipe ? '모르면 줄 뒤로 가요.' : '결과는 「틀린 단어」 모음에만 남고 복습 일정은 그대로예요.'}</p>
+          <div className="sheet-act">
+            <Button variant="outlined" color="assistive" onClick={close}>
+              닫기
+            </Button>
+            <Button onClick={start}>시작</Button>
+          </div>
+        </div>
+      )}
+    </dialog>
   )
 }

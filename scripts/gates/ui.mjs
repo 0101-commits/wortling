@@ -15,7 +15,7 @@ const PORT = 4173
 const BASE = `http://localhost:${PORT}/`
 const VITE = join(ROOT, 'node_modules/vite/bin/vite.js')
 
-const ROUTES = ['/onboarding', '/today', '/words', '/word/w004', '/stats', '/inbox', '/settings', '/setup', '/drill?scope=week&n=10', '/artikel', '/changes', '/words?add=Ermittlung&url=https%3A%2F%2Fwww.dw.com%2Fde%2Fx']
+const ROUTES = ['/onboarding', '/today', '/deck', '/practice?mode=cloze&scope=week&n=10', '/practice?mode=pick&scope=week&n=10', '/practice?mode=meaning&scope=all&n=10', '/practice?mode=meaning_rev&scope=all&n=10', '/words', '/word/w004', '/stats', '/inbox', '/settings', '/setup', '/drill?scope=week&n=10', '/artikel', '/changes', '/words?add=Ermittlung&url=https%3A%2F%2Fwww.dw.com%2Fde%2Fx']
 const VIEWPORTS = [
   { name: '390', width: 390, height: 844 },
   { name: '1280', width: 1280, height: 800 },
@@ -167,7 +167,7 @@ try {
       // 덱 밀기: 390 · light 에서 오른쪽으로 한 번
       if (vp.name === '390' && scheme === 'light') {
         errors = []
-        await page.goto(BASE + '#/today', { waitUntil: 'networkidle' })
+        await page.goto(BASE + '#/deck', { waitUntil: 'networkidle' })
         const progress = page.getByTestId('progress')
         await progress.waitFor()
         const before = (await progress.textContent()).trim()
@@ -245,20 +245,58 @@ try {
         if (!rok) fail(`이상해요 창 + 키: 진행 수 ${beforeDlg} → ${afterDlg}, 창 열림 ${dlgOpen}`)
         table.push({ route: '이상해요 창 + → ·스페이스', vp: '390', light: rok ? 'ok' : 'FAIL', dark: '-', sw: `${beforeDlg} → ${afterDlg} · 창 ${dlgOpen}` })
 
-        // 끝까지 채점 → 「오늘 끝」 화면(전송 1번 + 내일 수)
-        for (let i = 0; i < 40 && (await progress.count()); i++) {
+        // 끝까지 채점 → 오늘 화면 「오늘 몫 끝」(전송 1번 + 내일 수). 10분 뒤 다시 볼 카드는 같은 판 뒤로 와서 판이 길어진다(F2)
+        for (let i = 0; i < 80 && (await progress.count()); i++) {
           await page.keyboard.press('ArrowRight')
           await sleep(330)
         }
-        await page.getByText('오늘 끝').waitFor({ timeout: 3000 }).catch(() => undefined)
+        await page.getByText('오늘 몫 끝').waitFor({ timeout: 3000 }).catch(() => undefined)
         await sleep(1200)
-        const done = await page.getByText('오늘 끝').count()
+        const done = await page.getByText('오늘 몫 끝').count()
         const sw = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
         const happy = await page.evaluate(() => [...document.querySelectorAll('img.emoji')].filter((i) => i.complete && i.naturalWidth > 0).length)
         await page.screenshot({ path: join(SHOTS, 'today-done-390.png') })
         const dok = done === 1 && sw <= 0 && happy === 1 && errors.length === 0
         if (!dok) fail(`덱 끝 화면: 오늘 끝 ${done} · 넘침 ${sw} · 보르티 ${happy}${errors.length ? ' · 콘솔 오류 ' + errors.join(' | ') : ''}`)
-        table.push({ route: '덱 끝까지', vp: '390', light: dok ? 'ok' : 'FAIL', dark: '-', sw: done ? '오늘 끝' : '안 끝남' })
+        table.push({ route: '덱 끝까지', vp: '390', light: dok ? 'ok' : 'FAIL', dark: '-', sw: done ? '오늘 몫 끝' : '안 끝남' })
+
+        // 더 공부하기: 목록 → 시작 창 → 예문 빈칸 문제 → 답 → 다음 … → 결과
+        errors = []
+        await page.getByRole('button', { name: /예문 빈칸 고르기/ }).click()
+        await sleep(300)
+        const sheetOpen = await page.locator('dialog.sheet-dlg[open]').count()
+        await page.screenshot({ path: join(SHOTS, 'today-sheet-390.png') })
+        await page.locator('dialog.sheet-dlg[open]').getByRole('button', { name: '시작' }).click()
+        await page.waitForSelector('.pcard')
+        await sleep(400)
+        const atPractice = page.url().includes('#/practice?mode=cloze')
+        await page.screenshot({ path: join(SHOTS, 'practice-cloze-q-390.png') })
+        let answered = 0
+        for (let i = 0; i < 12 && (await page.locator('.popt').count()); i++) {
+          await page.locator('.popt').first().click()
+          await sleep(150)
+          if (i === 0) await page.screenshot({ path: join(SHOTS, 'practice-cloze-a-390.png') })
+          answered += (await page.locator('.popt.ok').count()) === 1 ? 1 : 0
+          await page.getByRole('button', { name: '다음' }).click()
+          await sleep(150)
+        }
+        await sleep(400)
+        const result = await page.getByText(/문제 중 \d+개/).count()
+        const psw2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+        await page.screenshot({ path: join(SHOTS, 'practice-result-390.png'), fullPage: true })
+        const qok = sheetOpen === 1 && atPractice && answered > 0 && result === 1 && psw2 <= 0 && errors.length === 0
+        if (!qok) fail(`더 공부하기: 창 ${sheetOpen} · 이동 ${atPractice} · 정답 표시 ${answered} · 결과 ${result} · 넘침 ${psw2}${errors.length ? ' · 콘솔 오류 ' + errors.join(' | ') : ''}`)
+        table.push({ route: '더 공부하기 빈칸', vp: '390', light: qok ? 'ok' : 'FAIL', dark: '-', sw: `정답 표시 ${answered}문제 · 결과 ${result}` })
+
+        // 예문 속 단어 짚기: 낱말 하나 누르면 정답 낱말이 초록
+        await page.goto(BASE + '#/practice?mode=pick&scope=week&n=10', { waitUntil: 'networkidle' })
+        await page.waitForSelector('.ptok')
+        await page.locator('.ptok').first().click()
+        await sleep(150)
+        const okTok = await page.locator('.ptok.ok').count()
+        await page.screenshot({ path: join(SHOTS, 'practice-pick-a-390.png') })
+        if (okTok < 1) fail(`단어 짚기: 정답 낱말 표시 ${okTok}`)
+        table.push({ route: '더 공부하기 짚기', vp: '390', light: okTok ? 'ok' : 'FAIL', dark: '-', sw: `정답 낱말 ${okTok}` })
       }
       await ctx.close()
     }
@@ -271,7 +309,7 @@ try {
     const errors = []
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
     page.on('pageerror', (e) => errors.push(String(e)))
-    await page.goto(BASE + '#/today', { waitUntil: 'networkidle' })
+    await page.goto(BASE + '#/deck', { waitUntil: 'networkidle' })
     const progress = page.getByTestId('progress')
     await progress.waitFor()
     const before = (await progress.textContent()).trim()

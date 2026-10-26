@@ -4,6 +4,9 @@ import type {
   DeckListResponse,
   DrillScope,
   InboxResponse,
+  PracticeResponse,
+  PracticeResultsRequest,
+  PracticeScope,
   ReportRequest,
   ReviewsRequest,
   ReviewsResponse,
@@ -140,6 +143,15 @@ export const api = {
     if (pre && Date.now() - pre.at < 15_000) return pre.p
     return inflight.then(() => request<TodayResponse>('GET', '/api/today'))
   },
+  /** 「새 단어 5개 더 받기」(D3) → 바뀐 오늘 몫 */
+  todayMore: () => {
+    todayPrefetch = null
+    return inflight.then(() => request<TodayResponse>('POST', '/api/today/more'))
+  },
+  /** 더 공부하기 재료(배운 카드 + 보기 재료) */
+  practice: (scope: PracticeScope, n: number) => request<PracticeResponse>('GET', '/api/practice?' + qs({ scope, n })),
+  /** 연습 결과(일정은 안 바뀜) */
+  savePractice: (body: PracticeResultsRequest) => request<{ ok: boolean; count: number }>('POST', '/api/practice', body),
   words: (q: WordsQuery) => request<WordsResponse>('GET', '/api/words?' + qs({ ...q })),
   word: (id: string) => request<WordDetailResponse>('GET', `/api/word/${encodeURIComponent(id)}`),
   /** 추가 연습 묶음(B4) — 일정은 안 바뀐다 */

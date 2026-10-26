@@ -19,6 +19,7 @@ export const SWIPE = {
   BACK_SCALE: 0.94,
   VISIBLE: 3,
   MAX_RESHOW: 2, // 「다시」 카드가 한 세션에 다시 나오는 최대 횟수
+  MAX_RESHOW_DAY: 3, // 오늘 덱: 오늘 안에 다시 볼 카드(학습 단계 · 다시)를 같은 판 뒤로 보내는 최대 횟수
 } as const
 
 export const RATING_LABEL: Record<Rating, string> = { 1: '다시', 2: '어려움', 3: '좋음', 4: '쉬움' }
@@ -31,8 +32,13 @@ export interface DeckSnapshot {
 }
 
 export interface DeckState extends DeckSnapshot {
-  /** 이 점수 이하면 줄 맨 뒤로 다시(오늘 덱 = 1 「다시」만, 추가 연습 = 2 「다시·어려움」) */
+  /** 이 점수 이하면 줄 맨 뒤로 다시(추가 연습 = 2 「다시·어려움」). dayEnd 가 있으면 쓰지 않는다 */
   requeueUpTo: Rating
+  /**
+   * 오늘 덱(기획 v8 F2): 채점 뒤 다음 볼 때가 이 시각(오늘 학습일 끝)보다 앞이면 같은 판 맨 뒤로.
+   * 새 카드 「좋음」의 10분 학습 단계를 판 안에서 끝내 — 판이 끝난 뒤 카드가 따로 다시 차지 않게.
+   */
+  dayEnd: string | null
   history: DeckSnapshot | null // 되돌리기 1단계
   /** pending 중 앞에서 몇 개를 이미 보냈는지. 보낸 채점은 되돌릴 수 없다. */
   sentCount: number
@@ -45,8 +51,8 @@ export type DeckAction =
   | { type: 'flush' }
   | { type: 'reset'; queue: DeckItem[] }
 
-export function initDeck(queue: DeckItem[], requeueUpTo: Rating = 1): DeckState {
-  return { queue, index: 0, pending: [], reshows: {}, requeueUpTo, history: null, sentCount: 0, finished: queue.length === 0 }
+export function initDeck(queue: DeckItem[], requeueUpTo: Rating = 1, dayEnd: string | null = null): DeckState {
+  return { queue, index: 0, pending: [], reshows: {}, requeueUpTo, dayEnd, history: null, sentCount: 0, finished: queue.length === 0 }
 }
 
 /** 놓은 순간의 이동(px)·속도(px/ms)로 채점을 정한다. 못 넘으면 null(제자리로). */
@@ -95,7 +101,14 @@ export function deckReducer(s: DeckState, a: DeckAction): DeckState {
       let queue = s.queue
       let reshows = s.reshows
       const seen = s.reshows[id] ?? 0
-      if (a.rating <= s.requeueUpTo && seen < SWIPE.MAX_RESHOW) {
+      if (s.dayEnd) {
+        // 서버와 같은 계산(ts-fsrs · 흔들림 끔 · 같은 채점 시각)이라 다음 장의 간격 글자도 서버 결과와 같다
+        const next = nextCard(item.card, a.rating, new Date(a.at))
+        if (Date.parse(next.due) < Date.parse(s.dayEnd) && seen < SWIPE.MAX_RESHOW_DAY) {
+          queue = [...s.queue, { ...item, card: next }]
+          reshows = { ...s.reshows, [id]: seen + 1 }
+        }
+      } else if (a.rating <= s.requeueUpTo && seen < SWIPE.MAX_RESHOW) {
         queue = [...s.queue, item]
         reshows = { ...s.reshows, [id]: seen + 1 }
       }
@@ -109,7 +122,7 @@ export function deckReducer(s: DeckState, a: DeckAction): DeckState {
     case 'flush':
       return s.pending.length > s.sentCount ? { ...s, sentCount: s.pending.length, history: null } : s
     case 'reset':
-      return initDeck(a.queue, s.requeueUpTo)
+      return initDeck(a.queue, s.requeueUpTo, s.dayEnd)
   }
 }
 
@@ -130,6 +143,25 @@ function toFsrsCard(c: Card): FsrsCard {
     lapses: c.lapses,
     state: c.state as State,
     last_review: c.last_review ? new Date(c.last_review) : undefined,
+  }
+}
+
+/** 채점 하나를 적용한 다음 카드(worker/fsrs.ts applyRating 과 같은 계산 — 첫 채점 도장 포함) */
+export function nextCard(card: Card, rating: Rating, at: Date): Card {
+  const { card: c } = scheduler.next(toFsrsCard(card), at, rating as Grade)
+  return {
+    ...card,
+    state: c.state as Card['state'],
+    due: c.due.toISOString(),
+    stability: c.stability,
+    difficulty: c.difficulty,
+    elapsed_days: c.elapsed_days,
+    scheduled_days: c.scheduled_days,
+    learning_steps: c.learning_steps,
+    reps: c.reps,
+    lapses: c.lapses,
+    last_review: c.last_review ? c.last_review.toISOString() : null,
+    introduced_at: card.state === 0 ? at.toISOString() : card.introduced_at,
   }
 }
 

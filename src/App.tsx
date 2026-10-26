@@ -6,9 +6,11 @@ import type { Settings } from '../shared/api.ts'
 import { ApiError, MOCK, api, errorText, getToken, prefetchToday, retryUnsent, setToken, setUnauthorizedHandler } from './api.ts'
 import { navigate, useRoute } from './router.ts'
 import Artikel from './screens/Artikel.tsx'
+import Deck from './screens/Deck.tsx'
 import Drill from './screens/Drill.tsx'
 import Inbox from './screens/Inbox.tsx'
 import Onboarding from './screens/Onboarding.tsx'
+import Practice from './screens/Practice.tsx'
 import SettingsScreen from './screens/Settings.tsx'
 import Setup from './screens/Setup.tsx'
 import Stats from './screens/Stats.tsx'
@@ -47,7 +49,7 @@ export default function App() {
     setBootError(undefined)
     // 못 보낸 채점을 먼저 보내고(오늘 덱 요청이 그 전송을 기다림) 오늘 화면이면 덱을 설정과 동시에 받는다
     const unsent = retryUnsent()
-    if (!MOCK && (route.parts[0] ?? 'today') === 'today') prefetchToday()
+    if (!MOCK && ['today', 'deck'].includes(route.parts[0] ?? 'today')) prefetchToday()
     api.settings().then(
       (s) => {
         if (!live) return
@@ -155,6 +157,12 @@ export default function App() {
       break
     case 'artikel':
       screen = <Artikel />
+      break
+    case 'deck':
+      screen = <Deck onSettings={save} />
+      break
+    case 'practice':
+      screen = <Practice />
       break
     default:
       screen = <Today onSettings={save} />
