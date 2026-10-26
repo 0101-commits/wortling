@@ -626,8 +626,17 @@ const routes: Route[] = [
   ['POST', /^\/api\/admin\/words\/insert$/, adminInsert],
 ];
 
-function authed(req: Request, env: Env): boolean {
-  return req.headers.get('authorization') === `Bearer ${env.API_TOKEN}`;
+const enc = new TextEncoder();
+
+/** 토큰 확인. 비밀값이 비면 막고, 길이·내용과 상관없이 같은 시간에 비교(해시 뒤 timingSafeEqual) */
+async function authed(req: Request, env: Env): Promise<boolean> {
+  if (!env.API_TOKEN) return false;
+  const [got, want] = await Promise.all(
+    [req.headers.get('authorization') ?? '', `Bearer ${env.API_TOKEN}`].map((s) =>
+      crypto.subtle.digest('SHA-256', enc.encode(s)),
+    ),
+  );
+  return crypto.subtle.timingSafeEqual(got, want);
 }
 
 export { Scheduler } from './alarm.ts';
@@ -640,11 +649,13 @@ function scheduler(env: Env) {
 export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
-    // 앱을 열 때마다 알림 시계가 살아 있는지 확인(비어 있을 때만 예약, 이미 있으면 그대로)
-    if (url.pathname === '/api/today') ctx.waitUntil(scheduler(env).ensure().then(() => undefined));
+    const ok = await authed(req, env);
+    // 앱을 열 때마다 알림 시계가 살아 있는지 확인(비어 있을 때만 예약, 이미 있으면 그대로).
+    // 토큰 맞을 때만 — 모르는 사람이 /api/today 를 두드려 DO 몫을 쓰지 못하게
+    if (url.pathname === '/api/today' && ok) ctx.waitUntil(scheduler(env).ensure().then(() => undefined));
     try {
       if (url.pathname === '/api/admin/schedule' && req.method === 'POST') {
-        if (!authed(req, env)) throw new HttpError(401, 'unauthorized');
+        if (!ok) throw new HttpError(401, 'unauthorized');
         const t = Number(url.searchParams.get('test_in') ?? 0);
         return json(t > 0 ? await scheduler(env).testIn(Math.min(t, 600)) : await scheduler(env).ensure());
       }
@@ -654,7 +665,7 @@ export default {
         if (!m) continue;
         pathMatched = true;
         if (req.method !== method) continue;
-        if (!isPublic && !authed(req, env)) throw new HttpError(401, 'unauthorized');
+        if (!isPublic && !ok) throw new HttpError(401, 'unauthorized');
         return await handler({ req, env, url, params: m.slice(1) });
       }
       throw new HttpError(pathMatched ? 405 : 404, pathMatched ? 'method_not_allowed' : 'not_found');
@@ -663,7 +674,8 @@ export default {
       // 계정 D1 하루 무료 한도(행 읽기 5M) 초과 = UTC 0시(한국 9시)까지 모든 질의가 막힌다(2026-10-19). 500 대신 원인이 보이게
       if (/free tier daily row/i.test(String(e))) return json({ error: 'db_quota' }, 503);
       console.error('unhandled', e);
-      return json({ error: 'internal', detail: String(e) }, 500);
+      // 오류 원문은 토큰 가진 쪽에만(공개 길에서 내부 사정이 새지 않게)
+      return json(ok ? { error: 'internal', detail: String(e) } : { error: 'internal' }, 500);
     }
   },
 } satisfies ExportedHandler<Env>;

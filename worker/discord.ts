@@ -178,7 +178,8 @@ export async function send(webhook: string, payload: Payload): Promise<SendResul
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
+        // 뉴스·생성 문장에 @everyone 같은 글자가 껴도 아무도 부르지 않게
+        body: JSON.stringify({ ...payload, allowed_mentions: { parse: [] } }),
       });
       if (!res.ok) return { ok: false, status: res.status, error: (await res.text()).slice(0, 500) };
       const data = (await res.json()) as { id?: string };
