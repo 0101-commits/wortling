@@ -398,10 +398,16 @@ Items: ${JSON.stringify(list.map((w) => ({ id: w.id, lemma: w.lemma, sentence: w
 }
 
 const REFLEXIVE = new Set(['sich', 'mich', 'dich', 'uns', 'euch', 'mir', 'dir']);
+/** 첫 낱말로는 안 받는 기능어(관사 · 인칭대명사) — 표제어와 상관없는 낱말을 잘못 적는 일 막기. 분리동사 뒤 조각(auf · an …)은 둘째부터라 괜찮다 */
+const NOT_FIRST = new Set(['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'einem', 'einer', 'eines',
+  'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'ihn', 'ihm', 'ihnen', 'man', 'und', 'oder', 'aber', 'nicht']);
+const NEVER = new Set(['nicht', 'kein', 'und', 'oder', 'aber', 'auch', 'noch', 'schon', 'sehr']);
+const PUNCT = /^[.,!?;:»«„“"'()\[\]]+|[.,!?;:»«„“"'()\[\]]+$/gu;
 
 /**
- * hitsPrompt 답 → Map(id → 'gebe|auf' 또는 '-'). 낱말은 예문에 정말 있는 것만(앞에서부터 차례로) — 없는 낱말을 지어내면 '-'.
- * '-' 도 적어 둔다(다음 날 같은 것을 또 묻지 않게). 답이 없는 id 는 빠진다(다음 날 다시).
+ * hitsPrompt 답 → Map(id → 'gebe|auf' 또는 '-'). 낱말은 예문에 정말 있는 것만(앞에서부터 차례로).
+ * '-'(다시 안 물음)는 AI 가 「없음」([])이라고 답했을 때만. 꼴이 이상한 답(받을 수 없는 낱말이 섞임 · 예문에 없음 · 순서가 뒤집힘)은
+ * 아예 적지 않아 다음 날 다시 묻는다 — 일부만 받아 분리동사 뒤 조각이 조용히 빠지거나 '-' 가 잘못 박히지 않게(검토 반영).
  */
 export function acceptHits(arr, list) {
   const byId = new Map(list.map((w) => [w.id, w]));
@@ -409,13 +415,22 @@ export function acceptHits(arr, list) {
   for (const o of Array.isArray(arr) ? arr : []) {
     const w = byId.get(o?.id);
     if (!w || out.has(o.id) || !Array.isArray(o.forms)) continue;
-    const forms = o.forms
-      .filter((f) => typeof f === 'string')
-      .map((f) => f.trim().replace(/[.,!?;:»«„“"]+$/u, ''))
-      .filter((f) => /^[A-Za-zÄÖÜäöüß]{1,40}$/.test(f) && !REFLEXIVE.has(f.toLowerCase()))
-      .slice(0, 4);
-    const hit = forms.join('|');
-    out.set(o.id, forms.length && hitSpans(w.example_de, hit).length === forms.length ? hit : HIT_NONE);
+    if (o.forms.length === 0) {
+      out.set(o.id, HIT_NONE);
+      continue;
+    }
+    // 「gebe auf」처럼 한 칸에 두 낱말이면 쪼갠다
+    const raw = o.forms.flatMap((f) => (typeof f === 'string' ? f.trim().split(/\s+/) : [null]));
+    const forms = raw.map((f) => (f === null ? null : f.replace(PUNCT, ''))).filter((f) => f === null || !REFLEXIVE.has(f.toLowerCase()));
+    const ok =
+      forms.length > 0 &&
+      forms.length <= 4 &&
+      forms.every((f) => f !== null && /^[A-Za-zÄÖÜäöüß]{1,40}$/.test(f)) &&
+      !NOT_FIRST.has(forms[0].toLowerCase()) &&
+      // 「nicht auf」 같은 답에서 딸려 온 부정어·접속사는 표제어 조각이 아니다
+      !forms.some((f) => NEVER.has(f.toLowerCase()) && !w.lemma.toLowerCase().includes(f.toLowerCase())) &&
+      hitSpans(w.example_de, forms.join('|')).length === forms.length;
+    if (ok) out.set(o.id, forms.join('|'));
   }
   return out;
 }

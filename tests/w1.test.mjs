@@ -40,13 +40,22 @@ test('hits: 규칙으로 못 찾는 것만 묻고, 예문에 정말 있는 낱�
   const got = acceptHits(
     [
       { id: 'a', forms: ['gebe', 'auf'] },
-      { id: 'c', forms: ['irrst', 'dich'] },
-      { id: 'd', forms: ['wirft'] }, // 예문에 없음(지어냄) → -
+      { id: 'c', forms: ['irrst', 'dich'] }, // 재귀대명사는 뺌
+      { id: 'd', forms: ['wirft'] }, // 예문에 없음(지어냄) → 안 적음(내일 다시)
       { id: 'zzz', forms: ['x'] },
     ],
     hitMisses(list),
   );
-  assert.deepEqual([...got], [['a', 'gebe|auf'], ['c', 'irrst'], ['d', '-']]);
+  assert.deepEqual([...got], [['a', 'gebe|auf'], ['c', 'irrst']]);
+  const miss = hitMisses(list);
+  const one = (forms) => acceptHits([{ id: 'a', forms }], miss).get('a');
+  assert.equal(one([]), '-', '「없음」이라고 답했을 때만 -');
+  assert.equal(one(['gebe auf']), 'gebe|auf', '한 칸에 두 낱말이면 쪼갬');
+  assert.equal(one(['„gebe', 'auf,']), 'gebe|auf', '앞뒤 문장부호 뗌');
+  assert.equal(one(['auf', 'gebe']), undefined, '순서 뒤집힘 → 내일 다시');
+  assert.equal(one(['gebe', 'nicht auf']), undefined, '딸려 온 nicht → 일부만 받지 않음');
+  assert.equal(one(['ich']), undefined, '관사·대명사가 첫 낱말이면 안 받음');
+  assert.equal(one(["geht's"]), undefined);
 });
 
 test('worker: example_hit 저장 · 형식 검사 · 예문이 바뀌거나 되돌리면 지움 · 후보 목록', async () => {

@@ -10,7 +10,7 @@ const DRY = process.argv.includes('--dry');
 const MAX = Number((process.argv.find((a) => a.startsWith('--max=')) || '').slice(6)) || 400;
 const BATCH = 40;
 
-const log = { day: kstDay(), dry: DRY, waiting: 0, misses: 0, asked: 0, found: 0, none: 0, failedBatches: 0, errors: [] };
+const log = { day: kstDay(), dry: DRY, waiting: 0, misses: 0, asked: 0, found: 0, none: 0, skipped: 0, failedBatches: 0, quotaOut: false, errors: [] };
 const sample = [];
 
 try {
@@ -26,14 +26,28 @@ try {
       got = acceptHits(await askJson(hitsPrompt(batch)), batch);
       fails = 0;
     } catch (e) {
+      // 하루 몫 소진(429 PerDay)은 정상 흐름 — 오류로 세지 않고 남은 묶음은 내일(카드 검토가 같은 몫을 먼저 쓴다)
+      if (/PerDay|quota/i.test(String(e.message))) {
+        log.quotaOut = true;
+        break;
+      }
       log.failedBatches++;
       log.errors.push(String(e.message || e).slice(0, 150));
-      // 하루 몫 소진(429 PerDay)이나 연속 실패면 남은 묶음은 내일
-      if (++fails >= 3 || /PerDay|quota/i.test(String(e.message))) break;
+      if (++fails >= 3) break;
       continue;
     }
     log.asked += batch.length;
+    log.skipped += batch.length - got.size; // 꼴이 이상한 답 → 내일 다시
     for (const v of got.values()) v === '-' ? log.none++ : log.found++;
+    // 한 묶음에서 하나도 못 받으면(답 꼴이 통째로 틀림) 실패로 센다 — 매일 조용히 헛돌지 않게
+    if (!got.size) {
+      log.failedBatches++;
+      if (++fails >= 3) {
+        log.errors.push('3묶음 연속 받을 답 없음 — 오늘 그만');
+        break;
+      }
+      continue;
+    }
     if (DRY) {
       for (const w of batch) if (got.has(w.id) && sample.length < 10) sample.push(`${w.lemma}: ${got.get(w.id)} ← ${w.example_de}`);
       continue;

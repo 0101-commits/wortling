@@ -73,7 +73,7 @@ export async function patchWords(db: D1Database, items: AdminWordsRequest['items
     }
     // 예문 속 표제어 낱말(W1): 'gebe|auf' · '-'. 예문이 바뀌면(이번에 안 줬으면) 지운다 — 옛 예문의 낱말이 남지 않게
     if (it.example_hit !== undefined) {
-      if (it.example_hit !== null && (typeof it.example_hit !== 'string' || !/^(-|[^|\s]{1,40}(\|[^|\s]{1,40}){0,3})$/.test(it.example_hit))) throw bad('bad example_hit');
+      if (it.example_hit !== null && (typeof it.example_hit !== 'string' || !/^(-|[A-Za-zÄÖÜäöüß]{1,40}(\|[A-Za-zÄÖÜäöüß]{1,40}){0,3})$/.test(it.example_hit))) throw bad('bad example_hit');
       put('example_hit', it.example_hit);
     } else if (it.example_de !== undefined) put('example_hit', null);
     if (it.checked) put('checked_at', at);
