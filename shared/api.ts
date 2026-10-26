@@ -18,6 +18,8 @@ export interface Word {
   gloss_ko: string | null;
   example_de: string | null;
   example_ko: string | null;
+  /** 예문 속 표제어 낱말(찾기 규칙으로 못 찾는 꼴만, 'gebe|auf' · '-' = 없음). shared/cloze.ts findWord 의 hit */
+  example_hit: string | null;
   /** true 면 /img/{id}.webp 가 있다 */
   image: boolean;
   seq: number;
@@ -196,6 +198,8 @@ export interface AdminWordsRequest {
     gloss_ko?: string;
     example_de?: string;
     example_ko?: string;
+    /** 예문 속 표제어 낱말(scripts/words/hits.mjs). null = 지움 */
+    example_hit?: string | null;
     scene_en?: string;
     gloss_status?: 'generated' | 'checked' | 'mine';
     example_src?: string;

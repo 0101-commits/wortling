@@ -100,7 +100,7 @@ export function pickCloze(items: DeckItem[]): Cloze | null {
   for (const { word } of items) {
     const de = word.example_de;
     if (!de || de.length > 110) continue;
-    const line = clozeOf(de, word.lemma);
+    const line = clozeOf(de, word.lemma, word.example_hit);
     if (!line) continue;
     const base = fold(word.lemma.replace(/^sich\s+/i, ''));
     const rest = fold(line);

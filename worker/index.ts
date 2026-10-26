@@ -28,7 +28,7 @@ import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
 import { HttpError, bad } from './http.ts';
 import { MAX_IMAGE_BYTES, deletePending, getPending, listPending, putPending } from './pending.ts';
 import {
-  LIST_ORDER, addReport, addRequest, getNews, imageWords, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
+  LIST_ORDER, addReport, addRequest, exampleWords, getNews, imageWords, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
   reseq, revertChange, reviewQueue, reviewStats, settleRequest, wordKeys,
 } from './words.ts';
 
@@ -482,6 +482,7 @@ const pushUnsubscribe: Handler = async ({ req, env }) => {
 
 const adminKeys: Handler = async ({ env }) => json(await wordKeys(env.DB));
 const adminImages: Handler = async ({ env }) => json(await imageWords(env.DB));
+const adminExamples: Handler = async ({ env }) => json(await exampleWords(env.DB));
 const adminInsert: Handler = async ({ req, env }) =>
   json(await insertWords(env.DB, (await readJson<{ items?: Array<Record<string, unknown>> }>(req))?.items));
 /** 단어 칸 고치기 + 고침 기록(scripts/words/review.mjs) · 글 채우기(daily.mjs) */
@@ -649,6 +650,7 @@ const routes: Route[] = [
   ['GET', /^\/api\/admin\/review-stats$/, adminReviewStats],
   ['GET', /^\/api\/admin\/keys$/, adminKeys],
   ['GET', /^\/api\/admin\/images$/, adminImages],
+  ['GET', /^\/api\/admin\/examples$/, adminExamples],
   ['POST', /^\/api\/admin\/words\/insert$/, adminInsert],
 ];
 

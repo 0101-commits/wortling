@@ -76,6 +76,7 @@ const words: Word[] = SEED.map(([lemma, pos, gender, plural, ipa, ko, en, de, de
   gloss_ko: ko,
   example_de: de,
   example_ko: deKo,
+  example_hit: null,
   image: i >= 1 && i <= 4, // public/mascot 에 있는 4장만(api.ts imgSrc). 없는 그림은 404 콘솔 오류
   seq: i + 1,
 }))

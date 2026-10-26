@@ -5,7 +5,7 @@ import { bad } from './http.ts';
 
 /** words w JOIN cards c 에서 DeckItem 을 만들 때 고르는 열(열 이름이 겹치지 않게 w.id / c.word_id) */
 export const ITEM_SELECT = `w.id, w.lemma, w.pos, w.gender, w.plural, w.ipa, w.level, w.gloss_en, w.gloss_ko,
-  w.example_de, w.example_ko, w.image_status, w.seq,
+  w.example_de, w.example_ko, w.example_hit, w.image_status, w.seq,
   c.word_id, c.state, c.due, c.stability, c.difficulty, c.elapsed_days, c.scheduled_days,
   c.learning_steps, c.reps, c.lapses, c.last_review, c.introduced_at, c.suspended`;
 
@@ -25,6 +25,7 @@ export function rowToItem(r: Record<string, unknown>): DeckItem {
       gloss_ko: s('gloss_ko'),
       example_de: s('example_de'),
       example_ko: s('example_ko'),
+      example_hit: s('example_hit'),
       image: r.image_status === 'ok',
       seq: n('seq'),
     },

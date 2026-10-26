@@ -1,6 +1,6 @@
 // 매일 단어 작업(news.mjs · review.mjs)과 update.mjs 가 같이 쓰는 순수 함수 — 네트워크·파일 없음.
 // 시험: tests/words-lib.test.mjs · 설계: docs/superpowers/specs/2026-10-15-word-review-news-design.md
-import { findWord } from '../../shared/cloze.ts';
+import { HIT_NONE, findWord, hitSpans } from '../../shared/cloze.ts';
 import { REQ_TEXT } from '../../shared/request.ts';
 
 /** JSON 에서 읽은 객체의 자기 칸만(constructor·__proto__ 같은 이름이 낱말로 와도 안전) */
@@ -381,4 +381,41 @@ export function newsItems(counts) {
   return [...counts]
     .filter(([key]) => NEWS_KEY.test(key))
     .map(([key, v]) => ({ key, n: v.n, url: typeof v.url === 'string' && v.url.startsWith('https://') && v.url.length <= 500 ? v.url : null }));
+}
+
+// ---------- 예문 속 표제어 낱말(기획 v8 W1, hits.mjs) ----------
+
+/** 찾기 규칙(findWord)으로 예문에서 표제어를 못 찾는 카드만 — AI 에 물을 것 */
+export function hitMisses(items) {
+  return items.filter((w) => typeof w.example_de === 'string' && w.example_de && !findWord(w.example_de, w.lemma));
+}
+
+export function hitsPrompt(list) {
+  return `For each German example sentence, list the word(s) in the sentence that are a form of the given lemma: conjugated verb, participle, inflected noun/adjective, or both parts of a separable verb in sentence order (lemma "aufgeben" in "Ich gebe nicht auf." → ["gebe", "auf"]). Copy each word exactly as written in the sentence, without punctuation. Do not include reflexive pronouns (sich, mich, dich …), articles or auxiliaries. If no form of the lemma appears, return [].
+Return exactly one object per item, same order, id copied unchanged: {"id": "...", "forms": ["..."]}.
+Output ONLY a JSON array (no prose, no code fence) with exactly ${list.length} objects.
+Items: ${JSON.stringify(list.map((w) => ({ id: w.id, lemma: w.lemma, sentence: w.example_de })))}`;
+}
+
+const REFLEXIVE = new Set(['sich', 'mich', 'dich', 'uns', 'euch', 'mir', 'dir']);
+
+/**
+ * hitsPrompt 답 → Map(id → 'gebe|auf' 또는 '-'). 낱말은 예문에 정말 있는 것만(앞에서부터 차례로) — 없는 낱말을 지어내면 '-'.
+ * '-' 도 적어 둔다(다음 날 같은 것을 또 묻지 않게). 답이 없는 id 는 빠진다(다음 날 다시).
+ */
+export function acceptHits(arr, list) {
+  const byId = new Map(list.map((w) => [w.id, w]));
+  const out = new Map();
+  for (const o of Array.isArray(arr) ? arr : []) {
+    const w = byId.get(o?.id);
+    if (!w || out.has(o.id) || !Array.isArray(o.forms)) continue;
+    const forms = o.forms
+      .filter((f) => typeof f === 'string')
+      .map((f) => f.trim().replace(/[.,!?;:»«„“"]+$/u, ''))
+      .filter((f) => /^[A-Za-zÄÖÜäöüß]{1,40}$/.test(f) && !REFLEXIVE.has(f.toLowerCase()))
+      .slice(0, 4);
+    const hit = forms.join('|');
+    out.set(o.id, forms.length && hitSpans(w.example_de, hit).length === forms.length ? hit : HIT_NONE);
+  }
+  return out;
 }

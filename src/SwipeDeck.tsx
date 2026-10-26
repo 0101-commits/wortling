@@ -209,7 +209,7 @@ function CardFace({ item: { word, card }, back }: { item: DeckItem; back: boolea
           {word.example_de && (
             <p className="dk-ex">
               <span lang="de">
-                <Example de={word.example_de} lemma={word.lemma} />
+                <Example de={word.example_de} lemma={word.lemma} hit={word.example_hit} />
               </span>
               {word.example_ko && <span className="ko">{word.example_ko}</span>}
             </p>

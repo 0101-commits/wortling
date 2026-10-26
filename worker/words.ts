@@ -71,6 +71,11 @@ export async function patchWords(db: D1Database, items: AdminWordsRequest['items
       if (it.news_rank !== null && !(Number.isInteger(it.news_rank) && it.news_rank > 0)) throw bad('bad news_rank');
       put('news_rank', it.news_rank);
     }
+    // 예문 속 표제어 낱말(W1): 'gebe|auf' · '-'. 예문이 바뀌면(이번에 안 줬으면) 지운다 — 옛 예문의 낱말이 남지 않게
+    if (it.example_hit !== undefined) {
+      if (it.example_hit !== null && (typeof it.example_hit !== 'string' || !/^(-|[^|\s]{1,40}(\|[^|\s]{1,40}){0,3})$/.test(it.example_hit))) throw bad('bad example_hit');
+      put('example_hit', it.example_hit);
+    } else if (it.example_de !== undefined) put('example_hit', null);
     if (it.checked) put('checked_at', at);
     if (it.image_reset) sets.push("image_status = 'none'");
     if (sets.length) {
@@ -210,6 +215,14 @@ export async function reviewQueue(db: D1Database, limit: number, now = new Date(
     }
   }
   return out;
+}
+
+// ---------- 예문 속 표제어 낱말(기획 v8 W1) ----------
+
+/** 예문이 있고 example_hit 이 아직 없는 단어. scripts/words/hits.mjs 가 찾기 규칙으로 못 찾는 것만 골라 AI 에 묻는다(하루 한 번, ≈9천 행 읽기) */
+export async function exampleWords(db: D1Database) {
+  const r = await db.prepare('SELECT id, lemma, example_de FROM words WHERE example_de IS NOT NULL AND example_hit IS NULL ORDER BY id').all();
+  return { items: r.results.map(plain) as Array<{ id: string; lemma: string; example_de: string }> };
 }
 
 // ---------- 학습 순서 ----------
@@ -354,6 +367,8 @@ export async function revertChange(db: D1Database, id: number, now = new Date())
     db.prepare('UPDATE word_changes SET reverted_at = ? WHERE id = ?').bind(at, x.id),
     // 뜻을 되돌리면 그 뜻은 사용자가 고른 것(mine — 검토가 다시 안 바꿈), 새 뜻으로 그린 그림은 다시 그린다
     ...(x.field === 'gloss_ko' ? [db.prepare("UPDATE words SET gloss_status = 'mine', image_status = 'none' WHERE id = ?").bind(x.word_id)] : []),
+    // 예문을 되돌리면 예문 속 낱말(W1)은 옛 예문 것이 아니다 → 다음 단어 작업이 다시 적는다
+    ...(x.field === 'example_de' ? [db.prepare('UPDATE words SET example_hit = NULL WHERE id = ?').bind(x.word_id)] : []),
   ]));
   return { ok: true as const };
 }

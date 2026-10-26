@@ -298,7 +298,7 @@ function ChoiceView({ q, onAnswer, onNext }: ViewProps<ChoiceQ>) {
               </p>
               {w.example_de && (
                 <p className="small" lang="de">
-                  <Example de={w.example_de} lemma={w.lemma} />
+                  <Example de={w.example_de} lemma={w.lemma} hit={w.example_hit} />
                 </p>
               )}
               {w.example_ko && <p className="small muted">{w.example_ko}</p>}

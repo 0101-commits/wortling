@@ -54,6 +54,10 @@ jobs:
       - name: review.mjs (카드 검토)
         if: always()
         run: node scripts/words/review.mjs $DRY
+      # 찾기 규칙으로 못 찾는 예문 속 표제어 낱말(분리동사 · 불규칙 꼴)을 AI 로 적어 둔다(기획 v8 W1)
+      - name: hits.mjs (예문 속 낱말)
+        if: always()
+        run: node scripts/words/hits.mjs $DRY
       # 색인을 실제로 새로 만든 날에만(news.mjs 가 rebuilt=1). 다시 만들기가 실패해 지난 색인이 남은 날은 저장하지 않는다
       - name: 색인 캐시 저장(새로 만든 날만)
         if: always() && steps.news.outputs.rebuilt == '1'

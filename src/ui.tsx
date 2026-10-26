@@ -7,7 +7,7 @@ import type { Level, Pos, Word } from '../shared/api.ts'
 import { imgSrc } from './api.ts'
 import { article } from './format.ts'
 import { goBack, navigate } from './router.ts'
-import { findWord } from '../shared/cloze.ts'
+import { findAll } from '../shared/cloze.ts'
 
 /** 보르티 이모티콘(public/emoji/{name}.webp, 256×256). 꾸밈이라 alt 는 비운다. */
 export type EmojiName = 'hello' | 'happy' | 'sleep' | 'party' | 'oops' | 'study' | 'mail' | 'think'
@@ -104,17 +104,18 @@ export function WordImage({ word, className = '' }: { word: Word; className?: st
   )
 }
 
-/** 예문 속 단어를 굵게 — 아침 알림 빈칸과 같은 찾기 규칙(shared/cloze.ts) */
-export function Example({ de, lemma }: { de: string; lemma: string }) {
-  const at = findWord(de, lemma)
-  if (!at) return <>{de}</>
-  return (
-    <>
-      {de.slice(0, at[0])}
-      <b>{de.slice(at[0], at[1])}</b>
-      {de.slice(at[1])}
-    </>
-  )
+/** 예문 속 단어를 굵게 — 아침 알림 빈칸과 같은 찾기 규칙(shared/cloze.ts). hit = 예문 속 낱말(분리동사는 두 조각 다 굵게) */
+export function Example({ de, lemma, hit }: { de: string; lemma: string; hit?: string | null }) {
+  const spans = findAll(de, lemma, hit)
+  if (!spans.length) return <>{de}</>
+  const out: ReactNode[] = []
+  let at = 0
+  spans.forEach(([s, e], k) => {
+    out.push(de.slice(at, s), <b key={k}>{de.slice(s, e)}</b>)
+    at = e
+  })
+  out.push(de.slice(at))
+  return <>{out}</>
 }
 
 /** 숫자 − n + (montage 에 숫자 증감 부품이 없어 직접 만든다) */

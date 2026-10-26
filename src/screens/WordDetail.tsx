@@ -40,7 +40,7 @@ export default function WordDetail({ id }: { id: string }) {
                 {d.word.example_de && (
                   <p className="dk-ex">
                     <span lang="de">
-                      <Example de={d.word.example_de} lemma={d.word.lemma} />
+                      <Example de={d.word.example_de} lemma={d.word.lemma} hit={d.word.example_hit} />
                     </span>
                     {d.word.example_ko && <span className="ko">{d.word.example_ko}</span>}
                   </p>

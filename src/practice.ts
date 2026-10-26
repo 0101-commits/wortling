@@ -2,7 +2,7 @@
 // 새 방식을 넣을 때는 여기 MODES 에 한 줄 + 문제 만들기 한 개, 화면은 screens/Practice.tsx 에 문제 꼴 하나.
 // React 없음(시험에서 바로 부른다).
 import type { DeckItem, PoolWord, PracticeMode } from '../shared/api.ts'
-import { findWord } from '../shared/cloze.ts'
+import { findAll, findWord } from '../shared/cloze.ts'
 import { shuffle } from './deck.ts'
 
 export interface ModeInfo {
@@ -47,8 +47,8 @@ const bare = (lemma: string) => lemma.replace(/^sich\s+/i, '')
  * 예문을 빈칸 앞 · 실제 꼴 · 뒤로. 못 찾거나 빈칸 밖에 같은 낱말·어간이 남아 정답이 보이면 null
  * (아침 알림 빈칸 문제 pickCloze 와 같은 거르기).
  */
-export function clozeParts(de: string, lemma: string): ChoiceQ['cloze'] | null {
-  const at = findWord(de, lemma)
+export function clozeParts(de: string, lemma: string, hit?: string | null): ChoiceQ['cloze'] | null {
+  const at = findWord(de, lemma, hit)
   if (!at) return null
   const before = de.slice(0, at[0])
   const after = de.slice(at[1])
@@ -60,12 +60,12 @@ export function clozeParts(de: string, lemma: string): ChoiceQ['cloze'] | null {
   return { before, hit: de.slice(at[0], at[1]), after }
 }
 
-/** 예문 낱말들(띄어쓰기 기준, 문장부호는 붙은 채). 표제어 자리와 겹치는 낱말이 정답. 못 찾으면 null */
-export function pickTokens(de: string, lemma: string): PickQ['tokens'] | null {
-  const at = findWord(de, lemma)
-  if (!at) return null
+/** 예문 낱말들(띄어쓰기 기준, 문장부호는 붙은 채). 표제어 자리와 겹치는 낱말이 정답(분리동사는 두 조각 다). 못 찾으면 null */
+export function pickTokens(de: string, lemma: string, hit?: string | null): PickQ['tokens'] | null {
+  const spans = findAll(de, lemma, hit)
+  if (!spans.length) return null
   const tokens = [...de.matchAll(/\S+/g)].map((m) => ({ text: m[0], s: m.index!, e: m.index! + m[0].length }))
-  const out = tokens.map((t) => ({ text: t.text, hit: t.s < at[1] && t.e > at[0] }))
+  const out = tokens.map((t) => ({ text: t.text, hit: spans.some(([s, e]) => t.s < e && t.e > s) }))
   return out.some((t) => t.hit) && out.length >= 3 ? out : null
 }
 
@@ -113,12 +113,12 @@ export function makeQuestion(mode: PracticeMode, item: DeckItem, pool: PoolWord[
   const w = item.word
   if (mode === 'pick') {
     if (!w.example_de || !w.gloss_ko) return null
-    const tokens = pickTokens(w.example_de, w.lemma)
+    const tokens = pickTokens(w.example_de, w.lemma, w.example_hit)
     return tokens ? { mode, item, tokens } : null
   }
   if (mode === 'cloze') {
     if (!w.example_de) return null
-    const cloze = clozeParts(w.example_de, w.lemma)
+    const cloze = clozeParts(w.example_de, w.lemma, w.example_hit)
     if (!cloze) return null
     const wrong = distractors(item, pool, (p) => p.lemma, rand)
     return wrong ? { mode, item, cloze, choices: shuffle([{ id: w.id, text: w.lemma }, ...wrong], rand) } : null
