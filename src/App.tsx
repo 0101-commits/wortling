@@ -69,8 +69,9 @@ export default function App() {
     if (settings && !settings.onboarded && page !== 'onboarding' && page !== 'setup') navigate('/onboarding', true)
   }, [settings, page])
 
-  // 알림 링크(…?n=알림번호)로 열었으면 열림을 한 번 적고(A4) 주소에서 n 을 지운다
-  const openedN = route.query.get('n')
+  // 알림 링크(…?n=알림번호)로 열었으면 열림을 한 번 적고(A4) 주소에서 n 을 지운다.
+  // 알림 링크는 오늘 · 덱으로만 온다 — 추가 연습 · 더 공부하기의 n(문제 수)을 알림 번호로 읽지 않게
+  const openedN = page === 'today' || page === 'deck' ? route.query.get('n') : null
   useEffect(() => {
     if (!settings || !openedN || !/^\d+$/.test(openedN)) return
     api.markOpened(Number(openedN)).catch(() => undefined)
