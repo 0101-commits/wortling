@@ -6,6 +6,7 @@ import type {
   DeckListResponse,
   InboxItem,
   Level,
+  PracticeResultsRequest,
   ReviewInput,
   ReviewsRequest,
   ReviewsResponse,
@@ -16,7 +17,8 @@ import type {
   WordDetailResponse,
   WordsResponse,
 } from '../shared/api.ts';
-import { ITEM_SELECT, buildToday, loadSettings, rowToItem } from './deck.ts';
+import { ITEM_SELECT, addExtra, buildToday, dropPlan, loadSettings, rowToItem } from './deck.ts';
+import { practiceItems, savePractice } from './practice.ts';
 import { applyRating } from './fsrs.ts';
 import { DAY_START_H, addDays, studyDay, studyDayStartUtc } from './time.ts';
 import { summarize } from './discord.ts';
@@ -62,6 +64,14 @@ const health: Handler = async () => json({ ok: true, time: new Date().toISOStrin
 
 const today: Handler = async ({ env }) => {
   const settings = await loadSettings(env.DB);
+  const t = await buildToday(env.DB, settings, new Date());
+  return json({ ...t, settings } satisfies TodayResponse);
+};
+
+/** 「새 단어 5개 더 받기」(D3) → 바뀐 오늘 몫. 하루 20개까지(넘으면 400 extra_max) */
+const todayMore: Handler = async ({ env }) => {
+  const settings = await loadSettings(env.DB);
+  await addExtra(env.DB, settings);
   const t = await buildToday(env.DB, settings, new Date());
   return json({ ...t, settings } satisfies TodayResponse);
 };
@@ -199,6 +209,14 @@ const drill: Handler = async ({ env, url }) => {
     .all();
   return json({ items: sqlRows(r).map(rowToItem) } satisfies DeckListResponse);
 };
+
+// ---------- 더 공부하기(기획 v8 과제 4, worker/practice.ts) ----------
+
+const practice: Handler = async ({ env, url }) =>
+  json(
+    await practiceItems(env.DB, await loadSettings(env.DB), url.searchParams.get('scope'), clamp(intParam(url.searchParams.get('n'), 10), 1, 50)),
+  );
+const postPractice: Handler = async ({ req, env }) => json(await savePractice(env.DB, await readJson<PracticeResultsRequest>(req)));
 
 /** 관사 1분(B5): 배운 명사(관사 있는 것) 무작위 n개. 모자라면 아직 안 배운 명사를 학습 순서대로 채운다 */
 const artikel: Handler = async ({ env, url }) => {
@@ -378,13 +396,15 @@ const putSettings: Handler = async ({ req, env }) => {
     updates.push(['review_only_day', v]);
   }
   if (updates.length === 0) throw bad('nothing_to_update');
-  await env.DB.batch(
-    updates.map(([k, v]) =>
+  await env.DB.batch([
+    ...updates.map(([k, v]) =>
       env.DB.prepare(
         "INSERT INTO settings(key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
       ).bind(k, v),
     ),
-  );
+    // 하루 새 단어 수·레벨이 바뀌면 오늘 새 단어 목록을 버린다 → 다음에 열 때 새 설정으로 다시 정함
+    ...(updates.some(([k]) => k === 'new_per_day' || k === 'level') ? [dropPlan(env.DB)] : []),
+  ]);
   return json(await loadSettings(env.DB));
 };
 
@@ -587,6 +607,9 @@ const routes: Route[] = [
   ['GET', /^\/api\/health$/, health, true],
   ['GET', /^\/img\/([\w-]+)\.webp$/, getImage, true],
   ['GET', /^\/api\/today$/, today],
+  ['POST', /^\/api\/today\/more$/, todayMore],
+  ['GET', /^\/api\/practice$/, practice],
+  ['POST', /^\/api\/practice$/, postPractice],
   ['POST', /^\/api\/reviews$/, postReviews],
   ['GET', /^\/api\/words$/, words],
   ['GET', /^\/api\/drill$/, drill],

@@ -5,7 +5,7 @@ import { clozeOf } from '../shared/cloze.ts';
 import { eveningTitle, morningTitle, quiet, restOf, seedOf } from '../shared/copy.ts';
 import type { Rest } from '../shared/copy.ts';
 import { buildToday, loadSettings } from './deck.ts';
-import { DAY_START_H, monthDay, studyDay, studyDayStartUtc } from './time.ts';
+import { DAY_START_H, monthDay, studyDay } from './time.ts';
 import { eveningPayload, hasStats, minutesFor, morningPayload, send, summarize, testPayload } from './discord.ts';
 import type { Cloze, Payload } from './discord.ts';
 import { pushAll, pushMessage } from './push.ts';
@@ -152,24 +152,23 @@ export function eveningSkip(p: {
   return null;
 }
 
-/** kind = evening(21:00) · evening_later(「1시간 뒤」로 미룬 것, 보내기 직전에 조건을 다시 본다) */
+/**
+ * kind = evening(21:00) · evening_later(「1시간 뒤」로 미룬 것, 보내기 직전에 조건을 다시 본다).
+ * 남은 카드 = 오늘 몫(F4)에서 아직 안 한 것 — 오늘 학습일 안에 마감되는 복습 + 오늘 목록의 안 본 새 단어.
+ * 오늘 몫을 다 했으면 남은 카드 0 → 알림 없음(예전엔 낮에 풀린 카드 때문에 거의 늘 갔다).
+ */
 export async function runEvening(env: Env, now: Date = new Date(), kind: 'evening' | 'evening_later' = 'evening'): Promise<RunResult> {
   const day = studyDay(now);
   const settings = await loadSettings(env.DB);
   if (settings.vacation_until && settings.vacation_until >= day) return { skipped: 'vacation' };
-  const [rem, reviewed, morning] = await env.DB.batch([
-    env.DB.prepare('SELECT count(*) AS n FROM cards WHERE state IN (1, 2, 3) AND suspended = 0 AND due <= ?').bind(
-      now.toISOString(),
-    ),
-    env.DB.prepare('SELECT count(*) AS n FROM reviews WHERE reviewed_at >= ? AND undone = 0').bind(studyDayStartUtc(day)),
-    env.DB.prepare("SELECT status FROM notifications WHERE kind = 'morning' AND day = ?").bind(day),
-  ]);
-  const remaining = (rem.results[0] as { n: number }).n;
-  const reviewedToday = (reviewed.results[0] as { n: number }).n;
+  const today = await buildToday(env.DB, settings, now);
+  const morning = await env.DB.prepare("SELECT status FROM notifications WHERE kind = 'morning' AND day = ?").bind(day).first<{ status: string }>();
+  const remaining = today.due.length + today.fresh.length;
+  const reviewedToday = today.reviewed_today;
   const skip = eveningSkip({
     remaining,
     reviewedToday,
-    morningSent: (morning.results[0] as { status: string } | undefined)?.status === 'sent',
+    morningSent: morning?.status === 'sent',
     mode: settings.evening_mode,
     min: settings.evening_min,
   });

@@ -59,13 +59,28 @@ export interface Settings {
   review_only_day: string;
 }
 
-/** GET /api/today */
+/** GET /api/today · POST /api/today/more — 오늘 몫(기획 v8 F1): 오늘 학습일이 끝나기 전에 마감되는 복습 + 오늘 정한 새 단어 */
 export interface TodayResponse {
-  date: string; // YYYY-MM-DD KST
+  date: string; // YYYY-MM-DD KST 학습일
+  /** 오늘 학습일이 끝나는 시각(다음 날 04:00 KST, ISO). 채점 뒤 이보다 앞에 다시 볼 카드는 같은 판 뒤로(F2) */
+  day_end: string;
   due: DeckItem[];
   fresh: DeckItem[];
   new_done_today: number;
   reviewed_today: number;
+  plan: {
+    /** 오늘 몫 전체 = 끝낸 카드 + 남은 카드(due + fresh) */
+    total: number;
+    /** 오늘 채점해서 오늘 안에는 다시 안 나오는 카드 */
+    done: number;
+    /** 오늘 목록의 새 단어 수(복습만이면 0) */
+    fresh_total: number;
+    /** 「새 단어 더 받기」로 더한 수 · 하루 상한 */
+    extra: number;
+    extra_max: number;
+  };
+  /** 오늘 채점 수: 좋음·쉬움 / 다시·어려움 */
+  ratings: { good: number; again: number };
   settings: Settings;
 }
 
@@ -97,6 +112,23 @@ export interface WordsQuery {
 
 /** GET /api/drill?scope=&n= (B4 추가 연습) · GET /api/artikel?n= (B5 관사 1분). 일정(FSRS)은 안 바꾼다 */
 export type DrillScope = 'today' | 'week' | 'all';
+
+/** 더 공부하기(기획 v8 과제 4). 결과는 practice 표에만 — 복습 일정(FSRS)은 안 바꾼다 */
+export type PracticeMode = 'cloze' | 'pick' | 'meaning' | 'meaning_rev';
+/** wrong = 연습에서 마지막으로 틀린 단어(최근 30일) */
+export type PracticeScope = DrillScope | 'wrong';
+/** 보기(오답) 재료 — 배운 단어 위주, 모자라면 안 배운 같은 레벨 단어 */
+export type PoolWord = Pick<Word, 'id' | 'lemma' | 'pos' | 'gender' | 'gloss_ko'>;
+/** GET /api/practice?scope=&n= */
+export interface PracticeResponse {
+  items: DeckItem[];
+  pool: PoolWord[];
+}
+/** POST /api/practice */
+export interface PracticeResultsRequest {
+  mode: PracticeMode;
+  results: Array<{ word_id: string; correct: boolean; at: string }>;
+}
 export interface DeckListResponse {
   items: DeckItem[];
 }
