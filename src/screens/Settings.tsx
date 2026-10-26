@@ -102,8 +102,8 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
               저녁 알림 21:00
               <small className="sub">
                 {settings.evening_mode === 'none_today'
-                  ? `오늘 한 장도 안 했고 남은 카드가 ${settings.evening_min}장 이상일 때만 · 폰 알림에 「1시간 뒤」`
-                  : `남은 카드가 ${settings.evening_min}장 이상이면 · 폰 알림에 「1시간 뒤」`}
+                  ? `오늘 한 장도 안 했고 오늘 몫이 ${settings.evening_min}장 이상 남았을 때만 · 폰 알림에 「1시간 뒤」`
+                  : `오늘 몫이 ${settings.evening_min}장 이상 남았으면 · 오늘 몫을 다 했으면 안 와요 · 폰 알림에 「1시간 뒤」`}
               </small>
             </span>
             <SegmentedControl
@@ -112,7 +112,7 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
               onValueChange={(v) => onChange({ evening_mode: v === 'any_left' ? 'any_left' : 'none_today' })}
             >
               <SegmentedControlItem value="none_today">오늘 0장일 때만</SegmentedControlItem>
-              <SegmentedControlItem value="any_left">남은 카드 있으면</SegmentedControlItem>
+              <SegmentedControlItem value="any_left">오늘 몫 남으면</SegmentedControlItem>
             </SegmentedControl>
           </div>
           <div className="kv">
