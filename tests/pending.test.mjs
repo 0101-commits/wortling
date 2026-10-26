@@ -185,3 +185,14 @@ test('processPending: 대기 길이 안 열리면 unavailable · 비어 있으�
   assert.deepEqual(f.calls, ['GET /api/admin/pending']);
   assert.equal(pending.size, 1);
 });
+
+test('processPending: 판정에서 7일 넘게 계속 빠지는 대기 그림은 지운다(몫·대기 칸을 영구히 쓰지 않게) · 7일 안이면 남김', async () => {
+  const pending = new Map(['old', 'new'].map((id) => [id, Buffer.from(id)]));
+  const f = fakeWorker(pending, { old: W('old'), new: W('new') });
+  const at = { old: '2026-10-10T08:00:00.000Z', new: '2026-10-25T08:00:00.000Z' };
+  const api = async (p, o) => (p === '/api/admin/pending' ? { items: [...pending.keys()].map((id) => ({ id, at: at[id] })) } : f.api(p, o));
+  const r = await processPending({ api, judge: async () => new Map(), say: () => {}, now: () => Date.parse('2026-10-26T08:00:00Z') });
+  assert.deepEqual(r.dropped, ['old']);
+  assert.deepEqual([...pending.keys()], ['new']);
+  assert.equal(r.judgeDown, false);
+});

@@ -19,7 +19,10 @@ export function sortByVerdict(list, v) {
  *  api(path, opts) = daily.mjs 의 Worker 관리 API 호출. judge(items) = judgeImages. wantsNew(id) = 다시 그리기(restyle·--redo) 대상인가
  *  — 그런 단어는 이미 image_status='ok' 여도 대기분이 새 그림이라 지우지 않고 검사한다.
  *  dry 면 읽기만(목록·판정 없이 개수만). 반환 left = 아직 대기에 남은 id 집합, judgeDown = 검사 AI 못 씀, unavailable = 대기 길 자체가 안 열림 */
-export async function processPending({ api, judge, batch = 10, wantsNew = () => false, saveRejected = async () => {}, dry = false, say = console.log }) {
+/** 판정에서 계속 빠지는 대기 그림을 지우기까지 날 수 */
+export const HOLD_DAYS = 7;
+
+export async function processPending({ api, judge, batch = 10, wantsNew = () => false, saveRejected = async () => {}, dry = false, say = console.log, now = Date.now }) {
   const out = { total: 0, left: new Set(), uploaded: [], rejected: [], dropped: [], gaveUp: [], fix: new Map(), front: [], judgeDown: false, unavailable: false };
   let items;
   try {
@@ -50,7 +53,7 @@ export async function processPending({ api, judge, batch = 10, wantsNew = () => 
         out.dropped.push(it.id);
         continue;
       }
-      cand.push({ id: it.id, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, meaning_ko: w.gloss_ko });
+      cand.push({ id: it.id, at: it.at, word: `${w.gender ? w.gender + ' ' : ''}${w.lemma}`, meaning_ko: w.gloss_ko });
     } catch (e) {
       if (/→ 404/.test(String(e.message))) {
         await forget(it.id).catch(() => {}); // 카드 행이 없는 단어 — 대기분도 쓸모없다
@@ -98,7 +101,15 @@ export async function processPending({ api, judge, batch = 10, wantsNew = () => 
         out.gaveUp.push(d.id); // 고친 장면이 없으면 기존 규칙대로 실패 표시(daily.mjs 가 처리)
       }
     }
-    // s.hold(판정에서 빠진 그림)는 대기에 그대로 — 다음 실행이 다시
+    // s.hold(판정에서 빠진 그림)는 대기에 그대로 — 다음 실행이 다시. 단 HOLD_DAYS 넘게 계속 빠지면 지운다
+    // (같은 그림이 매일 Flash 몫을 쓰고 대기 상한 칸을 영구히 차지하지 않게 — 단어는 나중에 새로 그려진다)
+    for (const d of s.hold) {
+      if (d.at && now() - Date.parse(d.at) > HOLD_DAYS * 86_400_000) {
+        await forget(d.id);
+        out.dropped.push(d.id);
+        say(`대기 그림 ${d.id} ${d.word} ${HOLD_DAYS}일 넘게 판정에서 빠짐 → 지움(나중에 새로 그림)`);
+      }
+    }
   }
   return out;
 }

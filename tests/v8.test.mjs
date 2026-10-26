@@ -123,3 +123,15 @@ test('연습 재료: 범위 · 틀린 단어(마지막 결과가 틀림) · 보�
   await assert.rejects(() => savePractice(db, { mode: 'nope', results: [] }), /bad_request/);
   await assert.rejects(() => savePractice(db, { mode: 'pick', results: [{ word_id: 'r1', correct: 1, at: 'x' }] }), /bad_result/);
 });
+
+test('설정이 바뀌어도 더 받은 수는 그대로 — 그만큼 더 고른다(하루 상한이 풀리지 않게)', async () => {
+  const db = fakeD1();
+  for (let i = 1; i <= 30; i++) addWord(db, { id: `w${i}`, lemma: `Wort${i}`, seq: i });
+  const s = await settings(db);
+  await buildToday(db, s, NOON);
+  await addExtra(db, s, NOON);
+  await dropPlan(db, NOON).run();
+  const t = await buildToday(db, await settings(db, { new_per_day: 3 }), NOON);
+  assert.equal(t.plan.extra, 5);
+  assert.equal(t.fresh.length, 8, '3 + 더 받은 5');
+});

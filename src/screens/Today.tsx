@@ -40,7 +40,8 @@ export default function Today({ onSettings }: { onSettings: (p: Partial<Settings
   useEffect(() => {
     if (first) navigate(`/deck?first=${encodeURIComponent(first)}`, true)
   }, [first])
-  const today = useAsync(() => api.today(), [])
+  // 덱으로 바로 갈 거면 여기서 받지 않는다(미리 받은 오늘 몫은 덱이 쓴다)
+  const today = useAsync(() => (first ? new Promise<TodayResponse>(() => {}) : api.today()), [])
   const [sheet, setSheet] = useState<Entry | null>(null)
   const d = today.data
   return (
@@ -117,7 +118,8 @@ function PlanCard({ d, onSettings, onChanged }: { d: TodayResponse; onSettings: 
   const more = async () => {
     setBusy(true)
     try {
-      await api.todayMore()
+      const t = await api.todayMore()
+      if (t.plan.extra === extra) toast('더 받을 새 단어가 없어요. 레벨을 올리면 더 나와요.', 'cautionary')
       onChanged()
     } catch (e) {
       toast(`새 단어를 못 받았어요 · ${errorText(e)}`, 'negative')

@@ -104,7 +104,7 @@ export function deckReducer(s: DeckState, a: DeckAction): DeckState {
       if (s.dayEnd) {
         // 서버와 같은 계산(ts-fsrs · 흔들림 끔 · 같은 채점 시각)이라 다음 장의 간격 글자도 서버 결과와 같다
         const next = nextCard(item.card, a.rating, new Date(a.at))
-        if (Date.parse(next.due) < Date.parse(s.dayEnd) && seen < SWIPE.MAX_RESHOW_DAY) {
+        if (!next.suspended && Date.parse(next.due) < Date.parse(s.dayEnd) && seen < SWIPE.MAX_RESHOW_DAY) {
           queue = [...s.queue, { ...item, card: next }]
           reshows = { ...s.reshows, [id]: seen + 1 }
         }
@@ -146,7 +146,10 @@ function toFsrsCard(c: Card): FsrsCard {
   }
 }
 
-/** 채점 하나를 적용한 다음 카드(worker/fsrs.ts applyRating 과 같은 계산 — 첫 채점 도장 포함) */
+/** 이만큼 잊으면 서버가 카드를 쉬게 한다(worker/fsrs.ts SUSPEND_LAPSES) */
+const SUSPEND_LAPSES = 8
+
+/** 채점 하나를 적용한 다음 카드(worker/fsrs.ts applyRating 과 같은 계산 — 첫 채점 도장 · 쉼 포함) */
 export function nextCard(card: Card, rating: Rating, at: Date): Card {
   const { card: c } = scheduler.next(toFsrsCard(card), at, rating as Grade)
   return {
@@ -162,6 +165,7 @@ export function nextCard(card: Card, rating: Rating, at: Date): Card {
     lapses: c.lapses,
     last_review: c.last_review ? c.last_review.toISOString() : null,
     introduced_at: card.state === 0 ? at.toISOString() : card.introduced_at,
+    suspended: c.lapses >= SUSPEND_LAPSES ? 1 : card.suspended,
   }
 }
 

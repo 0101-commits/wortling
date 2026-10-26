@@ -136,22 +136,30 @@ export function prefetchToday() {
   todayPrefetch = { at: Date.now(), p }
 }
 
+/** 못 보낸 채점이 기기에 남아 있으면 먼저 보낸다(오늘 몫 요청이 그 뒤로 줄 선다).
+ *  덱 끝 전송이 실패한 채 오늘 화면으로 오면, 다시 받은 오늘 몫에 방금 채점한 카드가 또 나와 두 번 채점됐다(검토 반영) */
+const sendUnsentFirst = () => {
+  if (readUnsent().length) retryUnsent()
+}
+
 export const api = {
   today: () => {
     const pre = todayPrefetch
     todayPrefetch = null
     if (pre && Date.now() - pre.at < 15_000) return pre.p
+    sendUnsentFirst()
     return inflight.then(() => request<TodayResponse>('GET', '/api/today'))
   },
   /** 「새 단어 5개 더 받기」(D3) → 바뀐 오늘 몫 */
   todayMore: () => {
     todayPrefetch = null
+    sendUnsentFirst()
     return inflight.then(() => request<TodayResponse>('POST', '/api/today/more'))
   },
   /** 더 공부하기 재료(배운 카드 + 보기 재료) */
   practice: (scope: PracticeScope, n: number) => request<PracticeResponse>('GET', '/api/practice?' + qs({ scope, n })),
   /** 연습 결과(일정은 안 바뀜) */
-  savePractice: (body: PracticeResultsRequest) => request<{ ok: boolean; count: number }>('POST', '/api/practice', body),
+  savePractice: (body: PracticeResultsRequest, keepalive = false) => request<{ ok: boolean; count: number }>('POST', '/api/practice', body, keepalive),
   words: (q: WordsQuery) => request<WordsResponse>('GET', '/api/words?' + qs({ ...q })),
   word: (id: string) => request<WordDetailResponse>('GET', `/api/word/${encodeURIComponent(id)}`),
   /** 추가 연습 묶음(B4) — 일정은 안 바뀐다 */

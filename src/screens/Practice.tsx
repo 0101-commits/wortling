@@ -1,6 +1,6 @@
 // 더 공부하기 문제 화면(기획 v8 과제 4): #/practice?mode=cloze|pick|meaning|meaning_rev&scope=today|week|all|wrong&n=10
 // 한 문제씩 → 맞힘/틀림 표시 → 다음. 끝나면 결과를 practice 표에 보내고(일정은 안 바뀜) 틀린 단어만 다시 할 수 있다.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Skeleton } from '@montage-ui/core'
 import type { DeckItem, PoolWord, PracticeMode, PracticeScope } from '../../shared/api.ts'
 import { api, errorText } from '../api.ts'
@@ -59,11 +59,36 @@ function Round(props: { mode: PracticeMode; items: DeckItem[]; pool: PoolWord[];
   const [results, setResults] = useState<Result[]>([])
 
   const finished = i >= questions.length
-  // 판이 끝나면 결과를 한 번 보낸다(실패해도 화면은 그대로 — 기록만 빠짐)
+  // 결과 보내기: 판이 끝날 때 + 중간에 앱을 내리거나 나갈 때(그때까지 푼 것만, 검토 반영). 실패해도 화면은 그대로 — 기록만 빠짐
+  const latest = useRef<Result[]>([])
+  const sent = useRef(0)
   useEffect(() => {
-    if (!finished || !results.length) return
-    api.savePractice({ mode, results }).catch((e) => toast(`결과를 못 적었어요 · ${errorText(e)}`, 'cautionary'))
-  }, [finished]) // eslint 없음: 끝난 순간 한 번
+    latest.current = results
+  }, [results])
+  const flush = useCallback(
+    (keepalive: boolean) => {
+      const rs = latest.current.slice(sent.current)
+      if (!rs.length) return
+      sent.current = latest.current.length
+      api.savePractice({ mode, results: rs }, keepalive).catch((e) => {
+        if (!keepalive) toast(`결과를 못 적었어요 · ${errorText(e)}`, 'cautionary')
+      })
+    },
+    [mode, toast],
+  )
+  useEffect(() => {
+    if (finished) flush(false)
+  }, [finished, flush])
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flush(true)
+    }
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      document.removeEventListener('visibilitychange', onHide)
+      flush(true)
+    }
+  }, [flush])
 
   const answer = useCallback((correct: boolean, id: string) => {
     setResults((rs) => [...rs, { word_id: id, correct, at: new Date().toISOString() }])
@@ -118,6 +143,8 @@ function Round(props: { mode: PracticeMode; items: DeckItem[]; pool: PoolWord[];
               setPass((p) => p + 1)
               setI(0)
               setResults([])
+              latest.current = []
+              sent.current = 0
             }}
           >
             틀린 단어만 다시
@@ -203,6 +230,8 @@ function ChoiceView({ q, onAnswer, onNext }: ViewProps<ChoiceQ>) {
   // 키보드 1 2 3 4
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Ctrl/⌘+숫자 = 브라우저 탭 바꾸기 — 보기로 먹지 않게
+      if (e.ctrlKey || e.metaKey || e.altKey) return
       const k = Number(e.key)
       if (k >= 1 && k <= q.choices.length) pick(q.choices[k - 1].id)
     }
@@ -217,7 +246,7 @@ function ChoiceView({ q, onAnswer, onNext }: ViewProps<ChoiceQ>) {
           <>
             <p className="pde" lang="de">
               {q.cloze.before}
-              {picked ? <mark className="hit">{q.cloze.hit}</mark> : <span className="blank" aria-label="빈칸" />}
+              {picked ? <mark className="hit">{q.cloze.hit}</mark> : <span className="blank" role="img" aria-label="빈칸" />}
               {q.cloze.after}
             </p>
             <p className="small muted">{w.example_ko}</p>
@@ -250,9 +279,14 @@ function ChoiceView({ q, onAnswer, onNext }: ViewProps<ChoiceQ>) {
             onClick={() => pick(c.id)}
           >
             {c.text}
+            {picked && c.id === w.id && <span className="sr-only"> · 정답</span>}
+            {picked && c.id === picked && c.id !== w.id && <span className="sr-only"> · 고른 답, 오답</span>}
           </button>
         ))}
       </div>
+      <p className="sr-only" aria-live="polite">
+        {picked ? (picked === w.id ? '맞았어요' : `틀렸어요. 정답은 ${q.choices.find((c) => c.id === w.id)?.text ?? w.lemma}`) : ''}
+      </p>
       {picked && (
         <>
           {q.mode === 'cloze' ? (
@@ -302,9 +336,14 @@ function PickView({ q, onAnswer, onNext }: ViewProps<PickQ>) {
           {q.tokens.map((t, k) => (
             <button key={k} type="button" className={'ptok' + cls(k)} disabled={done} onClick={() => tap(k)}>
               {t.text}
+              {done && t.hit && <span className="sr-only"> · 정답</span>}
+              {done && k === tapped && !t.hit && <span className="sr-only"> · 고른 낱말, 오답</span>}
             </button>
           ))}
         </div>
+        <p className="sr-only" aria-live="polite">
+          {done ? (q.tokens[tapped!].hit ? '맞았어요' : `틀렸어요. 정답은 ${q.tokens.filter((t) => t.hit).map((t) => t.text).join(' ')}`) : ''}
+        </p>
         {done && <p className="small muted">{w.example_ko}</p>}
       </div>
       {done && (

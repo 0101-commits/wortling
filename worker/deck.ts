@@ -117,47 +117,59 @@ function freshCandidates(db: D1Database, settings: Settings, n: number, except: 
     .all<{ id: string }>();
 }
 
+const readPlan = (db: D1Database, date: string) =>
+  db.prepare('SELECT fresh, extra FROM day_plans WHERE day = ?').bind(date).first<{ fresh: string; extra: number }>();
+
 /**
  * 그날 새 단어 목록(F1·F5). 처음 부를 때(아침 알림 또는 그날 처음 연 앱) 한 번 정해 day_plans 에 적는다.
  * 그 뒤로는 단어 작업이 학습 순서를 다시 매기거나 새 단어를 넣어도 그날 목록은 그대로.
  * 알림과 앱이 동시에 만들어도 ON CONFLICT 로 먼저 적힌 하나만 남는다.
+ * fresh = '' 는 「설정이 바뀌어 다시 정할 목록」(dropPlan) — 더 받은 수(extra)는 남겨 그만큼 더 고른다.
  */
 export async function ensurePlan(db: D1Database, settings: Settings, date: string): Promise<PlanRow> {
-  const got = parsePlan(await db.prepare('SELECT fresh, extra FROM day_plans WHERE day = ?').bind(date).first<{ fresh: string; extra: number }>());
-  if (got) return got;
+  const row = await readPlan(db, date);
+  if (row && row.fresh !== '') return parsePlan(row)!;
+  const extra = Number(row?.extra ?? 0) || 0;
   const introduced = await db
     .prepare('SELECT count(*) AS n FROM cards WHERE introduced_at >= ?')
     .bind(studyDayStartUtc(date))
     .first<{ n: number }>();
-  const n = Math.max(0, settings.new_per_day - Number(introduced?.n ?? 0));
+  const n = Math.max(0, settings.new_per_day + extra - Number(introduced?.n ?? 0));
   const ids = n ? (await freshCandidates(db, settings, n)).results.map((r) => r.id) : [];
   await db.batch([
-    db
-      .prepare('INSERT INTO day_plans(day, fresh, extra, created_at) VALUES (?, ?, 0, ?) ON CONFLICT(day) DO NOTHING')
-      .bind(date, JSON.stringify(ids), new Date().toISOString()),
+    row
+      ? db.prepare("UPDATE day_plans SET fresh = ? WHERE day = ? AND fresh = ''").bind(JSON.stringify(ids), date)
+      : db
+          .prepare('INSERT INTO day_plans(day, fresh, extra, created_at) VALUES (?, ?, 0, ?) ON CONFLICT(day) DO NOTHING')
+          .bind(date, JSON.stringify(ids), new Date().toISOString()),
     db.prepare('DELETE FROM day_plans WHERE day < ?').bind(addDays(date, -PLAN_KEEP_DAYS)),
   ]);
-  return parsePlan(await db.prepare('SELECT fresh, extra FROM day_plans WHERE day = ?').bind(date).first<{ fresh: string; extra: number }>())!;
+  // 다시 읽어 먼저 적힌 쪽을 쓴다. 그사이 다른 쪽이 다시 정하라고 비웠으면(드묾) 방금 고른 목록 그대로
+  const again = await readPlan(db, date);
+  return again && again.fresh !== '' ? parsePlan(again)! : { fresh: ids, extra };
 }
 
-/** 「새 단어 더 받기」(D3): 오늘 목록 뒤에 EXTRA_STEP 개. 하루 EXTRA_MAX 까지 */
+/** 「새 단어 더 받기」(D3): 오늘 목록 뒤에 EXTRA_STEP 개. 하루 EXTRA_MAX 까지. 두 기기가 동시에 눌러도 한 번만(비교 후 쓰기) */
 export async function addExtra(db: D1Database, settings: Settings, now: Date = new Date()): Promise<{ added: number }> {
   const date = studyDay(now);
-  const plan = await ensurePlan(db, settings, date);
-  const room = Math.min(EXTRA_STEP, EXTRA_MAX - plan.extra);
-  if (room <= 0) throw bad('extra_max');
-  const ids = (await freshCandidates(db, settings, room, plan.fresh)).results.map((r) => r.id);
-  if (!ids.length) return { added: 0 };
-  await db
-    .prepare('UPDATE day_plans SET fresh = ?, extra = extra + ? WHERE day = ?')
-    .bind(JSON.stringify([...plan.fresh, ...ids]), ids.length, date)
-    .run();
-  return { added: ids.length };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const plan = await ensurePlan(db, settings, date);
+    const room = Math.min(EXTRA_STEP, EXTRA_MAX - plan.extra);
+    if (room <= 0) throw bad('extra_max');
+    const ids = (await freshCandidates(db, settings, room, plan.fresh)).results.map((r) => r.id);
+    if (!ids.length) return { added: 0 };
+    const r = await db
+      .prepare('UPDATE day_plans SET fresh = ?, extra = extra + ? WHERE day = ? AND extra = ? AND fresh = ?')
+      .bind(JSON.stringify([...plan.fresh, ...ids]), ids.length, date, plan.extra, JSON.stringify(plan.fresh))
+      .run();
+    if (r.meta.changes) return { added: ids.length };
+  }
+  return { added: 0 };
 }
 
-/** 설정(하루 새 단어 수 · 레벨)이 바뀌면 오늘 목록을 버린다 → 다음에 열 때 새 설정으로 다시 정함 */
+/** 설정(하루 새 단어 수 · 레벨)이 바뀌면 오늘 목록을 비운다 → 다음에 열 때 새 설정으로 다시 정함(더 받은 수는 그대로) */
 export function dropPlan(db: D1Database, now: Date = new Date()) {
-  return db.prepare('DELETE FROM day_plans WHERE day = ?').bind(studyDay(now));
+  return db.prepare("UPDATE day_plans SET fresh = '' WHERE day = ?").bind(studyDay(now));
 }
 
 export interface TodayPlan {

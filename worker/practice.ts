@@ -12,6 +12,7 @@ const POOL_LEARNED = 300;
 const POOL_MORE = 100;
 
 /**
+ * 배운 카드는 c.state IN (1, 2, 3) 으로 고른다 — != 0 은 색인을 못 타 카드 전체(≈9천 행)를 두 번 훑었다(검토 반영, D1 하루 읽기 한도).
  * 범위 안 배운 카드 무작위 + 보기 재료. 문제를 못 만드는 카드(예문 없음 등)가 섞이니 n 의 두 배(최대 100)까지 받고,
  * 화면이 문제를 만들 수 있는 것에서 n 개를 고른다.
  * scope: today = 오늘 학습일에 본 카드 · week = 최근 7학습일 · all = 배운 카드 전체 · wrong = 연습에서 마지막으로 틀린 단어.
@@ -39,7 +40,7 @@ export async function practiceItems(
       : db
           .prepare(
             `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id
-             WHERE c.state != 0 AND c.suspended = 0${since ? ' AND c.last_review >= ?' : ''} ORDER BY random() LIMIT ?`,
+             WHERE c.state IN (1, 2, 3) AND c.suspended = 0${since ? ' AND c.last_review >= ?' : ''} ORDER BY random() LIMIT ?`,
           )
           .bind(...(since ? [since, take] : [take]));
   const [it, learned, more] = await db.batch([
@@ -47,7 +48,7 @@ export async function practiceItems(
     db
       .prepare(
         `SELECT w.id, w.lemma, w.pos, w.gender, w.gloss_ko FROM words w JOIN cards c ON c.word_id = w.id
-         WHERE c.state != 0 AND w.gloss_ko IS NOT NULL ORDER BY random() LIMIT ?`,
+         WHERE c.state IN (1, 2, 3) AND w.gloss_ko IS NOT NULL ORDER BY random() LIMIT ?`,
       )
       .bind(POOL_LEARNED),
     db

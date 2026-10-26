@@ -204,7 +204,7 @@ const drill: Handler = async ({ env, url }) => {
   const since = scope === 'today' ? studyDayStartUtc(day) : scope === 'week' ? studyDayStartUtc(addDays(day, -6)) : null;
   const r = await env.DB.prepare(
     `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id
-     WHERE c.state != 0 AND c.suspended = 0${since ? ' AND c.last_review >= ?' : ''} ORDER BY random() LIMIT ?`,
+     WHERE c.state IN (1, 2, 3) AND c.suspended = 0${since ? ' AND c.last_review >= ?' : ''} ORDER BY random() LIMIT ?`,
   )
     .bind(...(since ? [since, n] : [n]))
     .all();
@@ -224,7 +224,7 @@ const artikel: Handler = async ({ env, url }) => {
   const n = clamp(intParam(url.searchParams.get('n'), 20), 1, 50);
   const noun = "w.pos = 'noun' AND w.gender IN ('der', 'die', 'das')";
   const seen = await env.DB.prepare(
-    `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id WHERE ${noun} AND c.state != 0 ORDER BY random() LIMIT ?`,
+    `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id WHERE ${noun} AND c.state IN (1, 2, 3) ORDER BY random() LIMIT ?`,
   )
     .bind(n)
     .all();
