@@ -3,8 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   acceptContent, acceptRequests, acceptVerdicts, cefr3, countNews, decide, exampleHasWord, factsFor, lemmatize,
-  own, parseRss, parseTagesschau, pickCandidates, reviewPrompt, tokens, wordKey,
+  own, parseRss, parseTagesschau, pickBacklog, pickCandidates, reviewPrompt, tokens, wordKey,
 } from '../scripts/words/lib.mjs';
+import { readFileSync } from 'node:fs';
 
 const INDEX = {
   forms: { Umzug: ['Umzug|noun'], Umzüge: ['Umzug|noun'], ermittelte: ['ermitteln|verb'], ermitteln: ['ermitteln|verb'], Vorfall: ['Vorfall|noun'], Bank: ['Bank|noun'] },
@@ -284,4 +285,41 @@ test('indexLooksSane: 거의 빈 색인은 쓰지 않는다(검토 반영)', () 
   assert.equal(indexLooksSane({ forms: big(40000), facts: big(30000), leipzig: big(30000), daflex: big(30000) }), true);
   assert.equal(indexLooksSane({ forms: big(100), facts: big(100), leipzig: big(100), daflex: big(30000) }), false);
   assert.equal(indexLooksSane(null), false);
+});
+
+test('pickBacklog: 덱에 있는 것 · 뺀 후보 건너뜀, 레벨 = 목록 값 → DAFlex → C1, sich 숙어 열쇠, max 개', () => {
+  const backlog = [
+    { k: 'angesichts|prep', lv: 'B2' },
+    { k: 'Umzug|noun' }, // 덱에 있음
+    { k: 'sich Sorgen machen|phrase', lv: 'B2' },
+    { k: 'durchaus|adv' }, // 뺀 후보
+    { k: 'nachhaltig|adj' },
+    { k: 'Begriff|noun' },
+  ];
+  const index = { daflex: { nachhaltig: 'B1' }, leipzig: { 'Begriff|noun': 812 } };
+  const out = pickBacklog({ backlog, index, have: new Set(['umzug|noun']), skips: new Set(['durchaus|adv']), max: 3 });
+  assert.deepEqual(out.map((x) => [x.key, x.lemma, x.level]), [
+    ['angesichts|prep', 'angesichts', 'B2'],
+    ['Sorgen machen|phrase', 'sich Sorgen machen', 'B2'],
+    ['nachhaltig|adj', 'nachhaltig', 'B1'],
+  ]);
+  const all = pickBacklog({ backlog, index, have: new Set(), skips: new Set(), max: 10 });
+  assert.equal(all.find((x) => x.key === 'Begriff|noun').level, 'C1', 'DAFlex 에 없으면 C1');
+  assert.equal(all.find((x) => x.key === 'Begriff|noun').rank, 812);
+});
+
+test('보강 목록 파일: 꼴(k = 표제어|품사) · 겹침 없음 · 뺀 후보 열쇠 규칙(60자)에 맞음', () => {
+  const list = JSON.parse(readFileSync(new URL('../scripts/words/backlog.json', import.meta.url), 'utf8'));
+  assert.ok(list.length > 1000);
+  const POS = new Set(['noun', 'verb', 'adj', 'adv', 'prep', 'conj', 'pron', 'num', 'phrase', 'other']);
+  const seen = new Set();
+  for (const { k, lv } of list) {
+    const at = k.lastIndexOf('|');
+    assert.ok(at > 0 && POS.has(k.slice(at + 1)), k);
+    assert.ok(lv === undefined || ['B1', 'B2', 'C1'].includes(lv), k);
+    const key = wordKey(k.slice(0, at), k.slice(at + 1));
+    assert.match(key, /^[^|]{1,60}\|[a-z]+$/, k);
+    assert.ok(!seen.has(key.toLowerCase()), `겹침 ${k}`);
+    seen.add(key.toLowerCase());
+  }
 });

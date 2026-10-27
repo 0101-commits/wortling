@@ -18,7 +18,7 @@ export const indexFresh = (old, month) => Boolean(old) && old.month === month &&
 export const KAIKKI_URL = 'https://kaikki.org/dictionary/German/kaikki.org-dictionary-German.jsonl.gz';
 export const DAFLEX_URL = 'https://cental.uclouvain.be/cefrlex/static/resources/de/DAFlex.tsv';
 export const leipzigUrl = (year) => `https://downloads.wortschatz-leipzig.de/corpora/deu_news_${year}_300K.tar.gz`;
-const UA = 'wortling-words (personal vocabulary app; github.com/0101-commits/wortling)';
+const UA = 'wortling-words (personal vocabulary app; github.com/0101-commits/worty)';
 const POS = new Set(['noun', 'verb', 'adj', 'adv']);
 const FUNCTION_POS = new Set(['article', 'det', 'pron', 'prep', 'conj', 'particle', 'num', 'postp', 'contraction', 'intj']);
 const LETTERS = /^[A-Za-zÄÖÜäöüß]+(?:-[A-Za-zÄÖÜäöüß]+)*$/;

@@ -1,19 +1,24 @@
 // 매일 단어 작업 1/2(words.yml, 05:17 KST): 내가 넣은 단어 → 뉴스 신호 → 새 단어 → 뉴스 순위 → 학습 순서. 다음은 review.mjs.
 // 설계 docs/superpowers/specs/2026-10-15-word-review-news-design.md
-// 옵션: --dry(서버에 안 씀, 수만) · --max=N(새 단어 상한, 기본 30). 환경: NEWS_FEEDS=0 이면 tagesschau·NDR 을 읽지 않는다.
+// 옵션: --dry(서버에 안 씀, 수만) · --max=N(새 단어 상한, 기본 30) · --backlog=N(보강 목록에서 넣을 수, 기본 50).
+// 환경: NEWS_FEEDS=0 이면 tagesschau·NDR 을 읽지 않는다.
 // 뉴스 글은 어디에도 남기지 않는다 — 기본형별 기사 수와 링크 1개만 서버로, 로그엔 수만(공개 저장소의 Actions 로그).
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { askJson } from '../ai.mjs';
 import { ROOT, addDays, api, kstDay, notify, requireEnv, setOutput } from '../admin.mjs';
 import { ensureIndex } from './sources.mjs';
 import {
-  acceptContent, acceptRequests, cefr3, contentPrompt, countNews, newsItems, newsProblems, own, parseRss, parseTagesschau, pickCandidates, requestPrompt, wordKey,
+  acceptContent, acceptRequests, cefr3, contentPrompt, countNews, newsItems, newsProblems, own, parseRss, parseTagesschau, pickBacklog, pickCandidates, requestPrompt, wordKey,
 } from './lib.mjs';
 
 const DRY = process.argv.includes('--dry');
 const MAX = Number((process.argv.find((a) => a.startsWith('--max=')) || '').slice(6)) || 30;
+const BACKLOG_MAX = Number((process.argv.find((a) => a.startsWith('--backlog=')) || '').slice(10)) || 50;
+/** 보강 목록 한 번에 AI 에 묻는 수(답이 길면 JSON 이 잘린다) */
+const BACKLOG_CHUNK = 25;
 const FEEDS = process.env.NEWS_FEEDS !== '0';
-const UA = 'wortling-words (personal vocabulary app; github.com/0101-commits/wortling)';
+const UA = 'wortling-words (personal vocabulary app; github.com/0101-commits/worty)';
 const FEED_URLS = [
   ['tagesschau', 'https://www.tagesschau.de/api2u/news'],
   ['ndr', 'https://www.ndr.de/fernsehen/barrierefreie_angebote/leichte_sprache/nachrichtenleichtesprache100~rss2.xml'],
@@ -21,7 +26,7 @@ const FEED_URLS = [
 const CHUNK = 400; // D1 batch 실측 상한
 
 const day = kstDay();
-const log = { day, dry: DRY, index: null, requests: null, news: {}, candidates: 0, added: 0, skipped: 0, ranks: 0, reseq: null, errors: [] };
+const log = { day, dry: DRY, index: null, requests: null, news: {}, candidates: 0, added: 0, skipped: 0, backlog: null, ranks: 0, reseq: null, errors: [] };
 const step = async (name, fn) => {
   try {
     await fn();
@@ -41,6 +46,7 @@ try {
   await step('넣은 단어', () => requests(index, keys));
   if (index && FEEDS) await step('뉴스', () => news(index));
   if (index) await step('새 단어', () => candidates(index));
+  await step('보강 단어', () => backlog(index));
   if (index) await step('뉴스 순위', () => ranks(index));
   if (!DRY) await step('학습 순서', async () => { log.reseq = await api('/api/admin/reseq', { method: 'POST' }); });
 } catch (e) {
@@ -149,6 +155,47 @@ async function candidates(index) {
   if (items.length) log.added = (await api('/api/admin/words/insert', { method: 'POST', body: { items } })).inserted;
   if (skips.length) await api('/api/admin/skips', { method: 'POST', body: { items: skips } });
   log.skipped = skips.length;
+}
+
+/**
+ * 보강 단어(2026-10-27 B1~C1 빈틈 검토): scripts/words/backlog.json 에서 아직 없는 것 하루 BACKLOG_MAX 개 → AI 카드 글(keep 판정) → 넣기.
+ * 뉴스 빈도 후보(candidates)가 못 잡는 기능어(전치사 · 접속사) · 숙어(Funktionsverbgefüge) · 동음 규칙에 걸린 낱말을 채운다. 다 넣으면 할 일 없음.
+ */
+async function backlog(index) {
+  const list = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'words', 'backlog.json'), 'utf8'));
+  const keys = await api('/api/admin/keys');
+  const have = new Set(keys.items.map((w) => wordKey(w.lemma, w.pos).toLowerCase()));
+  const picks = pickBacklog({ backlog: list, index, have, skips: new Set(keys.skips), max: BACKLOG_MAX });
+  const left = list.filter(({ k }) => {
+    const at = k.lastIndexOf('|');
+    return !have.has(wordKey(k.slice(0, at), k.slice(at + 1)).toLowerCase());
+  }).length;
+  log.backlog = { picked: picks.length, added: 0, skipped: 0, left };
+  if (!picks.length || DRY) return;
+  const items = [];
+  const skips = [];
+  for (let i = 0; i < picks.length; i += BACKLOG_CHUNK) {
+    const part = picks.slice(i, i + BACKLOG_CHUNK);
+    const ask = part.map((c) => ({ key: c.key, lemma: c.lemma, pos: c.pos, gender: own(index?.facts, c.key)?.g?.[0] ?? null, level: c.level, gloss_en: own(index?.facts, c.key)?.en ?? null }));
+    const done = new Map(acceptContent(await askJson(contentPrompt(ask, 'a curated list of common B1–C1 words, function words and fixed expressions')), ask).map((x) => [x.key, x]));
+    for (const c of part) {
+      const o = done.get(c.key);
+      if (!o) continue; // 답이 없거나 꼴이 이상함 → 다음 날 다시
+      if (!o.keep) {
+        skips.push({ key: c.key, reason: o.reason });
+        continue;
+      }
+      const f = own(index?.facts, c.key);
+      items.push({
+        lemma: c.lemma, pos: c.pos, gender: c.pos === 'noun' ? (f?.g?.[0] ?? null) : null, plural: f?.pl ?? null, level: c.level, level_src: 'list',
+        gloss_en: f?.en ?? null, gloss_ko: o.gloss_ko, gloss_status: 'generated', example_de: o.example_de, example_ko: o.example_ko,
+        example_src: 'gen', scene_en: o.scene_en, news_rank: c.rank,
+      });
+    }
+  }
+  if (items.length) log.backlog.added = (await api('/api/admin/words/insert', { method: 'POST', body: { items } })).inserted;
+  if (skips.length) await api('/api/admin/skips', { method: 'POST', body: { items: skips } });
+  log.backlog.skipped = skips.length;
 }
 
 /** 덱 단어의 Leipzig 순위(news_rank) — 바뀐 것만 */

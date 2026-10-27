@@ -124,6 +124,25 @@ export function pickCandidates({ index, have, skips, hits, max = 30, rankMax = 2
   return out.slice(0, max);
 }
 
+/**
+ * 보강 목록(scripts/words/backlog.json, 2026-10-27 빈틈 검토): 덱에 없는 B1~C1 기능어 · 숙어 · 빈도 높은 낱말을 앞에서부터 max 개.
+ * 이미 있는 단어 · 뺀 후보(word_skips)는 건너뛴다. 레벨 = 목록에 적힌 값(기능어 · 숙어) → DAFlex → C1
+ */
+export function pickBacklog({ backlog, index, have, skips, max = 50 }) {
+  const out = [];
+  for (const { k, lv } of backlog) {
+    const at = k.lastIndexOf('|');
+    const lemma = k.slice(0, at);
+    const pos = k.slice(at + 1);
+    const key = wordKey(lemma, pos);
+    if (have.has(key.toLowerCase()) || skips.has(key)) continue;
+    const level = lv ?? cefr3(own(index?.daflex, lemma.toLowerCase())) ?? 'C1';
+    out.push({ key, lemma, pos, level, rank: own(index?.leipzig, key) ?? null });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 // ---------- Claude 프롬프트 · 답 검사 ----------
 
 const s = (v) => (typeof v === 'string' ? v.trim() : '');
