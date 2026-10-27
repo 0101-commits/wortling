@@ -1,7 +1,9 @@
 // 보르티 이모티콘 8개 + 앱 아이콘을 Worker 의 POST /api/admin/draw(Workers AI FLUX.2 klein 4b, 무료)로 만든다
 // (카드 그림과 같은 그림체, scripts/style.mjs). 준비물: .env(APP_URL · API_TOKEN).
 // 실행: node scripts/make-emoji.mjs [이름…]   → public/emoji/<이름>.webp(256, 둥근 흰 원) · public/icons/*.png
+//       node scripts/make-emoji.mjs --use hello=후보.png …   → 미리 그려 눈으로 고른 768² PNG 를 그대로 넣기(그리기 없음)
 // 768×768 한 장 = 2.25칸 × 26.05 ≈ 59 뉴런. 이름을 주면 그것만 다시 만든다. 만든 뒤 배포해야 앱에 보인다.
+// 그린 뒤 다리 수(앞발 둘 · 뒷발 둘)를 눈으로 확인할 것 — 10-14 판 hello 는 앞발 하나가 없어 「다리 3개」였다(2026-10-27).
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -15,14 +17,16 @@ const env = Object.fromEntries(
 );
 const APP_URL = (process.env.APP_URL || env.APP_URL || '').replace(/\/$/, '');
 const TOKEN = process.env.API_TOKEN || env.API_TOKEN;
-if (!APP_URL || !TOKEN) throw new Error('.env 에 APP_URL · API_TOKEN 이 없다');
 
 const POSES = {
-  hello: 'waving one front paw hello with a big friendly smile',
+  hello:
+    'standing on both hind legs, waving hello with his right front paw raised high while his left front paw rests on his round belly, big friendly smile; clearly two front paws and two hind paws, four legs in total',
   happy: 'jumping with joy, both front paws raised high, eyes closed in a huge happy smile',
   sleep: 'curled up asleep on a small round cushion, wearing a tiny striped nightcap, peaceful closed eyes',
-  party: 'wearing a tiny party hat, celebrating with colorful confetti falling around him',
-  oops: 'sitting with an embarrassed apologetic smile, one paw scratching the back of his head, a small sweat drop',
+  party:
+    'standing on both hind legs, wearing a tiny party hat, both front paws raised up cheering, colorful confetti falling around him; clearly two front paws and two hind paws, four legs in total',
+  oops:
+    'sitting with an embarrassed apologetic smile, his right front paw scratching the back of his head, his left front paw resting on the ground in front, both hind paws visible, a small sweat drop; four legs in total',
   study: 'wearing round glasses and reading an open book, curious focused look',
   mail: 'holding a white envelope with a red heart seal in both front paws, cheerful',
   think: 'tilting his head with one paw under his chin, curious thinking look',
@@ -33,7 +37,19 @@ const prompt = (pose) =>
 // 카드 그림과 같은 보르티(참고 그림 = 이모티콘 think 에서 뜸)
 const ref = readFileSync(REF_FILE).toString('base64');
 
-const names = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(POSES);
+const args = process.argv.slice(2);
+// --use 이름=파일.png : 고른 후보를 그대로 넣는다
+const useAt = args.indexOf('--use');
+const picked = new Map(
+  useAt < 0
+    ? []
+    : args.slice(useAt + 1).map((x) => {
+        const [n, f] = x.split('=');
+        return [n, path.resolve(f)];
+      }),
+);
+const names = picked.size ? [...picked.keys()] : args.length ? args : Object.keys(POSES);
+if (!picked.size && (!APP_URL || !TOKEN)) throw new Error('.env 에 APP_URL · API_TOKEN 이 없다');
 const unknown = names.filter((n) => !POSES[n]);
 if (unknown.length) throw new Error(`모르는 이름: ${unknown.join(', ')} (있는 것: ${Object.keys(POSES).join(', ')})`);
 mkdirSync(path.join(ROOT, 'public', 'emoji'), { recursive: true });
@@ -41,7 +57,7 @@ mkdirSync(path.join(ROOT, 'public', 'icons'), { recursive: true });
 
 for (const name of names) {
   const p = prompt(POSES[name]);
-  let png;
+  let png = picked.has(name) ? readFileSync(picked.get(name)) : undefined;
   for (let i = 0; i < 2 && !png; i++) {
     try {
       const res = await fetch(`${APP_URL}/api/admin/draw`, {
