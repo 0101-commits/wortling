@@ -26,6 +26,10 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # 트리거 때 커밋이 아니라 지금 main — concurrency 로 기다린 실행이 앞 실행이 되올린 draw-day.json 을 보게.
+          # 10-26 손 실행(80번) 뒤 대기하던 예약 실행이 옛 draw-day 로 37번 더 그려 무료 몫을 넘겼고 10-27 그리기가 막혔다
+          ref: main
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
