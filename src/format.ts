@@ -3,7 +3,7 @@ import type { Card, CardState, DeckItem, Word } from '../shared/api.ts'
 
 export const STATE_LABEL: Record<CardState, string> = { 0: '새 단어', 1: '학습 중', 2: '복습', 3: '다시 학습' }
 
-export function article(w: Word): string {
+export function article(w: Pick<Word, 'pos' | 'gender'>): string {
   return w.pos === 'noun' && w.gender ? w.gender : ''
 }
 

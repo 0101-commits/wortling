@@ -25,7 +25,7 @@ interface Entry {
 const NEW_UNTIL = '2026-11-09'
 const ENTRIES: Entry[] = [
   { key: 'cloze', ...MODES.cloze, kind: 'practice', mode: 'cloze', newUntil: NEW_UNTIL },
-  { key: 'pick', ...MODES.pick, kind: 'practice', mode: 'pick', newUntil: NEW_UNTIL },
+  { key: 'match', ...MODES.match, kind: 'practice', mode: 'match', newUntil: '2026-11-10' },
   { key: 'meaning', title: '뜻 고르기', desc: '독일어 → 뜻, 뜻 → 독일어', short: '뜻', kind: 'practice', mode: 'meaning', newUntil: NEW_UNTIL },
   { key: 'artikel', title: '관사 1분', desc: 'der · die · das 빠르게', short: '관사', kind: 'artikel' },
   { key: 'swipe', title: '다시 넘겨 보기', desc: '배운 카드를 넘기며 뜻 확인', short: '넘김', kind: 'swipe' },
@@ -58,7 +58,7 @@ export default function Today({ onSettings }: { onSettings: (p: Partial<Settings
         <section className="more" aria-labelledby="more-h">
           <div className="more-h">
             <h2 id="more-h">더 공부하기</h2>
-            <span className="small muted">일정은 안 바뀌어요</span>
+            <span className="small muted">틀리면 오늘 복습에 다시</span>
           </div>
           <ul className="more-list">
             {ENTRIES.map((e) => (
@@ -130,7 +130,6 @@ function PlanCard({ d, onSettings, onChanged }: { d: TodayResponse; onSettings: 
 
   // 남은 카드가 있음 → 시작 · 이어서
   if (left > 0) {
-    const max = d.settings.session_max
     return (
       <section className="plan" aria-label="오늘 몫">
         <div className="plan-top">
@@ -142,12 +141,11 @@ function PlanCard({ d, onSettings, onChanged }: { d: TodayResponse; onSettings: 
               {d.due.length > 0 && d.fresh.length > 0 && ' · '}
               {d.fresh.length > 0 && `새 단어 ${d.fresh.length}`} · 약 {minutesFor(left)}분
             </p>
-            {left > max && <p className="small accent">한 번에 {max}장씩 · 남은 {left}장</p>}
             {away && <p className="small muted">휴가 모드 · {fmtDay(away)}까지 알림을 쉬어요</p>}
           </div>
         </div>
         <Button fullWidth size="large" onClick={() => navigate('/deck')}>
-          {done > 0 ? `이어서 ${Math.min(left, max)}장` : '시작'}
+          {done > 0 ? `이어서 ${left}장` : '시작'}
         </Button>
         {done === 0 && (d.fresh.length > 0 || reviewOnly) && (
           <button type="button" className={'revonly' + (reviewOnly ? ' on' : '')} aria-pressed={reviewOnly} onClick={() => setReviewOnly(!reviewOnly)}>
@@ -273,7 +271,7 @@ function StartSheet({ entry, studiedToday, onClose }: { entry: Entry | null; stu
               </button>
             ))}
           </div>
-          <p className="sheet-l">{swipe ? '몇 장' : '몇 문제'}</p>
+          <p className="sheet-l">{swipe ? '몇 장' : entry.mode === 'match' ? '몇 단어' : '몇 문제'}</p>
           <SegmentedControl size="small" value={n} onValueChange={setN}>
             {sizes.map((v) => (
               <SegmentedControlItem key={v} value={v}>
@@ -281,7 +279,9 @@ function StartSheet({ entry, studiedToday, onClose }: { entry: Entry | null; stu
               </SegmentedControlItem>
             ))}
           </SegmentedControl>
-          <p className="small muted">{swipe ? '모르면 줄 뒤로 가요.' : '결과는 「틀린 단어」 모음에만 남고 복습 일정은 그대로예요.'}</p>
+          <p className="small muted">
+            {swipe ? '모르면 줄 뒤로 가요. 복습 일정은 그대로예요.' : '틀린 단어는 「아직 잘 모르는 단어」가 되어 오늘 복습에 다시 나와요.'}
+          </p>
           <div className="sheet-act">
             <Button variant="outlined" color="assistive" onClick={close}>
               닫기

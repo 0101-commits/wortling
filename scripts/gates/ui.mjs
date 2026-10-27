@@ -15,7 +15,7 @@ const PORT = 4173
 const BASE = `http://localhost:${PORT}/`
 const VITE = join(ROOT, 'node_modules/vite/bin/vite.js')
 
-const ROUTES = ['/onboarding', '/today', '/deck', '/practice?mode=cloze&scope=week&n=10', '/practice?mode=pick&scope=week&n=10', '/practice?mode=meaning&scope=all&n=10', '/practice?mode=meaning_rev&scope=all&n=10', '/words', '/word/w004', '/stats', '/inbox', '/settings', '/setup', '/drill?scope=week&n=10', '/artikel', '/changes', '/words?add=Ermittlung&url=https%3A%2F%2Fwww.dw.com%2Fde%2Fx']
+const ROUTES = ['/onboarding', '/today', '/deck', '/practice?mode=cloze&scope=week&n=10', '/practice?mode=match&scope=week&n=10', '/practice?mode=meaning&scope=all&n=10', '/practice?mode=meaning_rev&scope=all&n=10', '/words', '/word/w004', '/stats', '/inbox', '/settings', '/setup', '/drill?scope=week&n=10', '/artikel', '/changes', '/words?add=Ermittlung&url=https%3A%2F%2Fwww.dw.com%2Fde%2Fx']
 const VIEWPORTS = [
   { name: '390', width: 390, height: 844 },
   { name: '1280', width: 1280, height: 800 },
@@ -272,11 +272,20 @@ try {
         const atPractice = page.url().includes('#/practice?mode=cloze')
         await page.screenshot({ path: join(SHOTS, 'practice-cloze-q-390.png') })
         let answered = 0
+        let wrongShown = 0 // 오답을 고르면 그 단어 뜻 줄(「고른 답」)이 보인다
+        let wrongSeen = 0
         for (let i = 0; i < 12 && (await page.locator('.popt').count()); i++) {
           await page.locator('.popt').first().click()
           await sleep(150)
           if (i === 0) await page.screenshot({ path: join(SHOTS, 'practice-cloze-a-390.png') })
           answered += (await page.locator('.popt.ok').count()) === 1 ? 1 : 0
+          if (await page.locator('.popt.ng').count()) {
+            wrongSeen++
+            const tag = await page.locator('.pgloss .ptag', { hasText: '고른 답' }).count()
+            const subs = await page.locator('.popt .popt-sub').count()
+            if (tag === 1 && subs === 4) wrongShown++
+            if (wrongSeen === 1) await page.screenshot({ path: join(SHOTS, 'practice-cloze-wrong-390.png') })
+          }
           await page.getByRole('button', { name: '다음' }).click()
           await sleep(150)
         }
@@ -284,19 +293,43 @@ try {
         const result = await page.getByText(/문제 중 \d+개/).count()
         const psw2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
         await page.screenshot({ path: join(SHOTS, 'practice-result-390.png'), fullPage: true })
-        const qok = sheetOpen === 1 && atPractice && answered > 0 && result === 1 && psw2 <= 0 && errors.length === 0
-        if (!qok) fail(`더 공부하기: 창 ${sheetOpen} · 이동 ${atPractice} · 정답 표시 ${answered} · 결과 ${result} · 넘침 ${psw2}${errors.length ? ' · 콘솔 오류 ' + errors.join(' | ') : ''}`)
-        table.push({ route: '더 공부하기 빈칸', vp: '390', light: qok ? 'ok' : 'FAIL', dark: '-', sw: `정답 표시 ${answered}문제 · 결과 ${result}` })
+        const qok = sheetOpen === 1 && atPractice && answered > 0 && result === 1 && psw2 <= 0 && wrongSeen > 0 && wrongShown === wrongSeen && errors.length === 0
+        if (!qok)
+          fail(`더 공부하기: 창 ${sheetOpen} · 이동 ${atPractice} · 정답 표시 ${answered} · 결과 ${result} · 넘침 ${psw2} · 오답 뜻 ${wrongShown}/${wrongSeen}${errors.length ? ' · 콘솔 오류 ' + errors.join(' | ') : ''}`)
+        table.push({ route: '더 공부하기 빈칸', vp: '390', light: qok ? 'ok' : 'FAIL', dark: '-', sw: `정답 표시 ${answered}문제 · 결과 ${result} · 오답 뜻 ${wrongShown}/${wrongSeen}` })
 
-        // 예문 속 단어 짚기: 낱말 하나 누르면 정답 낱말이 초록
-        await page.goto(BASE + '#/practice?mode=pick&scope=week&n=10', { waitUntil: 'networkidle' })
-        await page.waitForSelector('.ptok')
-        await page.locator('.ptok').first().click()
-        await sleep(150)
-        const okTok = await page.locator('.ptok.ok').count()
-        await page.screenshot({ path: join(SHOTS, 'practice-pick-a-390.png') })
-        if (okTok < 1) fail(`단어 짚기: 정답 낱말 표시 ${okTok}`)
-        table.push({ route: '더 공부하기 짚기', vp: '390', light: okTok ? 'ok' : 'FAIL', dark: '-', sw: `정답 낱말 ${okTok}` })
+        // 짝 맞추기(2026-10-27, 예문 속 단어 짚기를 바꿈): 왼쪽 하나 → 오른쪽을 차례로 눌러 짝을 찾는다(틀린 짝은 잠깐 빨강)
+        errors = []
+        await page.goto(BASE + '#/practice?mode=match&scope=week&n=10', { waitUntil: 'networkidle' })
+        // 빈칸(범위 today)에서 주소만 바뀌면 week 재료를 다시 받는 동안 로딩 칸이 뜬다(목업 지연) → 새로 열어 한 번만 받게
+        await page.reload({ waitUntil: 'networkidle' })
+        await page.waitForSelector('.pmatch .popt')
+        const leftN = await page.locator('.pmatch-col').first().locator('.popt').count()
+        let wrongFlash = 0
+        for (let a = 0; a < leftN; a++) {
+          const left = page.locator('.pmatch-col').first().locator('.popt:not(:disabled)').first()
+          const rights = page.locator('.pmatch-col').nth(1).locator('.popt:not(:disabled)')
+          const rn = await rights.count()
+          for (let b = 0; b < rn; b++) {
+            await left.click()
+            await rights.nth(b).click()
+            await sleep(120)
+            if (await page.locator('.pmatch .popt.ng').count()) {
+              wrongFlash++
+              if (wrongFlash === 1) await page.screenshot({ path: join(SHOTS, 'practice-match-wrong-390.png') })
+              await sleep(750)
+              continue
+            }
+            break
+          }
+        }
+        const matched = await page.locator('.pmatch .popt.ok').count()
+        const lines = await page.locator('.pgloss .pline').count()
+        const msw = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+        await page.screenshot({ path: join(SHOTS, 'practice-match-done-390.png'), fullPage: true })
+        const mok = leftN >= 3 && matched === leftN * 2 && lines === leftN && msw <= 0 && errors.length === 0
+        if (!mok) fail(`짝 맞추기: 왼쪽 ${leftN} · 맞춘 칸 ${matched} · 정리 줄 ${lines} · 넘침 ${msw}${errors.length ? ' · 콘솔 오류 ' + errors.join(' | ') : ''}`)
+        table.push({ route: '더 공부하기 짝 맞추기', vp: '390', light: mok ? 'ok' : 'FAIL', dark: '-', sw: `짝 ${leftN} · 틀린 짝 ${wrongFlash}` })
       }
       await ctx.close()
     }

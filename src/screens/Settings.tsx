@@ -11,7 +11,7 @@ import { LEVELS, LEVEL_HINT, Stepper, Top, useToaster } from '../ui.tsx'
 
 /** 시험 통 결과를 채널별로: 「디스코드 ○ · 기기 1대 ○」 */
 function channelsText({ discord, push }: Required<Pick<TestNotificationResponse, 'discord' | 'push'>>) {
-  const d = discord.ok ? '○' : discord.error === 'no_webhook' ? '없음' : '×'
+  const d = discord.ok ? '○' : discord.error === 'no_webhook' ? '없음' : discord.error === 'off' ? '꺼 둠' : '×'
   const p = push.sent ? `${push.sent}대 ○` : push.error === 'no_subscription' ? '없음' : '×'
   return `디스코드 ${d} · 기기 ${p}`
 }
@@ -27,7 +27,8 @@ export function useTestNotification() {
       if (r.error === 'no_channel')
         toast('아직 받을 곳이 없어요. 디스코드 웹후크를 넣거나 「이 기기로 받기」를 켜 주세요.', 'cautionary')
       else if (r.discord && r.push) {
-        const partial = (!r.discord.ok && r.discord.error !== 'no_webhook') || (!r.push.ok && r.push.error !== 'no_subscription')
+        const partial =
+          (!r.discord.ok && r.discord.error !== 'no_webhook' && r.discord.error !== 'off') || (!r.push.ok && r.push.error !== 'no_subscription')
         toast(channelsText({ discord: r.discord, push: r.push }), !r.ok ? 'negative' : partial ? 'cautionary' : 'positive')
       } else toast(`보내기 실패 · ${r.error ?? r.status ?? ''}`, 'negative')
     } catch (e) {
@@ -69,10 +70,6 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
           <div className="kv">
             <span>하루 새 단어</span>
             <Stepper label="하루 새 단어" value={settings.new_per_day} min={3} max={50} onChange={(v) => onChange({ new_per_day: v })} />
-          </div>
-          <div className="kv">
-            <span>한 번에 볼 카드</span>
-            <Stepper label="한 번에 볼 카드" value={settings.session_max} min={5} max={100} step={5} onChange={(v) => onChange({ session_max: v })} />
           </div>
           <div className="kv col">
             <span>
@@ -143,7 +140,16 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
               />
             </div>
           )}
-          {!MOCK && <PushRow />}
+          {!MOCK && <PushRow discordOn={settings.discord_on} onDiscordOff={() => onChange({ discord_on: false })} />}
+          <div className="kv">
+            <span>
+              디스코드로도 받기
+              <small className="sub">
+                {settings.discord_on ? '기기 알림과 함께 디스코드로도 와요' : '기기로 못 받을 때만 디스코드로 와요'}
+              </small>
+            </span>
+            <Switch aria-label="디스코드로도 받기" checked={settings.discord_on} onCheckedChange={(on) => onChange({ discord_on: on })} />
+          </div>
           <div className="kv">
             <span>디스코드 · 기기</span>
             <Button variant="outlined" color="assistive" size="small" loading={test.busy} leadingContent={<IconSend />} onClick={test.run}>
@@ -181,8 +187,11 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
   )
 }
 
-/** 이 기기로 받기(웹 푸시). 못 받는 브라우저면 그 한 줄, 권한이 막혔으면 그 사실을 한 줄로 */
-function PushRow() {
+/**
+ * 이 기기로 받기(웹 푸시). 못 받는 브라우저면 그 한 줄, 권한이 막혔으면 그 사실을 한 줄로.
+ * 켜면 디스코드 알림을 끈다(같은 알림이 두 번 오지 않게, 2026-10-27 사용자 지시) — 기기로 못 받으면 서버가 디스코드로 보낸다.
+ */
+function PushRow({ discordOn, onDiscordOff }: { discordOn: boolean; onDiscordOff: () => void }) {
   const toast = useToaster()
   const supported = pushSupported()
   const [on, setOn] = useState<boolean | null>(null) // null = 확인 중
@@ -206,7 +215,8 @@ function PushRow() {
     try {
       await (next ? enablePush() : disablePush())
       setOn(next)
-      toast(next ? '이 기기로 알림이 와요' : '이 기기 알림을 껐어요', 'positive')
+      if (next && discordOn) onDiscordOff()
+      toast(next ? (discordOn ? '이 기기로 알림이 와요 · 디스코드 알림은 껐어요' : '이 기기로 알림이 와요') : '이 기기 알림을 껐어요', 'positive')
     } catch (e) {
       toast(e instanceof Error && e.message === 'denied' ? '알림 권한을 받지 못했어요' : errorText(e), 'negative')
     } finally {
@@ -218,7 +228,7 @@ function PushRow() {
       <span>
         이 기기로 받기
         <small className="sub">
-          {denied ? '알림이 막혀 있어요. 브라우저 설정에서 이 사이트 알림을 허용해 주세요.' : on ? '이 기기로도 알림이 와요' : '켜면 디스코드와 함께 이 기기로도 와요'}
+          {denied ? '알림이 막혀 있어요. 브라우저 설정에서 이 사이트 알림을 허용해 주세요.' : on ? '이 기기로 알림이 와요' : '켜면 이 기기로 알림이 오고 디스코드 알림은 꺼져요'}
         </small>
       </span>
       <Switch aria-label="이 기기로 받기" checked={Boolean(on)} disabled={on === null || busy || (denied && !on)} onCheckedChange={toggle} />

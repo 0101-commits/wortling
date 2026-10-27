@@ -1524,44 +1524,54 @@ mark.hit {
 .popt:disabled {
   cursor: default;
 }
-.pprompt {
-  font-weight: 700;
+/* 답한 뒤 보기 아래 작은 줄(그 보기의 뜻 · 독일어) */
+.popt-sub {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink2);
 }
-.ptokens {
-  display: flex;
-  flex-wrap: wrap;
+.popt.ok .popt-sub,
+.popt.ng .popt-sub {
+  color: inherit;
+  opacity: 0.85;
+}
+/* 짝 맞추기: 왼쪽 독일어 · 오른쪽 뜻 */
+.pmatch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
-.ptok {
-  font: inherit;
-  font-size: 17px;
-  padding: 6px 11px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--ink);
-  cursor: pointer;
+.pmatch-col {
+  display: grid;
+  gap: 8px;
+  align-content: start;
 }
-.ptok:hover:not(:disabled) {
+.popt.pm {
+  min-height: 56px;
+}
+.popt.sel {
   border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent-ink);
 }
-.ptok:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.popt.pm.ok {
+  opacity: 0.55;
 }
-.ptok.ok {
-  border-color: var(--ok);
-  background: var(--ok-bg);
-  color: var(--ok);
+.pline {
+  line-height: 1.5;
+}
+.ptag {
+  display: inline-block;
+  font-size: 11px;
   font-weight: 700;
-}
-.ptok.ng {
-  border-color: var(--bad);
   color: var(--bad);
-  text-decoration: line-through;
-}
-.ptok:disabled {
-  cursor: default;
+  background: var(--bad-bg);
+  border-radius: 6px;
+  padding: 1px 6px;
+  margin-right: 6px;
+  vertical-align: 1px;
 }
 .pgloss {
   background: var(--bg2);

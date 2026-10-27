@@ -34,10 +34,11 @@ export type RunResult =
 const newKey = () => crypto.randomUUID().replace(/-/g, '');
 
 /**
- * 행 넣기 → (알림 번호를 넣어) 글 만들기 → 디스코드·푸시를 서로 독립으로 보내기 → 결과 적기.
+ * 행 넣기 → (알림 번호를 넣어) 글 만들기 → 디스코드·푸시 보내기 → 결과 적기.
+ * discordOn = 디스코드로도(둘을 따로 함께). false 면 푸시 먼저, 한 대도 못 받았을 때만 디스코드(설정 discord_on).
  * 하나라도 가면 sent. UNIQUE(kind, day) 에 걸리면 dup.
  */
-async function dispatch(env: Env, kind: string, day: string, build: (n: number) => Payload, now: Date): Promise<RunResult> {
+async function dispatch(env: Env, kind: string, day: string, build: (n: number) => Payload, now: Date, discordOn: boolean): Promise<RunResult> {
   let id: number;
   const key = newKey();
   try {
@@ -64,17 +65,25 @@ async function dispatch(env: Env, kind: string, day: string, build: (n: number) 
   }
   const hook = await webhookUrl(env);
   const fail = (e: unknown): PushResult => ({ ok: false, sent: 0, failed: 0, gone: 0, error: String(e) });
-  const [d, push] = await Promise.all([
-    hook ? send(hook, payload) : null,
-    // 푸시 글 만들기도 이 안에서 — 거기서 던져도 디스코드는 나간다
-    Promise.resolve()
-      .then(() => pushAll(env, pushMessage(summarize(payload), kind, env.APP_URL, { nid: id, key })))
-      .catch(fail),
-  ]);
-  const discord = d?.ok ? { ok: true } : { ok: false, error: d ? `${d.status} ${d.error ?? ''}`.trim() : 'no_webhook' };
+  // 푸시 글 만들기도 이 안에서 — 거기서 던져도 디스코드는 나간다
+  const pushing = Promise.resolve()
+    .then(() => pushAll(env, pushMessage(summarize(payload), kind, env.APP_URL, { nid: id, key })))
+    .catch(fail);
+  let d: Awaited<ReturnType<typeof send>> | null = null;
+  let push: PushResult;
+  let skipped = false;
+  if (discordOn) [d, push] = await Promise.all([hook ? send(hook, payload) : null, pushing]);
+  else {
+    push = await pushing;
+    skipped = push.ok;
+    if (!skipped && hook) d = await send(hook, payload);
+  }
+  const discord = d?.ok
+    ? { ok: true }
+    : { ok: false, error: d ? `${d.status} ${d.error ?? ''}`.trim() : skipped && hook ? 'off' : 'no_webhook' };
   const ok = discord.ok || push.ok;
-  // 안 붙인 채널(웹훅 없음 · 기기 없음)은 실패 사유로 적지 않는다 — 매일 행마다 같은 잡음이 쌓인다
-  const unset = (e?: string) => e === 'no_webhook' || e === 'no_subscription';
+  // 안 붙인 채널(웹훅 없음 · 기기 없음) · 끈 디스코드는 실패 사유로 적지 않는다 — 매일 행마다 같은 잡음이 쌓인다
+  const unset = (e?: string) => e === 'no_webhook' || e === 'no_subscription' || e === 'off';
   const error =
     !hook && push.error === 'no_subscription'
       ? 'no_channel'
@@ -135,7 +144,7 @@ export async function runMorning(env: Env, now: Date = new Date()): Promise<RunR
   const withImage = items.find((i) => i.word.image && i.word.id === cloze?.id) ?? items.find((i) => i.word.image);
   const imageUrl = withImage ? `${env.APP_URL}/img/${withImage.word.id}.webp` : null;
   const title = morningTitle({ n: items.length, md: monthDay(day), ...rest, seed: seedOf(day) });
-  return dispatch(env, 'morning', day, (n) => morningPayload({ day, items, total: items.length, appUrl: env.APP_URL, imageUrl, cloze, n, title }), now);
+  return dispatch(env, 'morning', day, (n) => morningPayload({ day, items, total: items.length, appUrl: env.APP_URL, imageUrl, cloze, n, title }), now, settings.discord_on);
 }
 
 /** 저녁 알림 조건(A2). null = 보냄, 문자열 = 건너뛴 이유 */
@@ -176,7 +185,7 @@ export async function runEvening(env: Env, now: Date = new Date(), kind: 'evenin
   const rest = await restNow(env, day, settings);
   if (quiet('evening', rest.rest, day)) return { skipped: 'quiet' };
   const title = eveningTitle({ n: remaining, rest: rest.rest, studiedToday: reviewedToday > 0, seed: seedOf(day) });
-  return dispatch(env, kind, day, (n) => eveningPayload({ remaining, minutes: minutesFor(remaining), appUrl: env.APP_URL, n, title }), now);
+  return dispatch(env, kind, day, (n) => eveningPayload({ remaining, minutes: minutesFor(remaining), appUrl: env.APP_URL, n, title }), now, settings.discord_on);
 }
 
 /** 「1시간 뒤」 를 받을 수 있는지: 그날(학습일) 저녁 통이고, 미룬 통이 아직 없고, 1시간 뒤가 23:30 KST 를 넘지 않을 때 */
@@ -189,7 +198,11 @@ export function laterAllowed(now: Date): boolean {
   return studyDay(at) === studyDay(now) && kst >= '04:00' && kst <= LATER_LAST_KST;
 }
 
-/** 연결 시험. day 에 전체 시각을 넣어 몇 번이고 보낼 수 있게 한다. */
-export async function sendTest(env: Env, now: Date = new Date()): Promise<RunResult> {
-  return dispatch(env, 'test', now.toISOString(), () => testPayload(), now);
+/**
+ * 연결 시험. day 에 전체 시각을 넣어 몇 번이고 보낼 수 있게 한다.
+ * 디스코드는 설정대로(꺼져 있으면 기기가 받으면 안 감) — 웹후크 저장 시험만 discord: 'always'.
+ */
+export async function sendTest(env: Env, now: Date = new Date(), opts: { discord?: 'always' } = {}): Promise<RunResult> {
+  const discordOn = opts.discord === 'always' || (await loadSettings(env.DB)).discord_on;
+  return dispatch(env, 'test', now.toISOString(), () => testPayload(), now, discordOn);
 }

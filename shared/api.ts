@@ -59,6 +59,11 @@ export interface Settings {
   evening_min: number;
   /** 이 학습일(YYYY-MM-DD)은 복습만 — 새 카드 0. 다음 학습일엔 저절로 꺼진 셈 */
   review_only_day: string;
+  /**
+   * 디스코드로도 알림. false 면 기기 알림(웹 푸시)이 한 대라도 가면 디스코드는 안 보낸다 — 기기가 없거나 다 실패하면 디스코드로.
+   * 「이 기기로 받기」를 켜면 앱이 끈다.
+   */
+  discord_on: boolean;
 }
 
 /** GET /api/today · POST /api/today/more — 오늘 몫(기획 v8 F1): 오늘 학습일이 끝나기 전에 마감되는 복습 + 오늘 정한 새 단어 */
@@ -115,8 +120,11 @@ export interface WordsQuery {
 /** GET /api/drill?scope=&n= (B4 추가 연습) · GET /api/artikel?n= (B5 관사 1분). 일정(FSRS)은 안 바꾼다 */
 export type DrillScope = 'today' | 'week' | 'all';
 
-/** 더 공부하기(기획 v8 과제 4). 결과는 practice 표에만 — 복습 일정(FSRS)은 안 바꾼다 */
-export type PracticeMode = 'cloze' | 'pick' | 'meaning' | 'meaning_rev';
+/**
+ * 더 공부하기(기획 v8 과제 4). 결과는 practice 표에 — 틀린 배운 카드는 「다시」 채점(아직 잘 모르는 단어 → 오늘 몫 복습).
+ * match = 짝 맞추기(독일어 ↔ 뜻 5쌍, 2026-10-27 「예문 속 단어 짚기」를 바꿈)
+ */
+export type PracticeMode = 'cloze' | 'match' | 'meaning' | 'meaning_rev';
 /** wrong = 연습에서 마지막으로 틀린 단어(최근 30일) */
 export type PracticeScope = DrillScope | 'wrong';
 /** 보기(오답) 재료 — 배운 단어 위주, 모자라면 안 배운 같은 레벨 단어 */
@@ -130,6 +138,12 @@ export interface PracticeResponse {
 export interface PracticeResultsRequest {
   mode: PracticeMode;
   results: Array<{ word_id: string; correct: boolean; at: string }>;
+}
+export interface PracticeSaveResponse {
+  ok: true;
+  count: number;
+  /** 이번에 「아직 잘 모르는 단어」로 바꾼 단어 id(오늘 몫 복습에 다시 나옴) */
+  relearn: string[];
 }
 export interface DeckListResponse {
   items: DeckItem[];

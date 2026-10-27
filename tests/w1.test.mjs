@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { clozeOf, findAll, findWord, hitSpans } from '../shared/cloze.ts';
 import { acceptHits, hitMisses, hitsPrompt } from '../scripts/words/lib.mjs';
-import { clozeParts, pickTokens } from '../src/practice.ts';
+import { clozeParts } from '../src/practice.ts';
 import { fakeD1, addWord } from './d1.mjs';
 import { exampleWords, patchWords, revertChange, listChanges } from '../worker/words.ts';
 
@@ -21,11 +21,8 @@ test('findWord: 규칙으로 못 찾으면 hit 의 첫 낱말 · findAll 은 분
   assert.deepEqual(hitSpans(DE, 'nimmt|auf'), [[15, 18]]);
 });
 
-test('더 공부하기: 분리동사 빈칸은 앞 조각, 짚기는 두 조각 다 정답', () => {
+test('더 공부하기: 분리동사 빈칸은 앞 조각', () => {
   assert.deepEqual(clozeParts(DE, 'aufgeben', 'gebe|auf'), { before: 'Ich ', hit: 'gebe', after: ' nicht auf, auch wenn es schwer ist.' });
-  const t = pickTokens(DE, 'aufgeben', 'gebe|auf');
-  assert.deepEqual(t.filter((x) => x.hit).map((x) => x.text), ['gebe', 'auf,']);
-  assert.equal(pickTokens(DE, 'aufgeben', null), null);
 });
 
 test('hits: 규칙으로 못 찾는 것만 묻고, 예문에 정말 있는 낱말만 적음(없으면 -) · 재귀대명사 뺌', () => {

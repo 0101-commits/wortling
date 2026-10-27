@@ -1,6 +1,6 @@
 // 덱 세션 리듀서(React 없음). 채점을 쌓았다가 한 번에 보낸다.
 import { createEmptyCard, fsrs, type Card as FsrsCard, type Grade, type State } from 'ts-fsrs'
-import type { Card, DeckItem, Rating, ReviewInput, TodayResponse } from '../shared/api.ts'
+import type { Card, DeckItem, Rating, ReviewInput, ReviewsRequest, TodayResponse } from '../shared/api.ts'
 
 /** 밀기 상수(기획 고정값) */
 export const SWIPE = {
@@ -65,9 +65,27 @@ export function decideSwipe(dx: number, dy: number, vx: number, vy: number, mode
   return past(dx, vx, SWIPE.COMMIT_X) ? (dx > 0 ? 3 : 1) : null
 }
 
-/** 오늘 세션 = 복습 + 새 단어, session_max 까지. first(아침 알림 빈칸 정답)는 자르기 전에 맨 앞으로 */
+/** 서버가 한 번에 받는 채점 수(worker postReviews 「too_many_reviews」) */
+export const REVIEWS_MAX = 200
+
+/**
+ * 채점 묶음을 시각 순으로 REVIEWS_MAX 개씩 나눈다. 오늘 몫을 한 판에 하면(복습 300 + 새 단어 + 다시 본 카드) 200 을 넘을 수 있다.
+ * 같은 카드의 채점이 앞 묶음 → 뒤 묶음 차례로 적히도록 시각 순으로 자르고, 보내는 쪽은 차례로 보낸다(검토 반영 2026-10-27).
+ */
+export function splitReviews(req: ReviewsRequest): ReviewsRequest[] {
+  if (req.reviews.length <= REVIEWS_MAX) return [req]
+  const sorted = [...req.reviews].sort((a, b) => a.reviewed_at.localeCompare(b.reviewed_at))
+  const out: ReviewsRequest[] = []
+  for (let i = 0; i < sorted.length; i += REVIEWS_MAX) out.push({ ...req, reviews: sorted.slice(i, i + REVIEWS_MAX) })
+  return out
+}
+
+/**
+ * 오늘 세션 = 오늘 몫 전부(복습 + 새 단어)를 한 판에. first(아침 알림 빈칸 정답)는 맨 앞으로.
+ * 예전엔 「한 번에 볼 카드」(session_max)씩 끊어 여러 번 나눠 해야 했다(2026-10-27 사용자 지시로 끊지 않음).
+ */
 export function buildSession(today: TodayResponse, first: string | null = null): DeckItem[] {
-  return firstUp([...today.due, ...today.fresh], first).slice(0, today.settings.session_max)
+  return firstUp([...today.due, ...today.fresh], first)
 }
 
 /** 섞기(추가 연습·관사). rand 를 넣으면 시험에서 같은 결과 */

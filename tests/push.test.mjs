@@ -33,12 +33,14 @@ const kv = (init = {}) => {
     },
   };
 };
-const db = () => {
+const db = (settings = {}) => {
   const updates = [];
   return {
     updates,
     prepare(sql) {
       return {
+        // loadSettings(SELECT key, value FROM settings)
+        all: async () => ({ results: Object.entries(settings).map(([key, value]) => ({ key, value })) }),
         bind(...args) {
           return {
             first: async () => ({ id: 7 }),
@@ -62,7 +64,7 @@ const sub = (endpoint) => {
 const HOOK = 'https://discord.com/api/webhooks/1/abc';
 
 /** fetch 를 갈아 끼우고(디스코드 재시도 5초도 0초로) 시험 통 한 번 */
-async function run(env, statusOf) {
+async function run(env, statusOf, opts) {
   const realFetch = globalThis.fetch;
   const realTimeout = globalThis.setTimeout;
   const calls = [];
@@ -74,7 +76,7 @@ async function run(env, statusOf) {
   };
   globalThis.setTimeout = (fn) => realTimeout(fn, 0);
   try {
-    return { r: await sendTest(env, new Date('2026-10-13T00:00:00Z')), calls };
+    return { r: await sendTest(env, new Date('2026-10-13T00:00:00Z'), opts), calls };
   } finally {
     globalThis.fetch = realFetch;
     globalThis.setTimeout = realTimeout;
@@ -148,4 +150,31 @@ test('dispatch: 깨진 구독 목록(KV)이어도 디스코드는 나간다', as
   assert.equal(r.status, 'sent');
   assert.equal(r.discord.ok, true);
   assert.equal(r.push.error, 'no_subscription');
+});
+
+// 2026-10-27: 「이 기기로 받기」를 켜면 디스코드는 꺼 둔다(discord_on = 0) — 기기로 못 보낼 때만 디스코드
+test('dispatch: 디스코드 꺼 둠 + 기기 받음 → 디스코드 안 보냄, 잡음 사유 없음', async () => {
+  const env = await baseEnv({ DISCORD_WEBHOOK: HOOK, DB: db({ discord_on: '0' }), IMG: kv({ [PUSH_KEY]: JSON.stringify([sub('https://push.example/a')]) }) });
+  const { r, calls } = await run(env, () => 201);
+  assert.equal(r.status, 'sent');
+  assert.equal(r.discord.error, 'off');
+  assert.equal(r.error, undefined);
+  assert.equal(calls.filter((u) => u.includes('discord.com')).length, 0);
+});
+
+test('dispatch: 디스코드 꺼 둠 + 기기 다 실패 → 디스코드로 대신', async () => {
+  const env = await baseEnv({ DISCORD_WEBHOOK: HOOK, DB: db({ discord_on: '0' }), IMG: kv({ [PUSH_KEY]: JSON.stringify([sub('https://push.example/a')]) }) });
+  const { r, calls } = await run(env, (u) => (u.includes('discord.com') ? 200 : 503));
+  assert.equal(r.status, 'sent');
+  assert.equal(r.discord.ok, true);
+  assert.equal(calls.filter((u) => u.includes('discord.com')).length, 1);
+});
+
+test('dispatch: 디스코드 꺼 둠 + 기기 없음 → 디스코드로 대신 · 웹후크 저장 시험은 늘 디스코드', async () => {
+  const env = await baseEnv({ DISCORD_WEBHOOK: HOOK, DB: db({ discord_on: '0' }), IMG: kv() });
+  assert.equal((await run(env, () => 200)).r.discord.ok, true);
+  const env2 = await baseEnv({ DISCORD_WEBHOOK: HOOK, DB: db({ discord_on: '0' }), IMG: kv({ [PUSH_KEY]: JSON.stringify([sub('https://push.example/a')]) }) });
+  const { r, calls } = await run(env2, (u) => (u.includes('discord.com') ? 200 : 201), { discord: 'always' });
+  assert.equal(r.discord.ok, true);
+  assert.equal(calls.filter((u) => u.includes('discord.com')).length, 1);
 });

@@ -2,7 +2,7 @@
 // 새 방식을 넣을 때는 여기 MODES 에 한 줄 + 문제 만들기 한 개, 화면은 screens/Practice.tsx 에 문제 꼴 하나.
 // React 없음(시험에서 바로 부른다).
 import type { DeckItem, PoolWord, PracticeMode } from '../shared/api.ts'
-import { findAll, findWord } from '../shared/cloze.ts'
+import { findWord } from '../shared/cloze.ts'
 import { shuffle } from './deck.ts'
 
 export interface ModeInfo {
@@ -13,15 +13,16 @@ export interface ModeInfo {
 }
 export const MODES: Record<PracticeMode, ModeInfo> = {
   cloze: { title: '예문 빈칸 고르기', desc: '빈칸에 맞는 단어를 4개 중에서', short: '빈칸' },
-  pick: { title: '예문 속 단어 짚기', desc: '뜻에 맞는 낱말을 예문에서 누르기', short: '짚기' },
+  match: { title: '짝 맞추기', desc: '독일어 5개와 뜻 5개를 짝지어 누르기', short: '짝' },
   meaning: { title: '뜻 고르기', desc: '독일어를 보고 뜻 고르기', short: '뜻' },
   meaning_rev: { title: '독일어 고르기', desc: '뜻을 보고 독일어 고르기', short: '독일어' },
 }
 
-/** 보기 하나. id = 단어 id(정답 판정), text = 보이는 글 */
+/** 보기 하나. id = 단어 id(정답 판정), text = 보이는 글, word = 그 보기 단어(답한 뒤 뜻·독일어를 보여 준다) */
 export interface Choice {
   id: string
   text: string
+  word: PoolWord
 }
 /** 4지선다(예문 빈칸 · 뜻 고르기 · 독일어 고르기) */
 export interface ChoiceQ {
@@ -31,13 +32,18 @@ export interface ChoiceQ {
   /** 예문 빈칸: 빈칸 앞 · 예문 속 실제 꼴 · 빈칸 뒤 */
   cloze?: { before: string; hit: string; after: string }
 }
-/** 예문 속 단어 짚기: 예문 낱말들, hit = 정답 낱말 */
-export interface PickQ {
-  mode: 'pick'
-  item: DeckItem
-  tokens: Array<{ text: string; hit: boolean }>
+/** 짝 맞추기: 단어 3~5개, 왼쪽 독일어 · 오른쪽 뜻(따로 섞음). 짝 판정은 id 로 */
+export interface MatchQ {
+  mode: 'match'
+  items: DeckItem[]
+  left: Choice[]
+  right: Choice[]
 }
-export type Question = ChoiceQ | PickQ
+export type Question = ChoiceQ | MatchQ
+
+/** 짝 맞추기 한 판의 단어 수(마지막 판은 MATCH_MIN 까지 적을 수 있음) */
+export const MATCH_SIZE = 5
+const MATCH_MIN = 3
 
 /** 움라우트·ß 를 풀어 소문자로(worker/notify.ts 와 같은 규칙) */
 const fold = (s: string) => s.toLowerCase().replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 'ss')
@@ -60,21 +66,16 @@ export function clozeParts(de: string, lemma: string, hit?: string | null): Choi
   return { before, hit: de.slice(at[0], at[1]), after }
 }
 
-/** 예문 낱말들(띄어쓰기 기준, 문장부호는 붙은 채). 표제어 자리와 겹치는 낱말이 정답(분리동사는 두 조각 다). 못 찾으면 null */
-export function pickTokens(de: string, lemma: string, hit?: string | null): PickQ['tokens'] | null {
-  const spans = findAll(de, lemma, hit)
-  if (!spans.length) return null
-  const tokens = [...de.matchAll(/\S+/g)].map((m) => ({ text: m[0], s: m.index!, e: m.index! + m[0].length }))
-  const out = tokens.map((t) => ({ text: t.text, hit: spans.some(([s, e]) => t.s < e && t.e > s) }))
-  return out.some((t) => t.hit) && out.length >= 3 ? out : null
-}
-
 /** 관사 붙인 독일어(명사) */
 export const withArticle = (w: Pick<PoolWord, 'lemma' | 'gender' | 'pos'>) =>
   w.pos === 'noun' && w.gender && ['der', 'die', 'das'].includes(w.gender) ? `${w.gender} ${w.lemma}` : w.lemma
 
 /** 뜻 조각(「, 」로 나뉜 것) — 보기끼리 뜻이 겹치면 정답이 둘이 된다 */
 const glossParts = (g: string | null) => new Set((g ?? '').split(/[,·;/]/).map((x) => x.trim()).filter(Boolean))
+const overlaps = (a: Set<string>, b: Set<string>) => [...a].some((g) => b.has(g))
+
+/** 카드 단어 → 보기 재료 꼴 */
+const poolOf = (w: DeckItem['word']): PoolWord => ({ id: w.id, lemma: w.lemma, pos: w.pos, gender: w.gender, gloss_ko: w.gloss_ko })
 
 /**
  * 오답 3개: 같은 품사 먼저, 모자라면 다른 품사. 정답과 표제어 · 뜻 조각이 겹치는 것, 서로 같은 글은 뺀다.
@@ -90,10 +91,7 @@ export function distractors(
   const ans = glossParts(w.gloss_ko)
   const answerText = text(w)
   if (!answerText) return null
-  const ok = (p: PoolWord) =>
-    p.id !== w.id &&
-    fold(bare(p.lemma)) !== fold(bare(w.lemma)) &&
-    ![...glossParts(p.gloss_ko)].some((g) => ans.has(g))
+  const ok = (p: PoolWord) => p.id !== w.id && fold(bare(p.lemma)) !== fold(bare(w.lemma)) && !overlaps(glossParts(p.gloss_ko), ans)
   const same = shuffle(pool.filter((p) => p.pos === w.pos && ok(p)), rand)
   const other = shuffle(pool.filter((p) => p.pos !== w.pos && ok(p)), rand)
   const seen = new Set([answerText])
@@ -102,36 +100,65 @@ export function distractors(
     const t = text(p)
     if (!t || seen.has(t)) continue
     seen.add(t)
-    out.push({ id: p.id, text: t })
+    out.push({ id: p.id, text: t, word: p })
     if (out.length === 3) return out
   }
   return null
 }
 
-/** 문제 하나. 못 만들면 null(예문 없음 · 예문에서 단어를 못 찾음 · 보기 모자람) */
-export function makeQuestion(mode: PracticeMode, item: DeckItem, pool: PoolWord[], rand: () => number = Math.random): Question | null {
+/** 4지선다 문제 하나. 못 만들면 null(예문 없음 · 예문에서 단어를 못 찾음 · 보기 모자람) */
+export function makeQuestion(mode: ChoiceQ['mode'], item: DeckItem, pool: PoolWord[], rand: () => number = Math.random): ChoiceQ | null {
   const w = item.word
-  if (mode === 'pick') {
-    if (!w.example_de || !w.gloss_ko) return null
-    const tokens = pickTokens(w.example_de, w.lemma, w.example_hit)
-    return tokens ? { mode, item, tokens } : null
-  }
   if (mode === 'cloze') {
     if (!w.example_de) return null
     const cloze = clozeParts(w.example_de, w.lemma, w.example_hit)
     if (!cloze) return null
     const wrong = distractors(item, pool, (p) => p.lemma, rand)
-    return wrong ? { mode, item, cloze, choices: shuffle([{ id: w.id, text: w.lemma }, ...wrong], rand) } : null
+    return wrong ? { mode, item, cloze, choices: shuffle([{ id: w.id, text: w.lemma, word: poolOf(w) }, ...wrong], rand) } : null
   }
   if (!w.gloss_ko) return null
   const text = mode === 'meaning' ? (p: PoolWord) => p.gloss_ko : (p: PoolWord) => withArticle(p)
   const wrong = distractors(item, pool, text, rand)
   const right = text(w)
-  return wrong && right ? { mode, item, choices: shuffle([{ id: w.id, text: right }, ...wrong], rand) } : null
+  return wrong && right ? { mode, item, choices: shuffle([{ id: w.id, text: right, word: poolOf(w) }, ...wrong], rand) } : null
 }
 
-/** 재료에서 문제 n 개(만들 수 있는 것만, 순서는 섞어서) */
+/** 한 판에 같이 두면 짝이 둘이 되는 두 단어: 표제어 · 보이는 독일어 · 뜻(조각)이 겹침 */
+const clash = (a: DeckItem['word'], b: DeckItem['word']) =>
+  fold(bare(a.lemma)) === fold(bare(b.lemma)) || withArticle(a) === withArticle(b) || overlaps(glossParts(a.gloss_ko), glossParts(b.gloss_ko))
+
+/**
+ * 짝 맞추기 판들: 뜻 있는 카드를 섞어 단어 n 개까지, 판 크기는 고르게(7개 → 4 + 3). 한 판 안에는 서로 겹치는 단어를 안 넣는다.
+ * 겹쳐서 못 넣은 판이 MATCH_MIN 보다 적으면 버린다.
+ */
+export function makeMatches(items: DeckItem[], n: number, rand: () => number = Math.random): MatchQ[] {
+  const cands = shuffle(items.filter((it) => it.word.gloss_ko), rand)
+  const take = Math.min(n, cands.length)
+  if (take < MATCH_MIN) return []
+  const k = Math.ceil(take / MATCH_SIZE)
+  const cap = Math.ceil(take / k)
+  const groups: DeckItem[][] = Array.from({ length: k }, () => [])
+  for (const it of cands) {
+    const g = groups.find((g) => g.length < cap && g.every((o) => !clash(o.word, it.word)))
+    if (g) g.push(it)
+    if (groups.every((g) => g.length >= cap)) break
+  }
+  return groups
+    .filter((g) => g.length >= MATCH_MIN)
+    .map((g) => {
+      const pairs = g.map((it) => ({ it, word: poolOf(it.word) }))
+      return {
+        mode: 'match' as const,
+        items: g,
+        left: shuffle(pairs.map((p) => ({ id: p.word.id, text: withArticle(p.word), word: p.word })), rand),
+        right: shuffle(pairs.map((p) => ({ id: p.word.id, text: p.word.gloss_ko!, word: p.word })), rand),
+      }
+    })
+}
+
+/** 재료에서 문제 n 개(만들 수 있는 것만, 순서는 섞어서). 짝 맞추기는 n = 단어 수 */
 export function makeQuestions(mode: PracticeMode, items: DeckItem[], pool: PoolWord[], n: number, rand: () => number = Math.random): Question[] {
+  if (mode === 'match') return makeMatches(items, n, rand)
   const out: Question[] = []
   for (const it of shuffle(items, rand)) {
     const q = makeQuestion(mode, it, pool, rand)
@@ -140,3 +167,6 @@ export function makeQuestions(mode: PracticeMode, items: DeckItem[], pool: PoolW
   }
   return out
 }
+
+/** 문제에 든 단어 수(짝 맞추기는 판마다 여러 개) */
+export const wordsIn = (q: Question) => (q.mode === 'match' ? q.items.length : 1)

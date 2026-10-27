@@ -114,6 +114,7 @@ let settings: Settings = {
   evening_mode: 'none_today',
   evening_min: 1,
   review_only_day: '',
+  discord_on: true,
 }
 
 let webhook: { set: boolean; source: 'secret' | 'app' | null } = { set: false, source: null }
@@ -247,7 +248,10 @@ export async function mockHandle(method: string, path: string, body?: unknown): 
     const learned = words.map(item).filter((it) => it.card.state !== 0)
     return { items: learned.slice(0, n * 2), pool: words.map(({ id, lemma, pos, gender, gloss_ko }) => ({ id, lemma, pos, gender, gloss_ko })) }
   }
-  if (p === '/api/practice' && method === 'POST') return { ok: true, count: (body as { results: unknown[] }).results.length }
+  if (p === '/api/practice' && method === 'POST') {
+    const rs = (body as { results: Array<{ word_id: string; correct: boolean }> }).results
+    return { ok: true, count: rs.length, relearn: [...new Set(rs.filter((r) => !r.correct).map((r) => r.word_id))] }
+  }
   if (p === '/api/reviews' && method === 'POST') return applyReviews(body as ReviewsRequest)
   if (p === '/api/words') return wordsList(url.searchParams)
   if (p.startsWith('/api/word/')) {

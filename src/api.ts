@@ -6,6 +6,7 @@ import type {
   InboxResponse,
   PracticeResponse,
   PracticeResultsRequest,
+  PracticeSaveResponse,
   PracticeScope,
   ReportRequest,
   ReviewsRequest,
@@ -18,6 +19,7 @@ import type {
   WordsQuery,
   WordsResponse,
 } from '../shared/api.ts'
+import { splitReviews } from './deck.ts'
 import { serverErrorText } from './errors.ts'
 
 export const MOCK = import.meta.env.VITE_MOCK === '1'
@@ -158,8 +160,13 @@ export const api = {
   },
   /** 더 공부하기 재료(배운 카드 + 보기 재료) */
   practice: (scope: PracticeScope, n: number) => request<PracticeResponse>('GET', '/api/practice?' + qs({ scope, n })),
-  /** 연습 결과(일정은 안 바뀜) */
-  savePractice: (body: PracticeResultsRequest, keepalive = false) => request<{ ok: boolean; count: number }>('POST', '/api/practice', body, keepalive),
+  /** 연습 결과. 틀린 배운 단어는 서버가 「다시」 채점(오늘 몫 복습에 다시) → 오늘 몫 요청이 이 전송 뒤로 줄 선다 */
+  savePractice: (body: PracticeResultsRequest, keepalive = false) => {
+    todayPrefetch = null
+    const p = request<PracticeSaveResponse>('POST', '/api/practice', body, keepalive)
+    inflight = inflight.then(() => p).catch(() => undefined)
+    return p
+  },
   words: (q: WordsQuery) => request<WordsResponse>('GET', '/api/words?' + qs({ ...q })),
   word: (id: string) => request<WordDetailResponse>('GET', `/api/word/${encodeURIComponent(id)}`),
   /** 추가 연습 묶음(B4) — 일정은 안 바뀐다 */
@@ -205,13 +212,24 @@ const readUnsent = (): Unsent[] => {
 }
 const writeUnsent = (list: Unsent[]) => save(UNSENT_KEY, list.length ? JSON.stringify(list) : null)
 
+const unsentId = (req: ReviewsRequest) => `${req.session_id}:${req.reviews[0]?.reviewed_at}:${req.reviews.length}`
+
+/** 200개가 넘으면 나눠 차례로 보낸다(splitReviews). 묶음마다 따로 적어 두고, 보낸 묶음만 지운다 */
 export function sendReviews(req: ReviewsRequest, keepalive = false): Promise<ReviewsResponse> {
-  const id = `${req.session_id}:${req.reviews[0]?.reviewed_at}:${req.reviews.length}`
-  writeUnsent([...readUnsent().filter((u) => u.id !== id), { id, req }])
-  const p = request<ReviewsResponse>('POST', '/api/reviews', req, keepalive).then((r) => {
-    writeUnsent(readUnsent().filter((u) => u.id !== id))
-    return r
-  })
+  const whole = unsentId(req)
+  const parts = splitReviews(req).map((r) => ({ id: unsentId(r), req: r }))
+  const ids = new Set([whole, ...parts.map((x) => x.id)])
+  writeUnsent([...readUnsent().filter((u) => !ids.has(u.id)), ...parts])
+  const p = (async () => {
+    const out: ReviewsResponse = { applied: 0, cards: [] }
+    for (const part of parts) {
+      const r = await request<ReviewsResponse>('POST', '/api/reviews', part.req, keepalive)
+      writeUnsent(readUnsent().filter((u) => u.id !== part.id))
+      out.applied += r.applied
+      out.cards.push(...r.cards)
+    }
+    return out
+  })()
   inflight = inflight.then(() => p).catch(() => undefined)
   return p
 }

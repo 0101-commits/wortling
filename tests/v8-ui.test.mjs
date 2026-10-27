@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { deckReducer, initDeck, nextCard } from '../src/deck.ts'
 import { applyRating } from '../worker/fsrs.ts'
-import { clozeParts, distractors, makeQuestion, makeQuestions, pickTokens } from '../src/practice.ts'
+import { MATCH_SIZE, clozeParts, distractors, makeMatches, makeQuestion, makeQuestions } from '../src/practice.ts'
 
 const AT = Date.parse('2026-10-26T03:00:00Z')
 const DAY_END = '2026-10-26T19:00:00.000Z'
@@ -93,17 +93,17 @@ test('오답: 같은 품사 · 정답과 뜻 조각이 겹치는 단어 빼기 �
   assert.equal(distractors(v, pool.slice(0, 1), (p) => p.lemma, rand), null)
 })
 
-test('문제 만들기: 빈칸 · 짚기 · 뜻 · 독일어 고르기, 정답 하나씩', () => {
+test('문제 만들기: 빈칸 · 뜻 · 독일어 고르기, 정답 하나씩 · 보기마다 그 단어(답한 뒤 뜻 보여 주기)', () => {
   const v = W('v0', 'verhindern', 'verb', '막다, 방지하다', 'Der Regen hat das Picknick verhindert.')
   const cl = makeQuestion('cloze', v, pool, rand)
   assert.equal(cl.choices.length, 4)
   assert.equal(cl.choices.filter((c) => c.id === 'v0').length, 1)
   assert.equal(cl.choices.find((c) => c.id === 'v0').text, 'verhindern', '보기는 기본형')
 
+  // 고른 오답의 뜻을 보여 주려고 보기마다 단어를 함께 든다
+  assert.ok(cl.choices.every((c) => c.word && c.word.id === c.id && c.word.gloss_ko))
+
   const n = W('n0', 'Sicherheit', 'noun', '안전', 'Zur Sicherheit nehme ich einen Schirm mit.', 'die')
-  const pk = makeQuestion('pick', n, pool, rand)
-  assert.deepEqual(pk.tokens.filter((t) => t.hit).map((t) => t.text), ['Sicherheit'])
-  assert.deepEqual(pickTokens('Sie hat sich beschwert.', 'sich beschweren').filter((t) => t.hit).map((t) => t.text), ['beschwert.'])
 
   const m = makeQuestion('meaning', n, pool, rand)
   assert.ok(m.choices.some((c) => c.text === '안전'))
@@ -116,4 +116,31 @@ test('문제 만들기: 빈칸 · 짚기 · 뜻 · 독일어 고르기, 정답 �
   assert.equal(makeQuestion('cloze', none, pool, rand), null)
   const qs = makeQuestions('cloze', [none, v, none], pool, 10, rand)
   assert.equal(qs.length, 1)
+})
+
+test('짝 맞추기: 단어 n 개를 고르게 판으로(7 → 4 + 3) · 한 판 안에 뜻 겹치는 단어 없음 · 양쪽 같은 id', () => {
+  const items = [
+    W('a1', 'Grenze', 'noun', '국경, 경계', null, 'die'),
+    W('a2', 'Regel', 'noun', '규칙', null, 'die'),
+    W('a3', 'verhindern', 'verb', '막다, 방지하다'),
+    W('a4', 'hindern', 'verb', '막다'), // a3 과 뜻 겹침 → 다른 판
+    W('a5', 'Gefahr', 'noun', '위험', null, 'die'),
+    W('a6', 'erkennen', 'verb', '알아보다'),
+    W('a7', 'übernehmen', 'verb', '떠맡다'),
+    W('a8', 'leer', 'adj', null), // 뜻 없음 → 빠짐
+  ]
+  const qs = makeMatches(items, 10, rand)
+  assert.deepEqual(qs.map((q) => q.items.length).sort(), [3, 4])
+  for (const q of qs) {
+    assert.ok(q.items.length <= MATCH_SIZE)
+    assert.deepEqual(q.left.map((c) => c.id).sort(), q.right.map((c) => c.id).sort())
+    const ids = q.items.map((it) => it.word.id)
+    assert.ok(!(ids.includes('a3') && ids.includes('a4')), '뜻 조각 「막다」가 겹치는 둘은 같은 판에 안 넣는다')
+  }
+  assert.equal(qs.flatMap((q) => q.left).find((c) => c.id === 'a1').text, 'die Grenze', '왼쪽은 관사 붙인 독일어')
+  assert.equal(qs.flatMap((q) => q.right).find((c) => c.id === 'a1').text, '국경, 경계')
+  // 10 개 넘게 있으면 5 + 5, 3 개 미만이면 문제 없음
+  const many = Array.from({ length: 14 }, (_, i) => W('m' + i, 'Wort' + i, 'noun', '뜻' + i, null, 'das'))
+  assert.deepEqual(makeQuestions('match', many, [], 10, rand).map((q) => q.items.length), [5, 5])
+  assert.deepEqual(makeMatches(items.slice(0, 2), 10, rand), [])
 })

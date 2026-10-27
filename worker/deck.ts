@@ -66,6 +66,7 @@ export async function loadSettings(db: D1Database): Promise<Settings> {
     evening_mode: m.evening_mode === 'any_left' ? 'any_left' : 'none_today',
     evening_min: Math.max(1, Number(m.evening_min ?? 1) || 1),
     review_only_day: m.review_only_day ?? '',
+    discord_on: m.discord_on !== '0',
   };
 }
 
@@ -82,7 +83,9 @@ export interface Today {
   ratings: { good: number; again: number };
 }
 
-/** 오늘 몫에서 한 번에 보내는 복습 상한(안전장치). 화면은 session_max 씩 끊는다 */
+/** 연습에서 「다시」 채점한 줄의 session_id(reviews). 덱 채점과 가른다(worker/practice.ts 가 적음) */
+export const PRACTICE_SESSION = 'practice';
+/** 오늘 몫에서 한 번에 보내는 복습 상한(안전장치). 덱은 오늘 몫을 끊지 않고 한 판에(2026-10-27) */
 const DUE_MAX = 300;
 /** 「새 단어 더 받기」 한 번 · 하루 최대(D3) */
 export const EXTRA_STEP = 5;
@@ -197,7 +200,8 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
   const ids = JSON.stringify(plan.fresh);
   const [newDone, reviewed, due, fresh, done, rated] = await db.batch([
     db.prepare('SELECT count(*) AS n FROM cards WHERE introduced_at >= ?').bind(dayStart),
-    db.prepare('SELECT count(*) AS n FROM reviews WHERE reviewed_at >= ? AND undone = 0').bind(dayStart),
+    // 오늘 채점 수 · 좋음/다시 = 덱 채점만. 연습에서 틀려 「다시」 된 줄(session_id practice)은 빼고 센다(검토 반영 2026-10-27)
+    db.prepare(`SELECT count(*) AS n FROM reviews WHERE reviewed_at >= ? AND undone = 0 AND session_id IS NOT '${PRACTICE_SESSION}'`).bind(dayStart),
     // state != 0 대신 IN (1,2,3): (state, due) 색인을 세 번 타게 하려고
     db
       .prepare(
@@ -220,7 +224,10 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
       )
       .bind(dayStart, dayEnd),
     db
-      .prepare('SELECT coalesce(sum(rating >= 3), 0) AS good, coalesce(sum(rating <= 2), 0) AS again FROM reviews WHERE reviewed_at >= ? AND undone = 0')
+      .prepare(
+        `SELECT coalesce(sum(rating >= 3), 0) AS good, coalesce(sum(rating <= 2), 0) AS again FROM reviews
+         WHERE reviewed_at >= ? AND undone = 0 AND session_id IS NOT '${PRACTICE_SESSION}'`,
+      )
       .bind(dayStart),
   ]);
   const new_done_today = (newDone.results[0] as { n: number }).n;

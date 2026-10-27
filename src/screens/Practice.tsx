@@ -1,11 +1,12 @@
-// 더 공부하기 문제 화면(기획 v8 과제 4): #/practice?mode=cloze|pick|meaning|meaning_rev&scope=today|week|all|wrong&n=10
-// 한 문제씩 → 맞힘/틀림 표시 → 다음. 끝나면 결과를 practice 표에 보내고(일정은 안 바뀜) 틀린 단어만 다시 할 수 있다.
+// 더 공부하기 문제 화면(기획 v8 과제 4): #/practice?mode=cloze|match|meaning|meaning_rev&scope=today|week|all|wrong&n=10
+// 한 문제씩 → 맞힘/틀림 표시(고른 보기의 뜻도) → 다음. 끝나면 결과를 practice 표에 보내고,
+// 틀린 배운 단어는 서버가 「다시」 채점해 오늘 몫 복습에 다시 넣는다. 틀린 단어만 다시 할 수도 있다.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Skeleton } from '@montage-ui/core'
 import type { DeckItem, PoolWord, PracticeMode, PracticeScope } from '../../shared/api.ts'
 import { api, errorText } from '../api.ts'
-import { MODES, makeQuestions } from '../practice.ts'
-import type { ChoiceQ, PickQ, Question } from '../practice.ts'
+import { MODES, makeQuestions, withArticle, wordsIn } from '../practice.ts'
+import type { Choice, ChoiceQ, MatchQ, Question } from '../practice.ts'
 import { useAsync } from '../hooks.ts'
 import { linkTo, navigate, useRoute } from '../router.ts'
 import { Emoji, ErrorBox, Example, Lemma, LevelBadge, POS_LABEL, Top, useToaster } from '../ui.tsx'
@@ -21,7 +22,8 @@ const SCOPE_EMPTY: Record<PracticeScope, string> = {
 
 export default function Practice() {
   const q = useRoute().query
-  const mode = MODE_KEYS.find((m) => m === q.get('mode')) ?? 'cloze'
+  // 예전 「예문 속 단어 짚기」(pick) 주소는 짝 맞추기로
+  const mode = q.get('mode') === 'pick' ? 'match' : (MODE_KEYS.find((m) => m === q.get('mode')) ?? 'cloze')
   const scope = SCOPES.find((s) => s === q.get('scope')) ?? 'today'
   const n = [10, 20, 30].includes(Number(q.get('n'))) ? Number(q.get('n')) : 10
   const [round, setRound] = useState(0)
@@ -55,8 +57,11 @@ function Round(props: { mode: PracticeMode; items: DeckItem[]; pool: PoolWord[];
   const [items, setItems] = useState(props.items)
   const [pass, setPass] = useState(0)
   const questions = useMemo(() => makeQuestions(mode, items, pool, n), [mode, items, pool, n, pass])
+  const total = useMemo(() => questions.reduce((s, qq) => s + wordsIn(qq), 0), [questions])
   const [i, setI] = useState(0)
   const [results, setResults] = useState<Result[]>([])
+  // 서버가 「아직 잘 모르는 단어」로 바꾼 단어(판 끝 전송의 답). null = 아직 모름 · 전송 실패
+  const [relearn, setRelearn] = useState<string[] | null>(null)
 
   const finished = i >= questions.length
   // 결과 보내기: 판이 끝날 때 + 중간에 앱을 내리거나 나갈 때(그때까지 푼 것만, 검토 반영). 실패해도 화면은 그대로 — 기록만 빠짐
@@ -70,9 +75,14 @@ function Round(props: { mode: PracticeMode; items: DeckItem[]; pool: PoolWord[];
       const rs = latest.current.slice(sent.current)
       if (!rs.length) return
       sent.current = latest.current.length
-      api.savePractice({ mode, results: rs }, keepalive).catch((e) => {
-        if (!keepalive) toast(`결과를 못 적었어요 · ${errorText(e)}`, 'cautionary')
-      })
+      api
+        .savePractice({ mode, results: rs }, keepalive)
+        .then((r) => {
+          if (!keepalive) setRelearn((prev) => [...(prev ?? []), ...(r.relearn ?? [])])
+        })
+        .catch((e) => {
+          if (!keepalive) toast(`결과를 못 적었어요 · ${errorText(e)}`, 'cautionary')
+        })
     },
     [mode, toast],
   )
@@ -99,7 +109,7 @@ function Round(props: { mode: PracticeMode; items: DeckItem[]; pool: PoolWord[];
       <section className="empty">
         <Emoji name="think" size={140} />
         <h2>문제를 만들 단어가 없어요</h2>
-        <p>{SCOPE_EMPTY[scope]}</p>
+        <p>{mode === 'match' && props.items.length > 0 ? '짝 맞추기는 뜻이 서로 다른 단어가 3개 이상 있어야 해요. 범위를 넓혀 보세요.' : SCOPE_EMPTY[scope]}</p>
         <Button variant="outlined" color="assistive" onClick={() => navigate('/today')}>
           오늘 화면으로
         </Button>
@@ -109,21 +119,28 @@ function Round(props: { mode: PracticeMode; items: DeckItem[]; pool: PoolWord[];
   if (finished) {
     const right = results.filter((x) => x.correct).length
     const wrongIds = new Set(results.filter((x) => !x.correct).map((x) => x.word_id))
-    const wrong = questions.filter((qq) => wrongIds.has(qq.item.word.id)).map((qq) => qq.item)
+    const all = questions.flatMap((qq) => (qq.mode === 'match' ? qq.items : [qq.item]))
+    const wrong = all.filter((it) => wrongIds.has(it.word.id))
+    const moved = relearn?.length ?? 0
     return (
       <section className="done practice-done">
-        <div className="ring big" style={{ ['--p' as string]: Math.round((right / results.length) * 100) }} role="img" aria-label={`${results.length}문제 중 ${right}개 맞힘`}>
+        <div className="ring big" style={{ ['--p' as string]: Math.round((right / Math.max(1, results.length)) * 100) }} role="img" aria-label={`${results.length}개 중 ${right}개 맞힘`}>
           <span className="num">
             {right}
             <small>/{results.length}</small>
           </span>
         </div>
         <h1 className="center">
-          {results.length}문제 중 {right}개
+          {results.length}
+          {mode === 'match' ? '단어' : '문제'} 중 {right}개
         </h1>
         {wrong.length > 0 ? (
           <div className="box wh">
-            <p className="small muted">틀린 단어 {wrong.length} · 「틀린 단어」 범위에 모았어요</p>
+            <p className="small muted">
+              틀린 단어 {wrong.length}
+              {/* 0 이면 말 안 함 — 이미 오늘 몫인 단어이거나, 앱을 내리며 보낸 묶음의 답은 못 받는다(검토 반영) */}
+              {moved > 0 ? ` · ${moved}개를 「아직 잘 모르는 단어」로 바꿔 오늘 복습에 넣었어요` : ''}
+            </p>
             {wrong.map((it) => (
               <a key={it.word.id} className="kv" {...linkTo('/word/' + it.word.id)}>
                 <Lemma word={it.word} />
@@ -134,15 +151,23 @@ function Round(props: { mode: PracticeMode; items: DeckItem[]; pool: PoolWord[];
         ) : (
           <p className="tomorrow center">하나도 안 틀렸어요</p>
         )}
+        {moved > 0 && (
+          <Button fullWidth size="large" onClick={() => navigate('/deck')}>
+            오늘 복습에서 다시 보기
+          </Button>
+        )}
         {wrong.length > 0 && (
           <Button
             fullWidth
             size="large"
+            variant={moved > 0 ? 'outlined' : 'solid'}
+            color={moved > 0 ? 'assistive' : 'primary'}
             onClick={() => {
               setItems(wrong)
               setPass((p) => p + 1)
               setI(0)
               setResults([])
+              setRelearn(null)
               latest.current = []
               sent.current = 0
             }}
@@ -161,21 +186,22 @@ function Round(props: { mode: PracticeMode; items: DeckItem[]; pool: PoolWord[];
   }
 
   const qq = questions[i]
+  const before = questions.slice(0, i).reduce((s, x) => s + wordsIn(x), 0)
   return (
     <>
       <div className="tophint">
         <span className="mix">{MODES[mode].desc}</span>
         <span className="counter num" data-testid="progress" aria-live="polite">
-          {i + 1} / {questions.length}
+          {mode === 'match' ? `${before + wordsIn(qq)} / ${total}` : `${i + 1} / ${questions.length}`}
         </span>
       </div>
       <div className="pbar" aria-hidden>
-        <i style={{ width: `${(i / questions.length) * 100}%` }} />
+        <i style={{ width: `${(before / total) * 100}%` }} />
       </div>
-      {qq.mode === 'pick' ? (
-        <PickView key={i} q={qq} onAnswer={answer} onNext={() => setI((k) => k + 1)} />
+      {qq.mode === 'match' ? (
+        <MatchView key={`${pass}:${i}`} q={qq} onAnswer={answer} onNext={() => setI((k) => k + 1)} />
       ) : (
-        <ChoiceView key={i} q={qq} onAnswer={answer} onNext={() => setI((k) => k + 1)} />
+        <ChoiceView key={`${pass}:${i}`} q={qq} onAnswer={answer} onNext={() => setI((k) => k + 1)} />
       )}
     </>
   )
@@ -202,20 +228,13 @@ function NextButton({ onNext }: { onNext: () => void }) {
   )
 }
 
-/** 답한 뒤 보이는 뜻 줄 */
-function Gloss({ item, form }: { item: DeckItem; form?: string }) {
-  const w = item.word
+/** 보기 단어 한 줄: 관사 붙인 독일어 · 품사 · 뜻 */
+function WordLine({ w, tag }: { w: PoolWord; tag?: string }) {
   return (
-    <div className="pgloss">
-      <p>
-        <Lemma word={w} /> <span>{w.gloss_ko}</span>
-      </p>
-      {form && form.toLowerCase() !== w.lemma.replace(/^sich\s+/i, '').toLowerCase() && (
-        <p className="small muted">
-          예문 속 꼴 <span lang="de">{form}</span>
-        </p>
-      )}
-    </div>
+    <p className="pline">
+      {tag && <span className="ptag">{tag}</span>}
+      <Lemma word={w} /> <span className="small muted">{POS_LABEL[w.pos]}</span> <span>{w.gloss_ko}</span>
+    </p>
   )
 }
 
@@ -239,6 +258,9 @@ function ChoiceView({ q, onAnswer, onNext }: ViewProps<ChoiceQ>) {
     return () => window.removeEventListener('keydown', onKey)
   })
   const state = (id: string) => (!picked ? '' : id === w.id ? ' ok' : id === picked ? ' ng' : ' off')
+  // 답한 뒤 보기마다 아래에 작게: 뜻 고르기 = 그 뜻의 독일어, 나머지 = 그 단어의 뜻
+  const sub = (c: Choice) => (q.mode === 'meaning' ? withArticle(c.word) : c.word.gloss_ko)
+  const wrongPick = picked && picked !== w.id ? q.choices.find((c) => c.id === picked) : undefined
   return (
     <>
       <div className="pcard">
@@ -281,6 +303,11 @@ function ChoiceView({ q, onAnswer, onNext }: ViewProps<ChoiceQ>) {
             {c.text}
             {picked && c.id === w.id && <span className="sr-only"> · 정답</span>}
             {picked && c.id === picked && c.id !== w.id && <span className="sr-only"> · 고른 답, 오답</span>}
+            {picked && sub(c) && (
+              <small className="popt-sub" lang={q.mode === 'meaning' ? 'de' : 'ko'}>
+                {sub(c)}
+              </small>
+            )}
           </button>
         ))}
       </div>
@@ -289,21 +316,28 @@ function ChoiceView({ q, onAnswer, onNext }: ViewProps<ChoiceQ>) {
       </p>
       {picked && (
         <>
-          {q.mode === 'cloze' ? (
-            <Gloss item={q.item} form={q.cloze?.hit} />
-          ) : (
-            <div className="pgloss">
-              <p>
-                <Lemma word={w} /> <span>{w.gloss_ko}</span>
-              </p>
-              {w.example_de && (
-                <p className="small" lang="de">
-                  <Example de={w.example_de} lemma={w.lemma} hit={w.example_hit} />
-                </p>
-              )}
-              {w.example_ko && <p className="small muted">{w.example_ko}</p>}
-            </div>
-          )}
+          <div className="pgloss">
+            <p>
+              <Lemma word={w} /> <span>{w.gloss_ko}</span>
+            </p>
+            {q.mode === 'cloze'
+              ? q.cloze &&
+                q.cloze.hit.toLowerCase() !== w.lemma.replace(/^sich\s+/i, '').toLowerCase() && (
+                  <p className="small muted">
+                    예문 속 꼴 <span lang="de">{q.cloze.hit}</span>
+                  </p>
+                )
+              : w.example_de && (
+                  <>
+                    <p className="small" lang="de">
+                      <Example de={w.example_de} lemma={w.lemma} hit={w.example_hit} />
+                    </p>
+                    {w.example_ko && <p className="small muted">{w.example_ko}</p>}
+                  </>
+                )}
+            {/* 고른 오답 단어 설명(2026-10-27 사용자 지시) */}
+            {wrongPick && <WordLine w={wrongPick.word} tag="고른 답" />}
+          </div>
           <NextButton onNext={onNext} />
         </>
       )}
@@ -312,47 +346,83 @@ function ChoiceView({ q, onAnswer, onNext }: ViewProps<ChoiceQ>) {
   )
 }
 
-function PickView({ q, onAnswer, onNext }: ViewProps<PickQ>) {
-  const [tapped, setTapped] = useState<number | null>(null)
-  const w = q.item.word
-  const done = tapped !== null
-  const tap = (k: number) => {
-    if (done) return
-    setTapped(k)
-    onAnswer(q.tokens[k].hit, w.id)
+/**
+ * 짝 맞추기: 왼쪽(독일어) 하나 + 오른쪽(뜻) 하나를 차례로 누른다(어느 쪽 먼저든). 맞으면 둘 다 잠기고,
+ * 틀리면 잠깐 빨갛게 보였다가 풀린다 — 먼저 누른 쪽 단어를 「틀림」으로 남긴다(그 단어를 찾다가 헷갈린 것).
+ * 단어마다 짝을 맞출 때 결과 하나(한 번이라도 틀렸으면 틀림).
+ */
+function MatchView({ q, onAnswer, onNext }: ViewProps<MatchQ>) {
+  const [sel, setSel] = useState<{ side: 'l' | 'r'; id: string } | null>(null)
+  const [done, setDone] = useState<string[]>([])
+  const [missed, setMissed] = useState<string[]>([])
+  const [bad, setBad] = useState<{ l: string; r: string } | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), [])
+  const finished = done.length === q.items.length
+  const [said, setSaid] = useState('')
+
+  const tap = (side: 'l' | 'r', c: Choice) => {
+    if (done.includes(c.id) || bad) return
+    if (!sel || sel.side === side) {
+      setSel(sel && sel.side === side && sel.id === c.id ? null : { side, id: c.id })
+      return
+    }
+    const l = side === 'l' ? c.id : sel.id
+    const r = side === 'r' ? c.id : sel.id
+    if (l === r) {
+      setDone((d) => [...d, l])
+      onAnswer(!missed.includes(l), l)
+      setSaid(`맞았어요. ${q.left.find((x) => x.id === l)?.text} = ${q.right.find((x) => x.id === l)?.text}`)
+      setSel(null)
+      return
+    }
+    // 먼저 누른 쪽 단어를 틀림으로(그 단어 짝을 찾던 중)
+    setMissed((m) => (m.includes(sel.id) ? m : [...m, sel.id]))
+    setBad({ l, r })
+    setSaid('짝이 아니에요')
+    setSel(null)
+    timer.current = setTimeout(() => setBad(null), 650)
   }
-  const cls = (k: number) => {
-    if (!done) return ''
-    if (q.tokens[k].hit) return ' ok'
-    return k === tapped ? ' ng' : ''
-  }
+  const cls = (side: 'l' | 'r', id: string) =>
+    done.includes(id) ? ' ok' : bad && bad[side] === id ? ' ng' : sel && sel.side === side && sel.id === id ? ' sel' : ''
+  const col = (side: 'l' | 'r', list: Choice[]) => (
+    <div className="pmatch-col" role="group" aria-label={side === 'l' ? '독일어' : '뜻'}>
+      {list.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          className={'popt pm' + cls(side, c.id)}
+          lang={side === 'l' ? 'de' : undefined}
+          aria-pressed={sel?.side === side && sel.id === c.id}
+          disabled={done.includes(c.id)}
+          onClick={() => tap(side, c)}
+        >
+          {c.text}
+        </button>
+      ))}
+    </div>
+  )
   return (
     <>
-      <div className="pcard">
-        <p className="pprompt">
-          ‘{w.gloss_ko}’에 해당하는 낱말을 누르세요
-        </p>
-        <div className="ptokens" lang="de" role="group" aria-label="예문 낱말">
-          {q.tokens.map((t, k) => (
-            <button key={k} type="button" className={'ptok' + cls(k)} disabled={done} onClick={() => tap(k)}>
-              {t.text}
-              {done && t.hit && <span className="sr-only"> · 정답</span>}
-              {done && k === tapped && !t.hit && <span className="sr-only"> · 고른 낱말, 오답</span>}
-            </button>
-          ))}
-        </div>
-        <p className="sr-only" aria-live="polite">
-          {done ? (q.tokens[tapped!].hit ? '맞았어요' : `틀렸어요. 정답은 ${q.tokens.filter((t) => t.hit).map((t) => t.text).join(' ')}`) : ''}
-        </p>
-        {done && <p className="small muted">{w.example_ko}</p>}
+      <div className="pmatch">
+        {col('l', q.left)}
+        {col('r', q.right)}
       </div>
-      {done && (
+      <p className="sr-only" aria-live="polite">
+        {said}
+      </p>
+      {finished ? (
         <>
-          <Gloss item={q.item} form={q.tokens.filter((t) => t.hit).map((t) => t.text.replace(/[.,!?;:»«„“"]+$/u, '')).join(' ')} />
+          <div className="pgloss">
+            {q.items.map((it) => (
+              <WordLine key={it.word.id} w={it.word} tag={missed.includes(it.word.id) ? '틀림' : undefined} />
+            ))}
+          </div>
           <NextButton onNext={onNext} />
         </>
+      ) : (
+        <p className="small muted center keys">독일어 하나, 뜻 하나를 차례로 누르세요</p>
       )}
     </>
   )
 }
-

@@ -82,7 +82,7 @@ export function LevelBadge({ level }: { level: Level }) {
 }
 
 /** 관사(색) + 단어 */
-export function Lemma({ word, className = '' }: { word: Word; className?: string }) {
+export function Lemma({ word, className = '' }: { word: Pick<Word, 'lemma' | 'pos' | 'gender'>; className?: string }) {
   const a = article(word)
   return (
     <span className={'lemma ' + className} lang="de">

@@ -386,6 +386,10 @@ const putSettings: Handler = async ({ req, env }) => {
     if (typeof body.onboarded !== 'boolean') throw bad('onboarded must be boolean');
     updates.push(['onboarded', body.onboarded ? '1' : '0']);
   }
+  if ('discord_on' in body) {
+    if (typeof body.discord_on !== 'boolean') throw bad('discord_on must be boolean');
+    updates.push(['discord_on', body.discord_on ? '1' : '0']);
+  }
   if ('evening_mode' in body) {
     if (body.evening_mode !== 'none_today' && body.evening_mode !== 'any_left') throw bad('evening_mode must be none_today|any_left');
     updates.push(['evening_mode', body.evening_mode]);
@@ -426,7 +430,7 @@ const putWebhook: Handler = async ({ req, env }) => {
   if (!WEBHOOK_RE.test(url)) throw bad('bad_webhook_url');
   const before = await env.IMG.get(WEBHOOK_KEY);
   await env.IMG.put(WEBHOOK_KEY, url);
-  const r = env.DISCORD_WEBHOOK ? null : await sendTest(env);
+  const r = env.DISCORD_WEBHOOK ? null : await sendTest(env, new Date(), { discord: 'always' });
   // 시험 통은 기기로도 가지만, 웹훅을 남길지는 디스코드 쪽 결과로만 정한다
   const ok = r !== null && 'discord' in r && r.discord.ok;
   if (r !== null && !ok) {
