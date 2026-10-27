@@ -132,7 +132,7 @@ const RULES = [
   '  · gloss_ko: 짧은 한국어 뜻 1~3개, 쉼표 구분, 20자 이내(명사는 관사 없이 명사형, 동사는 ~하다/되다 형, 형용사는 ~한/~적인 형, 부사는 ~게/~히 형). 오스트리아·스위스 어휘는 뜻에 (오) (스) 표기.',
   "  · example_de: natural German sentence at the item's level, ≤70 chars, contains the headword (inflected/separated forms fine), everyday/work/news context.",
   '  · example_ko: 자연스러운 한국어 번역, 40자 이내, ~해요체.',
-  '  · scene_en: ONE English line, ≤25 words, starting with "Borti " — a concrete visual scene where the mascot Borti (a chubby cream dachshund puppy with brown floppy ears) acts out the meaning with a concrete prop or action. No text, letters, numbers, signs, or logos. Only Borti unless a second character is needed ("another puppy"). Keep it gentle and family-friendly even for crime/violence words (show it symbolically: e.g. a detective magnifying glass, a broken vase).',
+  '  · scene_en: ONE English line, ≤25 words, starting with "Borti " — a concrete visual scene where the mascot Borti (a chubby white puppy with tan floppy ears) acts out the meaning with a concrete prop or action. No text, letters, numbers, signs, or logos. Only Borti unless a second character is needed ("another puppy"). Keep it gentle and family-friendly even for crime/violence words (show it symbolically: e.g. a detective magnifying glass, a broken vase).',
 ].join('\n');
 
 /** 카드 글 쓰기(keep 판정 포함). update.mjs 의 예전 writeContent 프롬프트와 같은 규칙 */

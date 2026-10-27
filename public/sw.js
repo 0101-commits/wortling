@@ -13,7 +13,7 @@ self.addEventListener('push', (e) => {
   e.waitUntil(
     self.registration.showNotification(m.title || 'Wortling', {
       body: m.body || '',
-      icon: '/mascot/_default.webp',
+      icon: '/icons/icon-192.png', // 앱 아이콘과 같은 보르티(카드 그림체). 예전 3D 그림 /mascot/_default.webp 는 쓰지 않는다
       image: m.image || undefined,
       tag: m.tag,
       renotify: Boolean(m.tag), // 같은 종류가 알림창에 남아 있어도 다시 울린다(없으면 소리 없이 바뀜)
@@ -34,7 +34,7 @@ self.addEventListener('notificationclick', (e) => {
       already: '이미 1시간 뒤로 미뤄 뒀어요.',
       not_tonight: '지난 알림이라 미룰 수 없어요.',
     }
-    const ack = (title, body) => self.registration.showNotification(title, { body, icon: '/mascot/_default.webp', tag: 'later-ack', silent: true })
+    const ack = (title, body) => self.registration.showNotification(title, { body, icon: '/icons/icon-192.png', tag: 'later-ack', silent: true })
     e.waitUntil(
       fetch('/api/notify/later', {
         method: 'POST',
