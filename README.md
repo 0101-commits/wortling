@@ -3,7 +3,8 @@
 B1~C1 단어 8,347개를 틴더처럼 밀어서 채점(ts-fsrs)하고, 아침 07:30 · 저녁 21:00 에 디스코드 웹훅으로 카드 한 통씩 받는다.
 그림은 마스코트 「보르티」(닥스훈트) 손그림체를 Cloudflare Workers AI(FLUX.2 klein 4b)로 **매일 무료 몫(하루 10,000 뉴런 ≈ 120장)만큼 자동 생성**한다.
 
-- 앱: https://wortling.e-hcg.workers.dev
+- 앱: https://worty.pages.dev — Pages 프로젝트 `worty`(`pages/`)가 모든 요청을 Worker `wortling` 으로 넘긴다(서비스 바인딩). 예전 주소 wortling.e-hcg.workers.dev 도 같은 Worker 라 그대로 열린다.
+  Pages 쪽은 Worker 를 고쳐도 다시 올릴 필요 없음. 고칠 때만 `cd pages && npx wrangler pages deploy --project-name worty --branch main --force`(새 wrangler 는 Pages 를 Workers 로 넘기려 해서 `--force` 필요).
 - **연결은 클릭만**: 바탕화면 `Wortling 설정.html` 더블클릭 → 설정 화면에서 ① 폰 카메라로 QR 찍기 ② 디스코드 웹후크 URL 붙여넣고 「저장하고 시험 통 보내기」. 파일이 없으면 `npm run shortcut`.
 - 화면: 라이트 모드 고정, 390px 우선, montage-web(브랜드 cyan 30 #006F82)
 
@@ -33,7 +34,7 @@ npm run db:migrate:remote
 npm run seed:build && npm run seed:remote            # 빈 DB 에만(id 가 자리 번호)
 npm run deploy
 node -e "process.stdout.write(require('fs').readFileSync('.env','utf8').match(/^API_TOKEN=(.*)$/m)[1])" | npx wrangler secret put API_TOKEN
-curl -X POST -H "Authorization: Bearer $API_TOKEN" https://wortling.e-hcg.workers.dev/api/admin/schedule   # 알림 시계 시작
+curl -X POST -H "Authorization: Bearer $API_TOKEN" https://worty.pages.dev/api/admin/schedule   # 알림 시계 시작
 ```
 
 ## 매일 자동 그림(무료 플랜)

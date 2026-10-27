@@ -1,0 +1,9 @@
+// 앱 주소 worty.pages.dev(2026-10-27 사용자 「주소에서 e-hcg · workers.dev 빼고 worty 로」, 무료 길 선택).
+// Pages 프로젝트 worty 가 모든 요청을 앱 Worker(wortling)로 그대로 넘긴다(서비스 바인딩) — 화면 · API · 그림 · 데이터는 Worker 한 곳.
+// 배포: cd pages && npx wrangler pages deploy (Worker 를 고쳐도 다시 할 필요 없음)
+{
+  "name": "worty",
+  "pages_build_output_dir": "./public",
+  "compatibility_date": "2026-09-01",
+  "services": [{ "binding": "APP", "service": "wortling" }]
+}
