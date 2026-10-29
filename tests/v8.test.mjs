@@ -126,7 +126,7 @@ test('연습 재료: 범위 · 틀린 단어(마지막 결과가 틀림) · 보�
   assert.equal((await savePractice(db, { mode: 'pick', results: [] })).count, 0);
 });
 
-test('연습에서 틀린 배운 단어 → 「다시」 채점(아직 잘 모르는 단어) · 오늘 몫 복습에 다시 · 오늘 몫에 이미 있으면 그대로 · 한 번만', async () => {
+test('연습에서 틀린 배운 단어 → 「다시」 채점(아직 잘 모르는 단어) · 가중형 미루기(첫 틀림 모레·또 틀리면 내일) · 오늘 몫에 이미 있으면 그대로 · 한 번만', async () => {
   const db = fakeD1();
   seed(db);
   // r3 = 다음 학습일 마감(오늘 몫 아님) · r2 = 오늘 마감(이미 오늘 몫) · w1 = 안 배운 카드
@@ -142,21 +142,23 @@ test('연습에서 틀린 배운 단어 → 「다시」 채점(아직 잘 모�
     { word_id: 'r1', correct: true, at: '2026-10-26T02:59:55Z' },
   ] }, NOON);
   assert.deepEqual(r, { ok: true, count: 5, relearn: ['r3'] });
-  const c = db.raw.prepare("SELECT state, due, lapses FROM cards WHERE word_id = 'r3'").get();
+  const c = db.raw.prepare("SELECT state, due, lapses, scheduled_days FROM cards WHERE word_id = 'r3'").get();
   assert.equal(c.state, 3, 'Relearning');
   assert.equal(c.lapses, 0, '연습 틀림은 잊은 수로 안 센다(8번에 쉬게 되지 않게)');
-  assert.ok(c.due < DAY_END, '오늘 학습일 안에 다시');
+  assert.equal(c.due, '2026-10-27T19:00:00.000Z', '첫 틀림은 모레 학습일 시작에');
+  assert.equal(c.scheduled_days, 2);
   const rev = db.raw.prepare("SELECT rating, reviewed_at, session_id FROM reviews WHERE word_id = 'r3'").all();
   assert.deepEqual(rev.map((x) => ({ ...x })), [{ rating: 1, reviewed_at: '2026-10-26T02:59:00.000Z', session_id: 'practice' }], '첫 틀림 시각으로 한 줄');
   assert.equal(db.raw.prepare("SELECT state FROM cards WHERE word_id = 'r2'").get().state, 2, '이미 오늘 몫이면 그대로');
   assert.equal(db.raw.prepare("SELECT state FROM cards WHERE word_id = 'w1'").get().state, 0, '안 배운 카드는 그대로');
   const after = await buildToday(db, s, NOON);
-  assert.deepEqual(ids(after.due).sort(), ['r1', 'r2', 'r3']);
+  assert.deepEqual(ids(after.due).sort(), ['r1', 'r2'], '미룬 카드는 오늘 몫에 안 나온다');
   assert.equal(after.reviewed_today, 0, '연습 「다시」 줄은 오늘 채점 수에 안 든다');
   assert.deepEqual(after.ratings, { good: 0, again: 0 });
-  // 또 틀려도 이미 오늘 몫이라 다시 깎지 않는다
+  // 또 틀리면 내일로 당겨진다(자주 틀릴수록 빨리)
   const again = await savePractice(db, { mode: 'cloze', results: [{ word_id: 'r3', correct: false, at: '2026-10-26T03:01:00Z' }] }, NOON);
-  assert.deepEqual(again.relearn, []);
+  assert.deepEqual(again.relearn, ['r3']);
+  assert.equal(db.raw.prepare("SELECT due FROM cards WHERE word_id = 'r3'").get().due, '2026-10-26T19:00:00.000Z', '또 틀리면 내일');
   assert.equal(db.raw.prepare("SELECT lapses FROM cards WHERE word_id = 'r3'").get().lapses, 0);
 });
 

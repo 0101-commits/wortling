@@ -48,6 +48,8 @@ export function cardToRow(
 /**
  * 카드 한 장에 채점 하나를 적용한 다음 행을 돌려준다.
  * 첫 채점(state 0)이면 introduced_at 에 채점 시각 도장, 잊은 횟수가 8 이상이면 쉼 처리.
+ * 쉬움(4)이면 120일 뒤로 — FSRS 기본 간격(약 4일)이 짧다는 사용자 판단(2026-10-29).
+ * 기억 수치(stability·difficulty)는 그대로 두어 나중에 틀리면 정상적으로 깎인다.
  */
 export function applyRating(row: Card, rating: Rating, now: Date): { nextRow: Card; log: ReviewLog } {
   const { card, log } = scheduler.next(rowToCard(row), now, rating as Grade);
@@ -56,5 +58,10 @@ export function applyRating(row: Card, rating: Rating, now: Date): { nextRow: Ca
     introduced_at: row.state === 0 ? now.toISOString() : row.introduced_at,
     suspended: card.lapses >= SUSPEND_LAPSES ? 1 : row.suspended,
   });
+  if (rating === 4) {
+    const due = new Date(now.getTime() + 120 * 86400_000);
+    nextRow.due = due.toISOString();
+    nextRow.scheduled_days = 120;
+  }
   return { nextRow, log };
 }

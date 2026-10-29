@@ -1,12 +1,12 @@
-// 더 공부하기 문제 화면(기획 v8 과제 4): #/practice?mode=cloze|match|meaning|meaning_rev&scope=today|week|all|wrong&n=10
+// 더 공부하기 문제 화면(기획 v8 과제 4): #/practice?mode=cloze|match|meaning|meaning_rev|write&scope=today|week|all|wrong&n=10
 // 한 문제씩 → 맞힘/틀림 표시(고른 보기의 뜻도) → 다음. 끝나면 결과를 practice 표에 보내고,
 // 틀린 배운 단어는 서버가 「다시」 채점해 오늘 몫 복습에 다시 넣는다. 틀린 단어만 다시 할 수도 있다.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Skeleton } from '@montage-ui/core'
 import type { DeckItem, PoolWord, PracticeMode, PracticeScope } from '../../shared/api.ts'
 import { api, errorText } from '../api.ts'
-import { MODES, makeQuestions, withArticle, wordsIn } from '../practice.ts'
-import type { Choice, ChoiceQ, MatchQ, Question } from '../practice.ts'
+import { MODES, checkWrite, makeQuestions, withArticle, wordsIn } from '../practice.ts'
+import type { Choice, ChoiceQ, MatchQ, Question, WriteQ } from '../practice.ts'
 import { useAsync } from '../hooks.ts'
 import { linkTo, navigate, useRoute } from '../router.ts'
 import { Emoji, ErrorBox, Example, Lemma, LevelBadge, POS_LABEL, Top, useToaster } from '../ui.tsx'
@@ -200,6 +200,8 @@ function Round(props: { mode: PracticeMode; items: DeckItem[]; pool: PoolWord[];
       </div>
       {qq.mode === 'match' ? (
         <MatchView key={`${pass}:${i}`} q={qq} onAnswer={answer} onNext={() => setI((k) => k + 1)} />
+      ) : qq.mode === 'write' ? (
+        <WriteView key={`${pass}:${i}`} q={qq} onAnswer={answer} onNext={() => setI((k) => k + 1)} />
       ) : (
         <ChoiceView key={`${pass}:${i}`} q={qq} onAnswer={answer} onNext={() => setI((k) => k + 1)} />
       )}
@@ -342,6 +344,77 @@ function ChoiceView({ q, onAnswer, onNext }: ViewProps<ChoiceQ>) {
         </>
       )}
       {!picked && <p className="small muted center keys">키보드 1 2 3 4 · 다음 Enter</p>}
+    </>
+  )
+}
+
+/** 독일어 쓰기: 뜻을 보고 직접 입력. 움라우트·ß는 풀어 써도 맞으로(ä→a, ß→ss) */
+function WriteView({ q, onAnswer, onNext }: ViewProps<WriteQ>) {
+  const [value, setValue] = useState('')
+  const [done, setDone] = useState<boolean | null>(null)
+  const w = q.item.word
+  const check = () => {
+    if (done !== null || !value.trim()) return
+    const ok = checkWrite(q.item, value)
+    setDone(ok)
+    onAnswer(ok, w.id)
+  }
+  return (
+    <>
+      <div className="pcard">
+        <p className="pword ko">{w.gloss_ko}</p>
+        <p className="small muted">
+          {POS_LABEL[w.pos]} <LevelBadge level={w.level} />
+        </p>
+      </div>
+      <div className="pwrite">
+        <input
+          type="text"
+          lang="de"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          placeholder="독일어를 입력하세요"
+          value={value}
+          disabled={done !== null}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              if (done === null) check()
+              else onNext()
+            }
+          }}
+          autoFocus
+          aria-label="독일어 입력"
+        />
+        {done === null ? (
+          <Button fullWidth size="large" onClick={check} disabled={!value.trim()}>
+            확인
+          </Button>
+        ) : (
+          <>
+            <p className={'pverdict' + (done ? ' ok' : ' ng')} aria-live="polite">
+              {done ? '맞았어요' : '틀렸어요'}
+            </p>
+            <div className="pgloss">
+              <p>
+                <Lemma word={w} /> <span>{w.gloss_ko}</span>
+              </p>
+              {w.example_de && (
+                <>
+                  <p className="small" lang="de">
+                    <Example de={w.example_de} lemma={w.lemma} hit={w.example_hit} />
+                  </p>
+                  {w.example_ko && <p className="small muted">{w.example_ko}</p>}
+                </>
+              )}
+            </div>
+            <NextButton onNext={onNext} />
+          </>
+        )}
+      </div>
+      {done === null && <p className="small muted center keys">Enter 확인</p>}
     </>
   )
 }

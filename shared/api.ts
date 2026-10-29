@@ -124,7 +124,7 @@ export type DrillScope = 'today' | 'week' | 'all';
  * 더 공부하기(기획 v8 과제 4). 결과는 practice 표에 — 틀린 배운 카드는 「다시」 채점(아직 잘 모르는 단어 → 오늘 몫 복습).
  * match = 짝 맞추기(독일어 ↔ 뜻 5쌍, 2026-10-27 「예문 속 단어 짚기」를 바꿈)
  */
-export type PracticeMode = 'cloze' | 'match' | 'meaning' | 'meaning_rev';
+export type PracticeMode = 'cloze' | 'match' | 'meaning' | 'meaning_rev' | 'write';
 /** wrong = 연습에서 마지막으로 틀린 단어(최근 30일) */
 export type PracticeScope = DrillScope | 'wrong';
 /** 보기(오답) 재료 — 배운 단어 위주, 모자라면 안 배운 같은 레벨 단어 */

@@ -6,7 +6,7 @@ import { applyRating } from './fsrs.ts';
 import { bad } from './http.ts';
 import { addDays, studyDay, studyDayStartUtc } from './time.ts';
 
-export const PRACTICE_MODES: readonly PracticeMode[] = ['cloze', 'match', 'meaning', 'meaning_rev'];
+export const PRACTICE_MODES: readonly PracticeMode[] = ['cloze', 'match', 'meaning', 'meaning_rev', 'write'];
 /** 예전 방식(예문 속 단어 짚기 → 짝 맞추기로 바뀜). 옛 화면이 기기에 남아 보내는 결과도 받는다 */
 const LEGACY_MODES: readonly string[] = ['pick'];
 /** 「틀린 단어」 범위: 최근 30일 연습에서 그 단어의 마지막 결과가 틀림 */
@@ -71,7 +71,7 @@ export async function practiceItems(
 
 /**
  * 결과 묶음(최대 200). 없는 단어 id 는 조용히 건너뛴다(SELECT … FROM words WHERE id = ?).
- * 틀린 단어(배운 카드)는 「다시」 채점 → 다시 배우는 카드(Relearning)가 되어 오늘 몫 복습에 10분 뒤 다시 나온다.
+ * 틀린 단어(배운 카드)는 「다시」 채점 → 가중형 미루기(2026-10-29): 처음 틀리면 모레, 또 틀리면 내일 몫에.
  * 이미 오늘 몫에 든 카드(오늘 학습일 안에 마감)는 그대로 — 덱에서 곧 채점하니 두 번 깎지 않는다. 같은 카드를 여러 번 틀려도 한 번만.
  * 잊은 수(lapses)·쉬게 하기(suspended)는 그대로 둔다 — 보기를 잘못 누른 것까지 세면 8번에 카드가 덱에서 빠진다(검토 반영).
  */
@@ -95,7 +95,10 @@ export async function savePractice(db: D1Database, b: PracticeResultsRequest | n
   return { ok: true, count: b.results.length, relearn: relearn.ids };
 }
 
-/** 틀린 단어마다 첫 틀림 시각으로 「다시」 채점(덱 채점과 같은 계산 — worker/fsrs.ts applyRating) */
+/** 틀린 단어마다 첫 틀림 시각으로 「다시」 채점(덱 채점과 같은 계산 — worker/fsrs.ts applyRating).
+ * 2026-10-29 가중형 미루기: 채점 1 패널티는 그대로 주되 나오는 시점을 미룬다.
+ * 처음 틀리면 모레(+2일), 이전에도 틀린 적 있으면 내일(+1일) — 자주 틀릴수록 빨리.
+ * 이전 틀림은 이번 묶음보다 이른 practice 기록으로 본다. */
 async function relearnStatements(db: D1Database, results: PracticeResultsRequest['results'], now: Date) {
   const firstWrong = new Map<string, string>();
   for (const r of results) {
@@ -109,6 +112,9 @@ async function relearnStatements(db: D1Database, results: PracticeResultsRequest
   const out: string[] = [];
   if (!ids.length) return { stmts, ids: out };
   const dayEnd = Date.parse(studyDayStartUtc(addDays(studyDay(now), 1)));
+  // 이번 묶음보다 이른 시각의 틀림 기록 = 이전에 틀린 적 있는 단어
+  const earliest = [...firstWrong.values()].reduce((a, b) => (a < b ? a : b));
+  const prevWrong = new Set<string>();
   // 바인딩 상한 100
   for (let i = 0; i < ids.length; i += 100) {
     const chunk = ids.slice(i, i + 100);
@@ -116,12 +122,21 @@ async function relearnStatements(db: D1Database, results: PracticeResultsRequest
       .prepare(`SELECT * FROM cards WHERE word_id IN (${chunk.map(() => '?').join(',')}) AND state IN (1, 2, 3) AND suspended = 0`)
       .bind(...chunk)
       .all<Card>();
+    const { results: pw } = await db
+      .prepare(`SELECT DISTINCT word_id FROM practice WHERE word_id IN (${chunk.map(() => '?').join(',')}) AND correct = 0 AND at < ?`)
+      .bind(...chunk, earliest)
+      .all<{ word_id: string }>();
+    for (const r of pw) prevWrong.add(r.word_id);
     for (const prev of rows) {
       if (Date.parse(prev.due) < dayEnd) continue;
       // 채점 시각: 기기 시각이 마지막 채점보다 앞서거나 지금보다 뒤면 당긴다(간격 계산이 음수·미래가 되지 않게)
       const last = prev.last_review ? Date.parse(prev.last_review) : 0;
       const at = new Date(Math.min(now.getTime(), Math.max(Date.parse(firstWrong.get(prev.word_id)!), last)));
       const { nextRow: c, log } = applyRating(prev, 1, at);
+      // 가중형 미루기: 처음 틀리면 모레, 또 틀리면 내일(학습일 기준)
+      const deferDays = prevWrong.has(prev.word_id) ? 1 : 2;
+      c.due = studyDayStartUtc(addDays(studyDay(now), deferDays));
+      c.scheduled_days = deferDays;
       // 읽은 뒤 덱 채점이 먼저 바꿨으면(due 다름) 둘 다 건너뛴다 — 적기가 먼저(바꾼 뒤엔 due 가 달라 못 찾음)
       stmts.push(
         db

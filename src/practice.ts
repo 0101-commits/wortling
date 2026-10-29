@@ -16,6 +16,7 @@ export const MODES: Record<PracticeMode, ModeInfo> = {
   match: { title: '짝 맞추기', desc: '독일어 5개와 뜻 5개를 짝지어 누르기', short: '짝' },
   meaning: { title: '뜻 고르기', desc: '독일어를 보고 뜻 고르기', short: '뜻' },
   meaning_rev: { title: '독일어 고르기', desc: '뜻을 보고 독일어 고르기', short: '독일어' },
+  write: { title: '독일어 쓰기', desc: '뜻을 보고 독일어 쓰기', short: '쓰기' },
 }
 
 /** 보기 하나. id = 단어 id(정답 판정), text = 보이는 글, word = 그 보기 단어(답한 뒤 뜻·독일어를 보여 준다) */
@@ -39,7 +40,12 @@ export interface MatchQ {
   left: Choice[]
   right: Choice[]
 }
-export type Question = ChoiceQ | MatchQ
+/** 독일어 쓰기: 뜻을 보고 직접 입력. 보기는 없음 */
+export interface WriteQ {
+  mode: 'write'
+  item: DeckItem
+}
+export type Question = ChoiceQ | MatchQ | WriteQ
 
 /** 짝 맞추기 한 판의 단어 수(마지막 판은 MATCH_MIN 까지 적을 수 있음) */
 export const MATCH_SIZE = 5
@@ -159,9 +165,18 @@ export function makeMatches(items: DeckItem[], n: number, rand: () => number = M
 /** 재료에서 문제 n 개(만들 수 있는 것만, 순서는 섞어서). 짝 맞추기는 n = 단어 수 */
 export function makeQuestions(mode: PracticeMode, items: DeckItem[], pool: PoolWord[], n: number, rand: () => number = Math.random): Question[] {
   if (mode === 'match') return makeMatches(items, n, rand)
-  const out: Question[] = []
+  if (mode === 'write') {
+    const out: WriteQ[] = []
+    for (const it of shuffle(items, rand)) {
+      if (!it.word.gloss_ko) continue
+      out.push({ mode, item: it })
+      if (out.length >= n) break
+    }
+    return out
+  }
+  const out: ChoiceQ[] = []
   for (const it of shuffle(items, rand)) {
-    const q = makeQuestion(mode, it, pool, rand)
+    const q = makeQuestion(mode as ChoiceQ['mode'], it, pool, rand)
     if (q) out.push(q)
     if (out.length >= n) break
   }
@@ -170,3 +185,8 @@ export function makeQuestions(mode: PracticeMode, items: DeckItem[], pool: PoolW
 
 /** 문제에 든 단어 수(짝 맞추기는 판마다 여러 개) */
 export const wordsIn = (q: Question) => (q.mode === 'match' ? q.items.length : 1)
+
+/** 쓰기 정답 판정: 움라우트·ß 풀고 소문자로 비교. sich 는 빼고 봐준다 */
+export function checkWrite(item: DeckItem, input: string): boolean {
+  return fold(bare(item.word.lemma)) === fold(bare(input.trim()))
+}

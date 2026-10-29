@@ -27,6 +27,7 @@ const ENTRIES: Entry[] = [
   { key: 'cloze', ...MODES.cloze, kind: 'practice', mode: 'cloze', newUntil: NEW_UNTIL },
   { key: 'match', ...MODES.match, kind: 'practice', mode: 'match', newUntil: '2026-11-10' },
   { key: 'meaning', title: '뜻 고르기', desc: '독일어 → 뜻, 뜻 → 독일어', short: '뜻', kind: 'practice', mode: 'meaning', newUntil: NEW_UNTIL },
+  { key: 'write', ...MODES.write, kind: 'practice', mode: 'write', newUntil: '2026-11-12' },
   { key: 'artikel', title: '관사 1분', desc: 'der · die · das 빠르게', short: '관사', kind: 'artikel' },
   { key: 'swipe', title: '다시 넘겨 보기', desc: '배운 카드를 넘기며 뜻 확인', short: '넘김', kind: 'swipe' },
 ]

@@ -167,10 +167,10 @@ function toFsrsCard(c: Card): FsrsCard {
 /** 이만큼 잊으면 서버가 카드를 쉬게 한다(worker/fsrs.ts SUSPEND_LAPSES) */
 const SUSPEND_LAPSES = 8
 
-/** 채점 하나를 적용한 다음 카드(worker/fsrs.ts applyRating 과 같은 계산 — 첫 채점 도장 · 쉼 포함) */
+/** 채점 하나를 적용한 다음 카드(worker/fsrs.ts applyRating 과 같은 계산 — 첫 채점 도장 · 쉼 · 쉬움 120일 포함) */
 export function nextCard(card: Card, rating: Rating, at: Date): Card {
   const { card: c } = scheduler.next(toFsrsCard(card), at, rating as Grade)
-  return {
+  const next: Card = {
     ...card,
     state: c.state as Card['state'],
     due: c.due.toISOString(),
@@ -185,6 +185,11 @@ export function nextCard(card: Card, rating: Rating, at: Date): Card {
     introduced_at: card.state === 0 ? at.toISOString() : card.introduced_at,
     suspended: c.lapses >= SUSPEND_LAPSES ? 1 : card.suspended,
   }
+  if (rating === 4) {
+    next.due = new Date(at.getTime() + 120 * 86400_000).toISOString()
+    next.scheduled_days = 120
+  }
+  return next
 }
 
 /** 1시간 미만 n분 · 1일 미만 n시간 · 그 외 n일 */
@@ -199,5 +204,5 @@ export function intervalLabel(ms: number): string {
 export function intervals(card: Card, now = new Date()): Record<Rating, string> {
   const r = scheduler.repeat(toFsrsCard(card), now)
   const label = (g: Grade) => intervalLabel(r[g].card.due.getTime() - now.getTime())
-  return { 1: label(1), 2: label(2), 3: label(3), 4: label(4) }
+  return { 1: label(1), 2: label(2), 3: label(3), 4: '120일' }
 }
