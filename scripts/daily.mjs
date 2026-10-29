@@ -156,6 +156,7 @@ try {
     });
     const holdOk = !pend.unavailable; // 대기 길이 안 열리면(Worker 가 옛 판) 예전처럼 검사 못 한 그림은 올리지 않고 내일 다시
     let pendingTotal = pend.left.size; // 대기에 남은 장수(오늘 맡긴 것도 더한다)
+    let pendingSentToday = 0; // 오늘 이 실행이 대기에 맡긴 장수 — 어제 대기는 그리기 제한에서 뺀다(2026-10-29 데드락 수정)
     let inflight = 0; // 이번 묶음에서 그렸고 곧 대기로 갈 장수(검사 AI 가 막힌 줄 알 때만) — 상한을 묶음 중간에도 지키려고
     if (pend.judgeDown) judgeDown = true;
     for (const [id, sc] of pend.fix) fix.set(id, sc);
@@ -238,7 +239,7 @@ try {
     // 그리기 상한에 닿으면 남은 단어·뜻 탈락 다시 그리기는 내일로(실패 표시 안 함)
     // UTC 자정을 넘기면 멈춤 — 그 뒤 그림은 새 날 몫인데 파일엔 옛 날로 적혀 다음 실행이 또 80번 그린다
     // 검사 AI 가 막혔어도(judgeDown) 그리기는 계속한다 — 대기가 상한(PENDING_MAX)에 닿거나 대기 길이 없을 때만 멈춤
-    const stopped = () => quotaOut || (judgeDown && !holdOk) || pendingTotal + inflight >= PENDING_MAX || errStreak >= 3 || drawnBefore + checked >= DRAW_MAX || new Date().toISOString().slice(0, 10) !== utcDay;
+    const stopped = () => quotaOut || (judgeDown && !holdOk) || pendingSentToday + inflight >= PENDING_MAX || errStreak >= 3 || drawnBefore + checked >= DRAW_MAX || new Date().toISOString().slice(0, 10) !== utcDay;
     // 한 단어 그리기 + 자동 검사(C5). 탈락이면 한 번만 다시. → {png, check, why} · 그리기 오류면 null(실패 표시 안 함, 내일 다시)
     const drawChecked = async (w, scene) => {
       let png = null, check = null, why = [];
@@ -361,6 +362,7 @@ try {
           continue;
         }
         pendingTotal++;
+        pendingSentToday++;
         log.pending.sent++;
         if (d.rescene) await api('/api/admin/words', { method: 'POST', body: { items: [{ id: w.id, scene_en: d.scene }] } }).catch((e) => console.error(String(e.message).slice(0, 200)));
         console.log(`그림 ${w.id} ${w.lemma} 검사 대기로 맡김(대기 ${pendingTotal}장)`);
