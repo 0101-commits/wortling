@@ -17,6 +17,18 @@ process.on('exit', () => {
   if (total.calls) console.error(`AI 합계: ${total.calls}번 · 입력 ${total.input} · 출력 ${total.output} · 생각 ${total.thinking}`);
 });
 
+/** 텍스트에서 JSON 배열을 꺼낸다 — 그대로 · 코드 울타리 안 [ … ] · { … } · {"items":[…]} 감쌈 · 단일 객체 순으로 */
+export function parseJsonArray(text) {
+  let v;
+  for (const s of [text, text.slice(text.indexOf('['), text.lastIndexOf(']') + 1), text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)]) {
+    try { v = JSON.parse(s); break; } catch { /* 다음 */ }
+  }
+  // 항목이 하나면 [{…}] 대신 {…} 로, 가끔 {"items": […]} 처럼 감싸 온다. 항목(id·n·key)처럼 생긴 것만 감싸고
+  // {"error": …} 같은 것은 실패로 둔다(감싸면 부르는 쪽이 맞는 항목 0개를 조용히 성공으로 받는다)
+  if (v && typeof v === 'object' && !Array.isArray(v)) v = 'id' in v || 'n' in v || 'key' in v ? [v] : Object.values(v).find(Array.isArray);
+  return Array.isArray(v) ? v : null;
+}
+
 async function once(model, body, key) {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
@@ -42,14 +54,8 @@ async function once(model, body, key) {
   // 잘린 응답의 앞부분만 받으면 나머지 항목이 조용히 빠진다 → 다시 묻는다
   if (c?.finishReason === 'MAX_TOKENS') throw new Error(`응답이 잘림(MAX_TOKENS): ${text.slice(-120)}`);
   // 그대로 → 앞뒤 말·코드 울타리를 떼고 [ … ] → { … } 차례로 읽어 본다
-  let v;
-  for (const s of [text, text.slice(text.indexOf('['), text.lastIndexOf(']') + 1), text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)]) {
-    try { v = JSON.parse(s); break; } catch { /* 다음 */ }
-  }
-  // 항목이 하나면 [{…}] 대신 {…} 로, 가끔 {"items": […]} 처럼 감싸 온다. 항목(id·n·key)처럼 생긴 것만 감싸고
-  // {"error": …} 같은 것은 실패로 둔다(감싸면 부르는 쪽이 맞는 항목 0개를 조용히 성공으로 받는다)
-  if (v && typeof v === 'object' && !Array.isArray(v)) v = 'id' in v || 'n' in v || 'key' in v ? [v] : Object.values(v).find(Array.isArray);
-  if (Array.isArray(v)) return v;
+  const v = parseJsonArray(text);
+  if (v) return v;
   // 막힌 응답은 다시 물어도 같다 → final
   const blocked = Boolean(j.promptFeedback?.blockReason) || ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII'].includes(c?.finishReason);
   throw Object.assign(new Error(`결과가 JSON 배열이 아님(${c?.finishReason || j.promptFeedback?.blockReason || '?'}): ${text.slice(0, 200)}`), { final: blocked });
@@ -79,6 +85,46 @@ export async function askJson(prompt, { images = [], models = TEXT_MODELS } = {}
         // 429(분당 한도)·503(혼잡)은 15초로는 안 풀린다(10-20 503 세 번 연속) → 1분
         await new Promise((r) => setTimeout(r, (e.status === 429 || e.status === 503) && WAIT_MS ? 60_000 : WAIT_MS));
       }
+    }
+  }
+  throw err;
+}
+
+// Groq 폴백(2026-10-29) — Gemini Flash(vision) 가 503/timeout 으로 이틀째 맛 감. 그림 뜻 검사(judge.mjs) 전용.
+// qwen/qwen3.8-27b (Groq 공식 vision 모델, 무료·카드 불필요). OpenAI 호환 엔드포인트.
+// 이미지는 한 번에 3장까지 → judge.mjs 에서 끊는다. 모델은 GROQ_MODEL 환경값으로 바꿀 수 있다.
+const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
+const GROQ_WAIT_MS = process.env.AI_RETRY_MS ? Number(process.env.AI_RETRY_MS) : 15_000;
+/** prompt → JSON 배열. images = [{label, png}]. 모델마다 세 번까지: 429 는 1분, 그 밖 5xx·끊김·깨진 JSON 은 15초 뒤 다시. */
+export async function askGroqJson(prompt, { images = [], model = GROQ_MODEL } = {}) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('GROQ_API_KEY 가 없다(.env 또는 Actions 비밀값)');
+  const content = [{ type: 'text', text: prompt }];
+  for (const im of images) {
+    if (im.label) content.push({ type: 'text', text: im.label });
+    content.push({ type: 'image_url', image_url: { url: `data:image/png;base64,${im.png.toString('base64')}` } });
+  }
+  const body = { model, messages: [{ role: 'user', content }], temperature: 0.1, max_tokens: 4096 };
+  let err;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(3 * 60 * 1000),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error(`${res.status} ${String(j.error?.message || '').slice(0, 200)}`), { status: res.status });
+      const text = String(j.choices?.[0]?.message?.content || '').trim();
+      const v = parseJsonArray(text);
+      if (v) return v;
+      throw new Error(`결과가 JSON 배열이 아님: ${text.slice(0, 200)}`);
+    } catch (e) {
+      err = e;
+      console.error(`Groq 실패(${model} ${attempt}회): ${String(e.message).slice(0, 200)}`);
+      if (attempt >= 3 || (e.status >= 400 && e.status < 500 && e.status !== 429)) break;
+      await new Promise((r) => setTimeout(r, e.status === 429 ? 60_000 : GROQ_WAIT_MS));
     }
   }
   throw err;
