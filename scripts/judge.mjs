@@ -59,7 +59,8 @@ export async function judgeImages(items) {
   // 1) Gemini (기본)
   try {
     const arr = await askJson(buildPrompt(cards), { images: await prepImages(items), models: VISION_MODELS });
-    applyResults(out, items, arr);
+    // 오류 없이 빈 답·쓸 수 없는 답이 와도(0장 적용) 실패로 보고 Groq 로 넘어간다 — 예전엔 통과로 처리돼 검사 없이 올라갔다
+    if (applyResults(out, items, arr) === 0) throw new Error('Gemini 가 쓸 수 있는 판정을 하나도 안 줌');
     judged = true;
   } catch (e) {
     console.error(`그림 검사 실패 — 판정 못 함: ${String(e.message || e).slice(0, 200)}`);

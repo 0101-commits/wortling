@@ -8,7 +8,8 @@
 export const TEXT_MODELS = ['gemini-flash-lite-latest'];
 // 기본 모델 하나만. 예비로 두었던 gemini-2.5-flash 는 퇴역해 404 「no longer available to new users」(2026-10-25 실측)라 뺐다.
 // 다른 예비 모델도 두지 않기로 했다(2026-10-26) — 503 「high demand」로 막히면 그린 그림을 검사 대기로 맡겨 다음 날 검사한다(scripts/pending.mjs)
-export const VISION_MODELS = ['gemini-flash-latest'];
+// 모델 이름은 GEMINI_JUDGE_MODEL 환경값으로 바꿀 수 있다(비면 기본값)
+export const VISION_MODELS = [process.env.GEMINI_JUDGE_MODEL || 'gemini-flash-latest'];
 // 다시 묻기 전 기다림(429 분당 한도는 1분). 시험은 AI_RETRY_MS=0
 const WAIT_MS = process.env.AI_RETRY_MS ? Number(process.env.AI_RETRY_MS) : 15_000;
 

@@ -376,13 +376,15 @@ function WriteView({ q, onAnswer, onNext }: ViewProps<WriteQ>) {
           spellCheck={false}
           placeholder="독일어를 입력하세요"
           value={value}
-          disabled={done !== null}
+          readOnly={done !== null}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
+              // 확인 Enter 가 그대로 window 로 올라가 방금 뜬 NextButton 의 Enter 까지 건드리지 않게 끊고, 답한 뒤 Enter 는 여기서 바로 다음으로
+              e.stopPropagation()
               if (done === null) check()
-              else onNext()
+              else if (!e.repeat) onNext()
             }
           }}
           autoFocus
