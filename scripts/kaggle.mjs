@@ -21,7 +21,7 @@ const QUEUE_FILE = path.join(ROOT, '.data', 'kaggle-queue.json'); // 커널에 �
 const REJECT_DIR = path.join(ROOT, '.data', 'rejected');
 const QUEUE_DAYS = 3; // 이 날짜가 지나면 못 거둔 걸로 보고 다시 뽑을 수 있다
 // 단어 id 형식(seed/build.mjs: w0001…). 내려받은 커널 결과는 믿지 않는다 — 올릴 id 는 우리가 맡길 때 적어 둔 목록(QUEUE_FILE)에서만, 형식도 한 번 더 본다
-const ID_RE = /^wd{4,6}$/;
+const ID_RE = /^w\d{4,6}$/;
 
 async function api(p, { method = 'GET', body, raw, headers = {} } = {}) {
   const res = await fetch(APP_URL + p, {
