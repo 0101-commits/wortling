@@ -6,6 +6,7 @@ import { eveningTitle, morningTitle, quiet, restOf, seedOf } from '../shared/cop
 import type { Rest } from '../shared/copy.ts';
 import { buildToday, loadSettings } from './deck.ts';
 import { DAY_START_H, monthDay, studyDay } from './time.ts';
+import { dayOf } from './db.ts';
 import { eveningPayload, hasStats, minutesFor, morningPayload, send, summarize, testPayload } from './discord.ts';
 import type { Cloze, Payload } from './discord.ts';
 import { pushAll, pushMessage } from './push.ts';
@@ -125,7 +126,7 @@ export function pickCloze(items: DeckItem[]): Cloze | null {
 /** 채점한 학습일 최근 2개 → 쉰 날(A3). 휴가 기간은 세지 않는다 */
 async function restNow(env: Env, day: string, settings: Settings): Promise<Rest> {
   const { results } = await env.DB.prepare(
-    `SELECT strftime('%Y-%m-%d', reviewed_at, '+${9 - DAY_START_H} hours') AS d FROM reviews WHERE undone = 0 GROUP BY d ORDER BY d DESC LIMIT 2`,
+    `SELECT ${dayOf(env.DB, 'reviewed_at', 9 - DAY_START_H)} AS d FROM reviews WHERE undone = 0 GROUP BY d ORDER BY d DESC LIMIT 2`,
   ).all<{ d: string }>();
   return restOf(results.map((r) => r.d), day, settings.vacation_until);
 }

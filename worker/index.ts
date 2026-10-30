@@ -29,6 +29,7 @@ import { HttpError, bad } from './http.ts';
 import { memo, clearMemo } from './memo.ts';
 import { meterDb, isBulkPath, overBudget, recordReads } from './budget.ts';
 import { drawSteps } from './draw-steps.ts';
+import { ciLike, crossJoin, dayOf, isPg, withDb } from './db.ts';
 import { MAX_IMAGE_BYTES, approvePending, deletePending, getPending, listPending, putPending, rejectPending, reviewPending, listReviewLog, deleteReviewLog } from './pending.ts';
 import {
   LIST_ORDER, wordsExport, addReport, addRequest, exampleWords, getNews, imageWords, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
@@ -166,7 +167,8 @@ const words: Handler = async ({ env, url }) => {
   const binds: unknown[] = [];
   if (q) {
     const like = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
-    where.push(`(w.lemma LIKE ? ESCAPE '\\' OR w.gloss_ko LIKE ? ESCAPE '\\' OR w.gloss_en LIKE ? ESCAPE '\\')`);
+    const lk = ciLike(env.DB);
+    where.push(`(w.lemma ${lk} ? ESCAPE '\\' OR w.gloss_ko ${lk} ? ESCAPE '\\' OR w.gloss_en ${lk} ? ESCAPE '\\')`);
     binds.push(like, like, like);
   }
   if (level === 'B1' || level === 'B2' || level === 'C1') {
@@ -199,10 +201,12 @@ const words: Handler = async ({ env, url }) => {
     //  안 배운 토막: words_seq 색인을 앞에서부터 걸어 쪽만큼만 읽는다(LIMIT 에서 멈춤)
     //  state=배움·복습·끝 거르기는 안 배운 카드(state 0)가 못 맞으니 앞 토막만 본다
     // CROSS JOIN 은 조인 순서를 못 박는 말 — 0010 의 cards_state 색인이 생기면 계획기가 cards 부터(8천 장 전부) 걷는 쪽을 골랐다
+    // Postgres 는 INDEXED BY 가 없고 CROSS JOIN 에 ON 을 못 붙인다(worker/db.ts) — 거기선 계획기에 맡긴다
+    const cj = crossJoin(env.DB);
     const learnedSql = `SELECT ${ITEM_SELECT}
-      FROM (SELECT word_id FROM cards WHERE state IN (1, 2, 3) UNION SELECT word_id FROM cards INDEXED BY cards_introduced WHERE introduced_at IS NOT NULL) l
-      CROSS JOIN cards c ON c.word_id = l.word_id CROSS JOIN words w ON w.id = l.word_id${cond([])}`;
-    const freshSql = `SELECT ${ITEM_SELECT} FROM words w CROSS JOIN cards c ON c.word_id = w.id${cond(['c.state = 0 AND c.introduced_at IS NULL'])}`;
+      FROM (SELECT word_id FROM cards WHERE state IN (1, 2, 3) UNION SELECT word_id FROM cards${isPg(env.DB) ? '' : ' INDEXED BY cards_introduced'} WHERE introduced_at IS NOT NULL) l
+      ${cj} cards c ON c.word_id = l.word_id ${cj} words w ON w.id = l.word_id${cond([])}`;
+    const freshSql = `SELECT ${ITEM_SELECT} FROM words w ${cj} cards c ON c.word_id = w.id${cond(['c.state = 0 AND c.introduced_at IS NULL'])}`;
     const onlyLearned = ['learning', 'review', 'done'].includes(state); // 모르는 state 는 필터 없음(옛 동작)
     const r = await env.DB.prepare(`${learnedSql} ORDER BY w.seq, w.lemma LIMIT ? OFFSET ?`).bind(...binds, size, offset).all();
     got = sqlRows(r).map(rowToItem);
@@ -210,7 +214,7 @@ const words: Handler = async ({ env, url }) => {
       // 앞 토막이 바닥났다: 쪽이 앞 토막 끝에서 시작했으면 offset + 줄 수가 앞 토막 크기, 아예 넘어왔으면(줄 0) 따로 센다
       const nLearned = got.length > 0 || offset === 0
         ? offset + got.length
-        : count(await env.DB.prepare(`SELECT count(*) AS n FROM (${learnedSql})`).bind(...binds).all());
+        : count(await env.DB.prepare(`SELECT count(*) AS n FROM (${learnedSql}) t`).bind(...binds).all());
       const f = await env.DB.prepare(`${freshSql} ORDER BY w.seq, w.lemma LIMIT ? OFFSET ?`)
         .bind(...binds, size - got.length, Math.max(0, offset - nLearned))
         .all();
@@ -311,7 +315,7 @@ const stats: Handler = async ({ env }) => {
   const [days, dt] = await env.DB.batch([
     env.DB.prepare(
       // 학습일 = 한국 시각 − 4시간의 날짜 → UTC 에 (9 − 4) 시간 더한 날짜
-      `SELECT strftime('%Y-%m-%d', reviewed_at, '+${9 - DAY_START_H} hours') AS day, count(*) AS n
+      `SELECT ${dayOf(env.DB, 'reviewed_at', 9 - DAY_START_H)} AS day, count(*) AS n
        FROM reviews WHERE reviewed_at >= ? AND undone = 0 GROUP BY day ORDER BY day`,
     ).bind(windowStart),
     // 내일 학습일이 끝날 때까지(= 모레 04:00 KST 전) 올 카드
@@ -449,11 +453,12 @@ const putSettings: Handler = async ({ req, env }) => {
     updates.push(['review_only_day', v]);
   }
   if (updates.length === 0) throw bad('nothing_to_update');
+  const at = new Date().toISOString().replace('T', ' ').slice(0, 19); // datetime('now') 꼴(UTC) — 두 DB 공용으로 여기서 만든다
   await env.DB.batch([
     ...updates.map(([k, v]) =>
       env.DB.prepare(
-        "INSERT INTO settings(key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-      ).bind(k, v),
+        'INSERT INTO settings(key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at',
+      ).bind(k, v, at),
     ),
     // 하루 새 단어 수·레벨이 바뀌면 오늘 새 단어 목록을 버린다 → 다음에 열 때 새 설정으로 다시 정함
     ...(updates.some(([k]) => k === 'new_per_day' || k === 'level') ? [dropPlan(env.DB)] : []),
@@ -750,8 +755,8 @@ function scheduler(env: Env) {
   return env.SCHED.get(env.SCHED.idFromName('main'));
 }
 
-export default {
-  async fetch(req, env, ctx) {
+const app = {
+  async fetch(req: Request, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(req.url);
     const ok = await authed(req, env);
     // 앱을 열 때마다 알림 시계가 살아 있는지 확인(비어 있을 때만 예약, 이미 있으면 그대로).
@@ -770,6 +775,8 @@ export default {
         pathMatched = true;
         if (req.method !== method) continue;
         if (!isPublic && !ok) throw new HttpError(401, 'unauthorized');
+        // Postgres(DB_BACKEND=pg)는 D1 무료 읽기 한도와 상관없어 지킴이를 끈다(D1 의 meta.rows_read 도 없다)
+        if (isPg(env.DB)) return await handler({ req, env, url, params: m.slice(1) });
         // 읽기 지킴이: 오늘 D1 읽기가 BLOCK_AT 을 넘으면 관리·일괄 길만 막는다(학습 길은 계속). 표가 없으면 안 막음
         if (isBulkPath(url.pathname) && (await overBudget(env))) throw new HttpError(429, 'read_budget');
         const acc = { rows: 0 };
@@ -789,4 +796,9 @@ export default {
       return json(ok ? { error: 'internal', detail: String(e) } : { error: 'internal' }, 500);
     }
   },
+};
+
+export default {
+  // DB_BACKEND=pg 이면 요청마다 env.DB 를 Postgres 어댑터로 바꿔 끼운다(worker/db.ts). d1 이면 그대로
+  fetch: (req, env, ctx) => withDb(env, ctx, (e, c) => app.fetch(req, e, c)),
 } satisfies ExportedHandler<Env>;

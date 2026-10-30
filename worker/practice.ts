@@ -89,7 +89,8 @@ export async function savePractice(db: D1Database, b: PracticeResultsRequest | n
   await db.batch([
     ...b.results.map((r) =>
       db
-        .prepare('INSERT INTO practice(mode, word_id, correct, at) SELECT ?, id, ?, ? FROM words WHERE id = ?')
+        // CAST: INSERT … SELECT 의 자리표시자는 Postgres 가 글자로 보고 정수 칸에 못 넣는다
+        .prepare('INSERT INTO practice(mode, word_id, correct, at) SELECT ?, id, CAST(? AS INTEGER), ? FROM words WHERE id = ?')
         .bind(b.mode, r.correct ? 1 : 0, new Date(r.at).toISOString(), r.word_id),
     ),
     ...relearn.stmts,
@@ -147,7 +148,7 @@ async function relearnStatements(db: D1Database, results: PracticeResultsRequest
         db
           .prepare(
             `INSERT INTO reviews(word_id, rating, reviewed_at, elapsed_days, scheduled_days, session_id, prev_json)
-             SELECT word_id, 1, ?, ?, ?, ?, ? FROM cards WHERE word_id = ? AND due = ?`,
+             SELECT word_id, 1, ?, CAST(? AS INTEGER), CAST(? AS INTEGER), ?, ? FROM cards WHERE word_id = ? AND due = ?`,
           )
           .bind(at.toISOString(), log.elapsed_days, c.scheduled_days, PRACTICE_SESSION, JSON.stringify(prev), prev.word_id, prev.due),
         db

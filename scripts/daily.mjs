@@ -525,15 +525,22 @@ try {
     }
   }
 
-  // 3) D1 백업 — PC 의 wrangler 로그인으로 내려받아 backup/ 에 30개 보관(공개 저장소엔 올리지 않음)
+  // 3) DB 백업 — backup/ 에 30개 보관(공개 저장소엔 올리지 않음). 앱 DB 가 Supabase(DB_BACKEND=pg, 10-30~)면 PC 의
+  //    ~/.secrets/worty-supabase.env 로 읽어 D1 내보내기와 같은 꼴로 쓴다(scripts/db/pg.mjs). d1 이면 예전처럼 wrangler 로 내려받는다
   if (!DRY && !process.argv.includes('--no-backup')) {
     try {
       const dir = path.join(ROOT, 'backup');
       mkdirSync(dir, { recursive: true });
       const sql = path.join(dir, `${log.day}.sql`);
+      const pgdb = await import('./db/pg.mjs');
+      const be = pgdb.backend();
+      if (be === 'pg') {
+        const { TABLES } = await import('./db/d1-to-pg.mjs');
+        log.backup_rows = await pgdb.dumpPg(sql, Object.keys(TABLES));
+      }
       const args = [path.join(ROOT, 'node_modules', 'wrangler', 'bin', 'wrangler.js'), 'd1', 'export', 'wortling', '--remote', `--output=${sql}`];
       // 로그인 토큰이 만료돼 이 실행 안에서 갱신되면 갓 받은 토큰이 바로 안 먹혀 「Authentication error [code: 10000]」 (10-15 12:00, 3분 뒤 같은 명령은 됨) → 15초 뒤 1번 더
-      for (let i = 0; ; i++) {
+      for (let i = 0; be === 'd1'; i++) {
         try {
           execFileSync(process.execPath, args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', timeout: 5 * 60 * 1000, windowsHide: true });
           break;
@@ -555,7 +562,7 @@ try {
       console.log(`백업 backup/${log.backup}`);
     } catch (e) {
       log.backup_error = String(e.message || e).slice(0, 300);
-      await notify('error', 'Wortling 백업 실패', `${log.backup_error}\n→ PC 에서 npx wrangler login 다시`);
+      await notify('error', 'Wortling 백업 실패', `${log.backup_error}\n→ PC 에서 ~/.secrets/worty-supabase.env(pg) 또는 npx wrangler login(d1) 확인`);
     }
   }
 } catch (e) {

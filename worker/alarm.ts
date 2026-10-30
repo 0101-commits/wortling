@@ -6,6 +6,7 @@ import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './env.ts';
 import { runEvening, runMorning, sendTest } from './notify.ts';
 import { alarmDue, nextAlarm, nextSlot } from './time.ts';
+import { withDb } from './db.ts';
 import type { SlotKind } from './time.ts';
 
 /** 미룬 통이 이만큼 넘게 지났으면 끝난 것으로 본다(새로 미루기 허용) */
@@ -49,7 +50,12 @@ export class Scheduler extends DurableObject<Env> {
     return { ok: true, next: new Date(at).toISOString() };
   }
 
+  // DB_BACKEND=pg 이면 알람 한 번 동안 env.DB 를 Postgres 어댑터로(worker/db.ts). 아래 실행은 이 env 를 쓴다
   async alarm(): Promise<void> {
+    await withDb(this.env, this.ctx, (env) => this.fire(env));
+  }
+
+  private async fire(env: Env): Promise<void> {
     const now = Date.now();
     const kind = (await this.ctx.storage.get<SlotKind | 'test'>('kind')) ?? 'morning';
     const slotAt = await this.ctx.storage.get<number>('slot_at');
@@ -58,7 +64,7 @@ export class Scheduler extends DurableObject<Env> {
 
     if (due.later) {
       try {
-        const r = due.laterStale ? { skipped: 'later_stale' } : await runEvening(this.env, new Date(now), 'evening_later');
+        const r = due.laterStale ? { skipped: 'later_stale' } : await runEvening(env, new Date(now), 'evening_later');
         console.log('alarm evening_later', JSON.stringify(r));
       } catch (e) {
         console.error('alarm failed evening_later', String(e));
@@ -72,10 +78,10 @@ export class Scheduler extends DurableObject<Env> {
       try {
         const r =
           kind === 'test'
-            ? await sendTest(this.env, new Date(now))
+            ? await sendTest(env, new Date(now))
             : kind === 'morning'
-              ? await runMorning(this.env, new Date(now))
-              : await runEvening(this.env, new Date(now));
+              ? await runMorning(env, new Date(now))
+              : await runEvening(env, new Date(now));
         console.log('alarm', kind, JSON.stringify(r));
       } catch (e) {
         // 다시 던지면 알람이 재시도되며 다음 칸 예약이 꼬인다 → 기록만 하고 넘어감(같은 날 같은 통은 DB 가 막음)

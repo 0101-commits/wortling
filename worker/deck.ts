@@ -4,6 +4,7 @@ import { addDays, studyDay, studyDayStartUtc } from './time.ts';
 import { bad } from './http.ts';
 import { retrievability } from './fsrs.ts';
 import { unsuspendCutoff } from '../shared/fsrs.ts';
+import { crossJoin, jsonEach } from './db.ts';
 
 /** words w JOIN cards c 에서 DeckItem 을 만들 때 고르는 열(열 이름이 겹치지 않게 w.id / c.word_id) */
 export const ITEM_SELECT = `w.id, w.lemma, w.pos, w.gender, w.plural, w.ipa, w.level, w.gloss_en, w.gloss_ko,
@@ -87,6 +88,8 @@ export interface Today {
 
 /** 연습에서 「다시」 채점한 줄의 session_id(reviews). 덱 채점과 가른다(worker/practice.ts 가 적음) */
 export const PRACTICE_SESSION = 'practice';
+/** 연습 줄이 아님(NULL 포함). SQLite 의 「IS NOT 'practice'」 는 Postgres 에 없어 두 DB 공용으로 풀어 쓴다 */
+const NOT_PRACTICE = (col: string) => `(${col} IS NULL OR ${col} != '${PRACTICE_SESSION}')`;
 /** 오늘 몫에서 한 번에 보내는 복습 상한(안전장치). 덱은 오늘 몫을 끊지 않고 한 판에(2026-10-27) */
 const DUE_MAX = 300;
 /** 복습이 밀렸을 때 새 단어 줄이기: 밀린 복습 > 100 이면 절반(내림), > 200 이면 0 */
@@ -164,7 +167,7 @@ async function freshCandidates(db: D1Database, settings: Settings, n: number, ex
     .prepare(
       `SELECT w.id, w.lemma FROM cards c JOIN words w ON w.id = c.word_id
        WHERE c.state = 0 AND c.suspended = 0 AND (w.level IN (${levels.map(() => '?').join(',')}) OR w.pinned = 1)
-         AND w.id NOT IN (SELECT value FROM json_each(?))
+         AND w.id NOT IN (SELECT value FROM ${jsonEach(db, 'j')})
        ORDER BY w.pinned DESC, w.seq, w.lemma LIMIT ?`,
     )
     .bind(...levels, JSON.stringify(except), n * 6 + 30)
@@ -176,8 +179,9 @@ async function freshCandidates(db: D1Database, settings: Settings, n: number, ex
 async function lemmasOf(db: D1Database, ids: string[], since?: string): Promise<string[]> {
   const { results } = await db
     .prepare(
-      `SELECT w.lemma FROM words w WHERE w.id IN (SELECT value FROM json_each(?))
-       UNION SELECT w.lemma FROM words w JOIN cards c ON c.word_id = w.id WHERE ? IS NOT NULL AND c.introduced_at >= ?`,
+      // CAST: Postgres 는 「? IS NOT NULL」 만으로는 자리표시자 형을 못 정한다
+      `SELECT w.lemma FROM words w WHERE w.id IN (SELECT value FROM ${jsonEach(db, 'j')})
+       UNION SELECT w.lemma FROM words w JOIN cards c ON c.word_id = w.id WHERE CAST(? AS TEXT) IS NOT NULL AND c.introduced_at >= ?`,
     )
     .bind(JSON.stringify(ids), since ?? null, since ?? '')
     .all<{ lemma: string }>();
@@ -265,7 +269,7 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
   const [newDone, reviewed, due, fresh, done, rated] = await db.batch([
     db.prepare('SELECT count(*) AS n FROM cards WHERE introduced_at >= ?').bind(dayStart),
     // 오늘 채점 수 · 좋음/다시 = 덱 채점만. 연습에서 틀려 「다시」 된 줄(session_id practice)은 빼고 센다(검토 반영 2026-10-27)
-    db.prepare(`SELECT count(*) AS n FROM reviews WHERE reviewed_at >= ? AND undone = 0 AND session_id IS NOT '${PRACTICE_SESSION}'`).bind(dayStart),
+    db.prepare(`SELECT count(*) AS n FROM reviews WHERE reviewed_at >= ? AND undone = 0 AND ${NOT_PRACTICE('session_id')}`).bind(dayStart),
     // state != 0 대신 IN (1,2,3): (state, due) 색인을 세 번 타게 하려고
     db
       .prepare(
@@ -277,7 +281,7 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
     db
       .prepare(
         // json_each 를 맨 앞에 못 박아(CROSS JOIN) words·cards 를 기본키로 한 줄씩 찾는다(IN 부질의였을 땐 cards 를 통째로 훑어 한 번에 1.7만 행)
-        `SELECT ${ITEM_SELECT} FROM json_each(?) j CROSS JOIN words w ON w.id = j.value CROSS JOIN cards c ON c.word_id = w.id
+        `SELECT ${ITEM_SELECT} FROM ${jsonEach(db, 'j')} ${crossJoin(db)} words w ON w.id = j.value ${crossJoin(db)} cards c ON c.word_id = w.id
          WHERE c.state = 0 AND c.suspended = 0`,
       )
       .bind(ids),
@@ -285,15 +289,15 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
     db
       .prepare(
         `SELECT count(DISTINCT r.word_id) AS n,
-                count(DISTINCT CASE WHEN r.session_id IS NOT '${PRACTICE_SESSION}' THEN r.word_id END) AS deck
+                count(DISTINCT CASE WHEN ${NOT_PRACTICE('r.session_id')} THEN r.word_id END) AS deck
          FROM reviews r JOIN cards c ON c.word_id = r.word_id
          WHERE r.reviewed_at >= ? AND r.undone = 0 AND NOT (c.state IN (1, 2, 3) AND c.suspended = 0 AND c.due < ?)`,
       )
       .bind(dayStart, dayEnd),
     db
       .prepare(
-        `SELECT coalesce(sum(rating >= 3), 0) AS good, coalesce(sum(rating <= 2), 0) AS again FROM reviews
-         WHERE reviewed_at >= ? AND undone = 0 AND session_id IS NOT '${PRACTICE_SESSION}'`,
+        `SELECT coalesce(sum(CASE WHEN rating >= 3 THEN 1 ELSE 0 END), 0) AS good, coalesce(sum(CASE WHEN rating <= 2 THEN 1 ELSE 0 END), 0) AS again FROM reviews
+         WHERE reviewed_at >= ? AND undone = 0 AND ${NOT_PRACTICE('session_id')}`,
       )
       .bind(dayStart),
   ]);

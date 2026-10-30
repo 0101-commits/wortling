@@ -1,4 +1,7 @@
-// 원격 D1 에 일괄 SQL 을 보내기 전 관문(2026-10-30 D1 하루 읽기 500만 행 소진 사고 뒤).
+// 원격 앱 DB 에 일괄 SQL 을 보내는 유일한 길. wrangler.jsonc 의 DB_BACKEND 를 따른다:
+//   pg(2026-10-30~, Supabase 스키마 worty) → ~/.secrets/worty-supabase.env 로 붙어 한 거래로 실행(Postgres 방언, 아래 어림 관문 없음)
+//   d1 → 아래 관문을 거쳐 wrangler d1 execute
+// D1 관문(2026-10-30 D1 하루 읽기 500만 행 소진 사고 뒤).
 // 같은 SQL 을 최신 백업의 로컬 사본(쓰기는 임시 복사본에만)에서 먼저 돌려 읽기량을 어림하고, 한도를 넘으면 원격 실행을 거절한다.
 //   node scripts/db/remote-sql.mjs <파일.sql>
 //   node scripts/db/remote-sql.mjs --command "UPDATE ..."
@@ -13,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openLocalDb, COPY_PATH } from './local-copy.mjs';
+import { backend, openPg } from './pg.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../..');
@@ -60,8 +64,25 @@ export function parseArgs(argv) {
   return o;
 }
 
-function main() {
+/** 앱 DB 가 Postgres(DB_BACKEND=pg)일 때: D1 읽기 한도와 상관없어 어림 관문 없이 한 거래로 보낸다(SQL 은 Postgres 방언이어야 한다) */
+async function sendPg(sql, dry) {
+  if (dry) return console.error('--dry: Postgres 로는 안 보냄');
+  const pg = await openPg();
+  try {
+    const res = await pg.begin((tx) => tx.unsafe(sql));
+    // 문장이 여럿이면 결과 배열의 배열, 하나면 결과 하나
+    const list = res.length && Array.isArray(res[0]) ? res : [res];
+    for (const r of list) console.error(`${r.command} ${r.count ?? r.length}`);
+    const last = list[list.length - 1];
+    if (last.length) console.log(JSON.stringify(last.slice(0, 50), null, 1));
+  } finally {
+    await pg.end();
+  }
+}
+
+async function main() {
   const o = parseArgs(process.argv.slice(2));
+  if (backend() === 'pg') return sendPg(o.command ?? readFileSync(resolve(o.file), 'utf8'), o.dry);
   // 어림에 쓴 SQL 을 임시 파일에 한 번만 쓰고, 원격에도 바로 그 파일을 넘긴다(검사 뒤 원본이 바뀌는 틈 · 상대경로 혼동 방지)
   const dir = mkdtempSync(join(tmpdir(), 'worty-remote-'));
   try {
@@ -87,10 +108,8 @@ function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  try {
-    main();
-  } catch (e) {
+  main().catch((e) => {
     console.error(String(e.message || e));
     process.exit(1);
-  }
+  });
 }

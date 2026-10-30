@@ -6,6 +6,7 @@ import { REQ_TEXT } from '../shared/request.ts';
 import { levelsFor, loadSettings } from './deck.ts';
 import { HttpError, bad } from './http.ts';
 import { addDays, kstDay } from './time.ts';
+import { concatDistinct } from './db.ts';
 
 const DAY = 86_400_000;
 const LEVELS = new Set(['B1', 'B2', 'C1']);
@@ -17,9 +18,13 @@ const TEXT_FIELDS = ['gloss_ko', 'example_de', 'example_ko', 'scene_en', 'gloss_
 const CHANGE_FIELDS = new Set(['gloss_ko', 'example_de', 'example_ko', 'gender', 'plural', 'level', 'note']);
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** 열쇠 = 기본형|품사, 앞의 sich 는 뺀다(대소문자 그대로). scripts/words/lib.mjs 의 wordKey 와 같은 규칙 */
-export const KEY_SQL = "(CASE WHEN w.lemma LIKE 'sich %' THEN substr(w.lemma, 6) ELSE w.lemma END) || '|' || w.pos";
-const LEVEL_ORDER = "CASE w.level WHEN 'B1' THEN 1 WHEN 'B2' THEN 2 ELSE 3 END";
+/** 열쇠 = 기본형|품사, 앞의 sich 는 뺀다(대소문자 그대로). scripts/words/lib.mjs 의 wordKey 와 같은 규칙.
+ *  sich 판정은 옛 「LIKE 'sich %'」(SQLite: ASCII 대소문자 무시)를 두 DB 공용으로 — Postgres LIKE 는 대소문자를 가린다 */
+export const KEY_SQL = "(CASE WHEN lower(substr(w.lemma, 1, 5)) = 'sich ' THEN substr(w.lemma, 6) ELSE w.lemma END) || '|' || w.pos";
+/** BIGINT: Postgres 는 정수 × 10억이 32비트를 넘으면 멈춘다(SQLite 정수는 64비트) */
+const LEVEL_ORDER = "CAST(CASE w.level WHEN 'B1' THEN 1 WHEN 'B2' THEN 2 ELSE 3 END AS BIGINT)";
+/** SQLite 두 인자 min(x, cap) 을 두 DB 공용으로. x 가 NULL 이면 cap(옛 coalesce(min(x, cap), cap) 과 같음) */
+const least = (x: string, cap: number) => `CASE WHEN ${x} < ${cap} THEN ${x} ELSE ${cap} END`;
 /**
  * 안 배운 카드의 순서 열쇠 = 그 단어 자신의 값만으로 만든 수(넣은 단어 → 레벨 → 뉴스 2회 이상 → news_rank → freq_rank).
  * 순번(row_number)으로 매겼더니 새 단어 하나가 끼면 뒤 카드 수천 장의 seq 가 한 칸씩 밀려 매일 수천 줄을 썼다(최종 검토 반영).
@@ -30,7 +35,7 @@ const LEVEL_ORDER = "CASE w.level WHEN 'B1' THEN 1 WHEN 'B2' THEN 2 ELSE 3 END";
 export const LIST_ORDER = '(c.state = 0 AND c.introduced_at IS NULL), w.seq, w.lemma';
 const SEQ_KEY = `(1 - w.pinned) * 4000000000 + ${LEVEL_ORDER} * 1000000000
   + CASE WHEN w.news_hits30 >= 2 THEN 0 ELSE 500000000 END
-  + CASE WHEN w.news_rank IS NOT NULL THEN min(w.news_rank, 399999999) ELSE 400000000 + coalesce(min(w.freq_rank, 99999999), 99999999) END`;
+  + CASE WHEN w.news_rank IS NOT NULL THEN ${least('w.news_rank', 399999999)} ELSE 400000000 + ${least('w.freq_rank', 99999999)} END`;
 /** D1·node:sqlite 줄 → 보통 객체 */
 const plain = (r: unknown) => ({ ...(r as Record<string, unknown>) });
 const str = (x: unknown, max: number) => (x == null ? null : String(x).slice(0, max));
@@ -176,12 +181,13 @@ export async function putSkips(db: D1Database, items: Array<{ key?: unknown; rea
 
 // ---------- 검토할 줄 ----------
 
-const REVIEW_COLS = `w.id, w.lemma, w.pos, w.gender, w.plural, w.level, w.level_src, w.gloss_ko, w.gloss_status, w.example_de, w.example_ko, w.checked_at,
-  (SELECT group_concat(DISTINCT x.field) FROM word_changes x WHERE x.word_id = w.id AND x.reverted_at IS NOT NULL) AS reverted`;
+const reviewCols = (db: D1Database) => `w.id, w.lemma, w.pos, w.gender, w.plural, w.level, w.level_src, w.gloss_ko, w.gloss_status, w.example_de, w.example_ko, w.checked_at,
+  (SELECT ${concatDistinct(db, 'x.field')} FROM word_changes x WHERE x.word_id = w.id AND x.reverted_at IS NOT NULL) AS reverted`;
 
 /** 검토할 단어: 열린 신고 → 약한 단어(잊은 4번 이상, 7일 안 검토 제외 — 예문을 먼저 고친다) → 앞으로 14일 안 새 카드 → 3일 안 복습 → 안 본 것(seq) → 180일 지난 것. 최근 검토는 빠진다. */
 export async function reviewQueue(db: D1Database, limit: number, now = new Date()): Promise<ReviewQueueItem[]> {
   const s = await loadSettings(db);
+  const REVIEW_COLS = reviewCols(db);
   const lv = levelsFor(s.level);
   const inLevel = `(w.level IN (${lv.map(() => '?').join(', ')}) OR w.pinned = 1)`;
   const stale = new Date(now.getTime() - 180 * DAY).toISOString();
@@ -303,8 +309,9 @@ export async function addReport(db: D1Database, wordId: string, body: { kind?: u
   if (!REPORT_KINDS.has(kind)) throw bad('bad kind');
   const note = body?.note == null ? null : String(body.note).trim().slice(0, 200) || null;
   if (!(await db.prepare('SELECT id FROM words WHERE id = ?').bind(wordId).first())) throw new HttpError(404, 'not_found');
-  const r = await db.prepare('INSERT INTO word_reports(word_id, kind, note, created_at) VALUES (?, ?, ?, ?)').bind(wordId, kind, note, now.toISOString()).run();
-  return { ok: true as const, id: Number(r.meta.last_row_id) };
+  // RETURNING id: meta.last_row_id 는 D1 에만 있다(Postgres 어댑터 공용)
+  const r = await db.prepare('INSERT INTO word_reports(word_id, kind, note, created_at) VALUES (?, ?, ?, ?) RETURNING id').bind(wordId, kind, note, now.toISOString()).first<{ id: number }>();
+  return { ok: true as const, id: Number(r?.id) };
 }
 
 /** 「단어 넣기」 — 다음 새벽 작업(news.mjs)이 카드로 만든다. 같은 글이 대기 중이면 그 번호 */
@@ -323,8 +330,8 @@ export async function addRequest(db: D1Database, body: { text?: unknown; url?: u
   }
   const dup = await db.prepare("SELECT id FROM word_requests WHERE status = 'queued' AND text = ?").bind(text).first<{ id: number }>();
   if (dup) return { ok: true as const, id: Number(dup.id), duplicate: true };
-  const r = await db.prepare('INSERT INTO word_requests(text, url, created_at) VALUES (?, ?, ?)').bind(text, url, now.toISOString()).run();
-  return { ok: true as const, id: Number(r.meta.last_row_id), duplicate: false };
+  const r = await db.prepare('INSERT INTO word_requests(text, url, created_at) VALUES (?, ?, ?) RETURNING id').bind(text, url, now.toISOString()).first<{ id: number }>();
+  return { ok: true as const, id: Number(r?.id), duplicate: false };
 }
 
 /** status 를 주면 그 상태만 오래된 순(작업용), 안 주면 최근 순(앱) */
@@ -400,8 +407,8 @@ export async function reviewStats(db: D1Database, now = new Date()): Promise<Rev
     db.prepare('SELECT count(*) AS n FROM words'),
     db.prepare('SELECT count(*) AS n FROM words WHERE checked_at IS NOT NULL'),
     db.prepare('SELECT applied, count(*) AS n FROM word_changes WHERE at >= ? GROUP BY applied').bind(since),
-    // words.created_at 은 datetime('now') 꼴(공백) → ISO 를 datetime() 으로 맞춰 비교
-    db.prepare("SELECT level_src, count(*) AS n FROM words WHERE created_at >= datetime(?) AND level_src IN ('news', 'mine') GROUP BY level_src").bind(since),
+    // words.created_at 은 datetime('now') 꼴(공백) → ISO 를 같은 꼴로 맞춰 비교(옛 datetime(?) 을 두 DB 공용으로 여기서)
+    db.prepare("SELECT level_src, count(*) AS n FROM words WHERE created_at >= ? AND level_src IN ('news', 'mine') GROUP BY level_src").bind(since.replace('T', ' ').slice(0, 19)),
     db.prepare('SELECT count(*) AS n FROM word_requests WHERE created_at >= ?').bind(since),
   ]);
   const n = (r: D1Result) => Number((r.results[0] as { n: number }).n);

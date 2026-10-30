@@ -17,6 +17,9 @@
       "migrations_dir": "migrations"
     }
   ],
+  // 앱 DB = Supabase Postgres(스키마 worty, 역할 worty_app) — Hyperdrive worty-pg(세션 풀러 aws-0-ap-northeast-2:5432, 캐시 끔: 쓰고 바로 읽어야 한다).
+  // 2026-10-30 계정 공용 D1 무료 읽기 한도를 worty 가 다 써 ai-cli 까지 멈춰 옮김. 위 D1 은 되돌리기 길로 남긴다(DB_BACKEND 아래)
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "15d5ba71556b4135a59fb4bc354782c3" }],
   "kv_namespaces": [{ "binding": "IMG", "id": "9a581668b2d8427395dbe4b86186f11f" }],
   // 그림 생성 = Workers AI FLUX.2 klein 4b(POST /api/admin/draw). 무료 하루 10,000 뉴런, 1024×768 한 장 ≈ 78 뉴런
   "ai": { "binding": "AI", "remote": true },
@@ -26,6 +29,8 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Scheduler"] }],
   // 웹 푸시 공개 열쇠·주체. 비밀 열쇠는 `wrangler secret put VAPID_PRIVATE_KEY`(사본은 저장소 밖)
   "vars": {
+    // DB 백엔드 — pg(Supabase, worker/db.ts) | d1. 되돌리기 = "d1" 로 바꾸고 npm run deploy(그 뒤 pg 에만 쌓인 기록은 안 따라온다 — docs/supabase-db.md)
+    "DB_BACKEND": "pg",
     "APP_URL": "https://worty.pages.dev",
     "VAPID_PUBLIC_KEY": "BGL10xy7s7N9fJh5UPj_2zkncHfNNR88TiNdD3kS5wuOKXHKE6T_7KOuxRWiGmCxkWmTpPBGTy_cmUBikIWwRg4",
     "VAPID_SUBJECT": "https://worty.pages.dev"
