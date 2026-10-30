@@ -137,7 +137,7 @@ export async function askGroqJson(prompt, { images = [], model = GROQ_MODEL, onU
 // 모델은 OPENROUTER_MODEL 환경값(쉼표로 여러 개 = 차례로 폴백). 무료(:free)는 카드 없이 하루 약 50번 · 분당 20번이라 장부(ledger.mjs)에 따로 한도를 둔다.
 // 무료 모델은 생각(reasoning)만 길게 하고 content 를 비워 보내기도 한다 → 빈 답은 실패(다음 모델·다음 길).
 export const OPENROUTER_MODELS = String(process.env.OPENROUTER_MODEL || 'google/gemma-4-31b-it:free,nvidia/nemotron-3.5-super-vl:free').split(',').map((s) => s.trim()).filter(Boolean);
-/** prompt → JSON 배열. images = [{label, png}]. 모델마다 두 번까지: 429·5xx·끊김·빈 답·깨진 JSON 은 다시(429 는 분당 한도라 20초), 그 밖 4xx 는 곧장 다음 모델. */
+/** prompt → JSON 배열. images = [{label, png}]. 모델마다 두 번까지: 5xx·끊김·빈 답·깨진 JSON 은 15초 뒤 다시, 429 를 포함한 4xx 는 곧장 다음 모델. */
 export async function askOpenRouterJson(prompt, { images = [], models = OPENROUTER_MODELS, onUsage } = {}) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error('OPENROUTER_API_KEY 가 없다(.env 또는 Actions 비밀값)');
@@ -148,7 +148,8 @@ export async function askOpenRouterJson(prompt, { images = [], models = OPENROUT
   }
   let err;
   for (const model of models) {
-    const body = { model, messages: [{ role: 'user', content }], temperature: 0.1, max_tokens: 4096 };
+    // 생각 모델이 4096 토큰을 생각에 다 써 content 가 빈 채 오는 일(2026-10-30 nemotron 실측 11/14) → 생각을 낮추고 여유를 둔다
+    const body = { model, messages: [{ role: 'user', content }], temperature: 0.1, max_tokens: 8192, reasoning: { effort: 'low' } };
     for (let attempt = 1; ; attempt++) {
       try {
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -168,8 +169,9 @@ export async function askOpenRouterJson(prompt, { images = [], models = OPENROUT
       } catch (e) {
         err = e;
         console.error(`OpenRouter 실패(${model} ${attempt}회): ${String(e.message).slice(0, 200)}`);
-        if (attempt >= 2 || (e.status >= 400 && e.status < 500 && e.status !== 429)) break;
-        await new Promise((r) => setTimeout(r, e.status === 429 && GROQ_WAIT_MS ? 20_000 : GROQ_WAIT_MS));
+        // 429 는 같은 모델에 다시 묻지 않고 다음 모델로 — 무료 몫(하루 50번)을 헛쓰고, gemma 는 공급자 쪽 429 가 14번 내리 왔다
+        if (attempt >= 2 || (e.status >= 400 && e.status < 500)) break;
+        await new Promise((r) => setTimeout(r, GROQ_WAIT_MS));
       }
     }
   }
