@@ -1,0 +1,122 @@
+# Kaggle 무료 GPU(주 ≈30시간)로 그림을 한꺼번에 그린다(기획 G4). 같은 모델 계열(FLUX.2 klein 4B)·같은 프롬프트(style.mjs),
+# 검사는 같은 GPU 의 열린 비전 모델(Qwen2.5-VL) → 자동 검사(imgcheck.mjs) 통과분만 올린다. 아직 cron 없음(손 실행만).
+# 비밀값: KAGGLE_API_KEY(옛 키 또는 KGAT_… 토큰) · APP_URL · API_TOKEN / 변수: KAGGLE_USERNAME
+#   mode = push(커널만 보냄) · collect(끝난 커널 결과 거두기) · both(보내고 기다렸다 거둠, 5시간 넘으면 멈추고 collect 로)
+name: kaggle-draw
+
+on:
+  workflow_dispatch:
+    inputs:
+      n:
+        description: '그릴 단어 수'
+        default: '10'
+      mode:
+        description: 'push | collect | both'
+        type: choice
+        options: [both, push, collect]
+        default: both
+
+concurrency: daily # 매일 작업의 .data 상태 커밋과 겹치지 않게
+
+permissions:
+  contents: write # .data/ledger.json · kaggle-queue.json 되올림
+
+jobs:
+  kaggle:
+    runs-on: windows-latest # 그림 글자 검사가 Windows OCR(scripts/winocr.ps1)
+    timeout-minutes: 330
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+      MSYS_NO_PATHCONV: '1'
+      KAGGLE_USERNAME: ${{ vars.KAGGLE_USERNAME }}
+      APP_URL: ${{ secrets.APP_URL }}
+      API_TOKEN: ${{ secrets.API_TOKEN }}
+      KAGGLE_SECRET: ${{ secrets.KAGGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          check-latest: true
+          cache: npm
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: Kaggle 도구·인증
+        run: |
+          pip install -q kaggle
+          kaggle --version
+          # 옛 키는 KAGGLE_KEY, KGAT_ 토큰은 KAGGLE_API_TOKEN — 둘 다 내보낸다
+          echo "KAGGLE_KEY=$KAGGLE_SECRET" >> "$GITHUB_ENV"
+          case "$KAGGLE_SECRET" in KGAT_*) echo "KAGGLE_API_TOKEN=$KAGGLE_SECRET" >> "$GITHUB_ENV" ;; esac
+      # 장부·맡김 목록은 main 의 것이 최신(daily 가 되올림) — 이 실행이 다른 가지에서 떠도 main 것으로 시작
+      - name: main 의 장부 가져오기
+        run: |
+          git fetch -q origin main
+          mkdir -p .data
+          for f in ledger.json kaggle-queue.json; do
+            git show "origin/main:.data/$f" > ".data/$f" 2>/dev/null || rm -f ".data/$f"
+          done
+      - name: 단어 고르기·커널 만들기
+        id: pick
+        if: inputs.mode != 'collect'
+        run: node scripts/kaggle.mjs pick "${{ inputs.n }}" kaggle/build
+      - name: 커널 보내기
+        id: push
+        if: inputs.mode != 'collect' && steps.pick.outputs.count != '0'
+        run: kaggle kernels push -p kaggle/build
+      - name: 맡김 목록 되올리기
+        if: inputs.mode != 'collect' && steps.pick.outputs.count != '0'
+        run: bash scripts/kaggle-commit.sh '맡김 목록 갱신'
+      - name: 커널 끝나길 기다리기
+        id: wait
+        if: inputs.mode != 'push' && (inputs.mode == 'collect' || steps.pick.outputs.count != '0')
+        run: |
+          kernel="${KAGGLE_USERNAME}/worty-draw"
+          deadline=$(( $(date +%s) + 5*3600 + 15*60 ))
+          while true; do
+            out=$(kaggle kernels status "$kernel" 2>&1 || true)
+            echo "$(date +%H:%M) $out"
+            case "$out" in
+              *COMPLETE*) echo "state=complete" >> "$GITHUB_OUTPUT"; break ;;
+              *ERROR*|*CANCEL*) echo "state=error" >> "$GITHUB_OUTPUT"; break ;;
+            esac
+            if [ "$(date +%s)" -gt "$deadline" ]; then
+              echo "state=running" >> "$GITHUB_OUTPUT"
+              echo "::warning::커널이 아직 돈다 — 끝난 뒤 mode=collect 로 거두세요"
+              break
+            fi
+            sleep 60
+          done
+      - name: 결과 내려받기
+        id: out
+        if: steps.wait.outputs.state == 'complete' || steps.wait.outputs.state == 'error'
+        run: |
+          mkdir -p kaggle/result
+          kaggle kernels output "${KAGGLE_USERNAME}/worty-draw" -p kaggle/result || true
+          ls -R kaggle/result | head -80
+          echo "---- 커널 로그 끝 ----"
+          for f in kaggle/result/*.log; do [ -f "$f" ] && node -e "
+            const t=require('fs').readFileSync(process.argv[1],'utf8');
+            const out=[];for(const l of t.split('\n')){try{const o=JSON.parse(l.replace(/,\s*$/,'').replace(/^\[/,''));if(o.data)out.push(o.data.trimEnd())}catch{}}
+            console.log(out.join('\n').slice(-6000))" "$f"; done
+          [ "${{ steps.wait.outputs.state }}" = complete ] || { echo "::error::커널 실패"; exit 1; }
+      - name: 검사·올리기·장부
+        if: steps.out.outcome == 'success'
+        run: node scripts/kaggle.mjs collect kaggle/result
+      - name: 탈락 그림 보관
+        if: always() && steps.out.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: kaggle-rejected-${{ github.run_id }}
+          path: .data/rejected
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: 장부 되올리기
+        if: steps.out.outcome == 'success'
+        run: bash scripts/kaggle-commit.sh '장부 갱신'
