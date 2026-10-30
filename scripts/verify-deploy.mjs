@@ -35,7 +35,9 @@ export async function verifyBase(base, token = process.env.API_TOKEN || '', chec
       const res = await fetch(base.replace(/\/$/, '') + p, { headers: auth, signal: AbortSignal.timeout(15_000) });
       status = res.status;
       type = (res.headers.get('content-type') || '').toLowerCase();
-      await res.body?.cancel();
+      // D1 하루 읽기 한도(503 db_quota)는 배포 고장이 아니다 — 따로 표시해 알림 문구를 가른다
+      if (status === 503 && (await res.text()).includes('db_quota')) type = 'db_quota';
+      else await res.body?.cancel();
     } catch (e) {
       type = `연결 실패(${e.cause?.code || e.message})`;
     }
@@ -80,7 +82,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   if (!ok) {
     console.error(`\n배포 점검 실패 ${bad.length}건`);
-    if (app) await notify('error', '앱 주소 고장 — 배포 확인 필요', `${bases[0]} 점검 실패 ${bad.length}건 (첫째: ${bad[0]}). 오늘 작업은 건너뜀. 배포: npm run deploy`);
+    if (app && bad.some((b) => b.includes('db_quota')))
+      await notify('error', 'D1 하루 읽기 한도 초과', `${bases[0]} 가 503 db_quota. 09:00 KST(UTC 자정)에 풀린다. 오늘 작업은 건너뜀 — 풀린 뒤 손으로 다시 실행`);
+    else if (app) await notify('error', '앱 주소 고장 — 배포 확인 필요', `${bases[0]} 점검 실패 ${bad.length}건 (첫째: ${bad[0]}). 오늘 작업은 건너뜀. 배포: npm run deploy`);
     process.exit(1);
   }
   console.log('\n배포 점검 통과');
