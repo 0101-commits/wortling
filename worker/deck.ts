@@ -224,7 +224,9 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
     // 끝낸 카드 = 오늘 채점했고 지금은 오늘 안에 다시 볼 일이 없는 카드
     db
       .prepare(
-        `SELECT count(DISTINCT r.word_id) AS n FROM reviews r JOIN cards c ON c.word_id = r.word_id
+        `SELECT count(DISTINCT r.word_id) AS n,
+                count(DISTINCT CASE WHEN r.session_id IS NOT '${PRACTICE_SESSION}' THEN r.word_id END) AS deck
+         FROM reviews r JOIN cards c ON c.word_id = r.word_id
          WHERE r.reviewed_at >= ? AND r.undone = 0 AND NOT (c.state IN (1, 2, 3) AND c.suspended = 0 AND c.due < ?)`,
       )
       .bind(dayStart, dayEnd),
@@ -240,8 +242,10 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
   // 오늘은 복습만(B6)이면 새 카드 0 — 목록은 남겨 둬 「새 단어 오늘 받기」로 되돌릴 수 있다
   const reviewOnly = settings.review_only_day === date;
   const order = new Map(plan.fresh.map((id, i) => [id, i]));
-  // 밀린 복습 = 지금 남은 복습 + 오늘 이미 끝낸 복습(하루 중 값이 흔들리지 않게). 더 받은 새 단어(extra)는 줄이지 않는다
-  const backlog = due.results.length + Math.max(0, (done.results[0] as { n: number }).n - new_done_today);
+  // 밀린 복습 = 지금 남은 복습 + 오늘 덱에서 끝낸 복습(하루 중 값이 흔들리지 않게). 더 받은 새 단어(extra)는 줄이지 않는다.
+  // 오늘 처음 배워 아직 익히는 중(state 1)인 카드와 연습 오답(내일로 미룬 것)은 세지 않는다 — 새 단어를 할수록 몫이 줄지 않게
+  const dueReviews = due.results.filter((r) => Number((r as { state?: number }).state) !== 1).length;
+  const backlog = dueReviews + Math.max(0, Number((done.results[0] as { deck: number }).deck) - new_done_today);
   const freshRoom = Math.max(0, freshAllowance(settings.new_per_day, backlog) + plan.extra - new_done_today);
   const freshItems = reviewOnly
     ? []

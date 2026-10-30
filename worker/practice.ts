@@ -139,7 +139,7 @@ async function relearnStatements(db: D1Database, results: PracticeResultsRequest
       const defer = studyDayStartUtc(addDays(studyDay(now), deferDays));
       const keep = prev.due < defer;
       c.due = keep ? prev.due : defer;
-      c.scheduled_days = keep ? Math.max(1, Math.round((Date.parse(prev.due) - at.getTime()) / 86400_000)) : deferDays;
+      c.scheduled_days = keep ? Math.max(0, Math.round((Date.parse(prev.due) - at.getTime()) / 86400_000)) : deferDays;
       // 읽은 뒤 덱 채점이 먼저 바꿨으면(due 다름) 둘 다 건너뛴다 — 적기가 먼저(바꾼 뒤엔 due 가 달라 못 찾음)
       stmts.push(
         db
