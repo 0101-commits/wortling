@@ -49,53 +49,69 @@ def save():
 
 
 # ── 1) 그리기 ──────────────────────────────────────────────────────────────
-t0 = time.time()
-pipe = None
-if n_gpu > 1:
-    try:
-        pipe = Flux2KleinPipeline.from_pretrained(DRAW_REPO, torch_dtype=dtype, device_map='balanced')
-        meta['placement'] = 'balanced'
-    except Exception as e:  # noqa: BLE001
-        print('balanced 실패, CPU 오프로드로:', repr(e)[:300], flush=True)
-        pipe = None
-if pipe is None:
-    pipe = Flux2KleinPipeline.from_pretrained(DRAW_REPO, torch_dtype=dtype)
-    pipe.enable_model_cpu_offload()
-    meta['placement'] = 'cpu_offload'
-meta['load_draw_sec'] = round(time.time() - t0, 1)
-print('모델 로드', meta['load_draw_sec'], 's', meta['placement'], flush=True)
+CALIB = all('image' in j for j in jobs)  # 보정 모드: 이미 올라간 그림만 검사에 돌린다(그리기 없음)
+meta['calibrate'] = CALIB
+if CALIB:
+    for j in jobs:
+        f = f'{CAND}/{j["id"]}_0.png'
+        Image.open(io.BytesIO(base64.b64decode(j['image']))).convert('RGB').save(f)
+        items[j['id']]['cands'].append({'file': f, 'seed': 0, 'draw_sec': 0, 'blank': False})
+    save()
+else:
+    t0 = time.time()
+    pipe = None
+    if n_gpu > 1:
+        try:
+            pipe = Flux2KleinPipeline.from_pretrained(DRAW_REPO, torch_dtype=dtype, device_map='balanced')
+            meta['placement'] = 'balanced'
+        except Exception as e:  # noqa: BLE001
+            print('balanced 실패, CPU 오프로드로:', repr(e)[:300], flush=True)
+            pipe = None
+    if pipe is None:
+        pipe = Flux2KleinPipeline.from_pretrained(DRAW_REPO, torch_dtype=dtype)
+        pipe.enable_model_cpu_offload()
+        meta['placement'] = 'cpu_offload'
+    meta['load_draw_sec'] = round(time.time() - t0, 1)
+    print('모델 로드', meta['load_draw_sec'], 's', meta['placement'], flush=True)
 
-draw_secs = []
-for j in jobs:
-    for t in range(TRIES):
-        seed = int.from_bytes(os.urandom(4), 'big')
-        s = time.time()
-        img = pipe(prompt=j['prompt'], image=ref, height=768, width=1024, guidance_scale=1.0, num_inference_steps=4,
-                   generator=torch.Generator('cpu').manual_seed(seed)).images[0]
-        sec = round(time.time() - s, 2)
-        draw_secs.append(sec)
-        arr = np.asarray(img.convert('L'), dtype=np.float32)
-        blank = float(arr.std()) < 4  # 새까만·단색 그림(가끔 나옴)
-        f = f'{CAND}/{j["id"]}_{t}.png'
-        img.save(f)
-        items[j['id']]['cands'].append({'file': f, 'seed': seed, 'draw_sec': sec, 'blank': blank})
-        print(f'그림 {j["id"]} #{t} {sec}s blank={blank}', flush=True)
-meta['draw_sec_avg'] = round(sum(draw_secs) / max(1, len(draw_secs)), 2)
-meta['drawn'] = len(draw_secs)
-save()
-del pipe
-gc.collect()
-torch.cuda.empty_cache()
+    draw_secs = []
+    for j in jobs:
+        for t in range(TRIES):
+            seed = int.from_bytes(os.urandom(4), 'big')
+            s = time.time()
+            img = pipe(prompt=j['prompt'], image=ref, height=768, width=1024, guidance_scale=1.0, num_inference_steps=4,
+                       generator=torch.Generator('cpu').manual_seed(seed)).images[0]
+            sec = round(time.time() - s, 2)
+            draw_secs.append(sec)
+            arr = np.asarray(img.convert('L'), dtype=np.float32)
+            blank = float(arr.std()) < 4  # 새까만·단색 그림(가끔 나옴)
+            f = f'{CAND}/{j["id"]}_{t}.png'
+            img.save(f)
+            items[j['id']]['cands'].append({'file': f, 'seed': seed, 'draw_sec': sec, 'blank': blank})
+            print(f'그림 {j["id"]} #{t} {sec}s blank={blank}', flush=True)
+    meta['draw_sec_avg'] = round(sum(draw_secs) / max(1, len(draw_secs)), 2)
+    meta['drawn'] = len(draw_secs)
+    save()
+    del pipe
+    gc.collect()
+    torch.cuda.empty_cache()
 
-# ── 2) 검사(열린 비전 모델, 4비트) ─────────────────────────────────────────
+# ── 2) 엄격 2단계 검사(열린 비전 모델) ─────────────────────────────────────────
 from transformers import AutoProcessor, BitsAndBytesConfig, Qwen2_5_VLForConditionalGeneration  # noqa: E402
 
 t0 = time.time()
 proc = AutoProcessor.from_pretrained(JUDGE_REPO, min_pixels=256 * 28 * 28, max_pixels=768 * 28 * 28)
-judge = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-    JUDGE_REPO,
-    quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type='nf4', bnb_4bit_compute_dtype=torch.float16),
-    torch_dtype=torch.float16, device_map='auto')
+if n_gpu > 1 and os.environ.get('WORTY_JUDGE_4BIT') != '1':
+    # fp16 7B ≈ 15.5GB — 두 T4 에 나눠 올린다(4비트보다 판정이 덜 흐려진다)
+    judge = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        JUDGE_REPO, torch_dtype=torch.float16, device_map='auto', max_memory={0: '13GiB', 1: '13GiB'})
+    meta['judge_mode'] = 'fp16_split'
+else:
+    judge = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        JUDGE_REPO,
+        quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type='nf4', bnb_4bit_compute_dtype=torch.float16),
+        torch_dtype=torch.float16, device_map='auto')
+    meta['judge_mode'] = '4bit'
 meta['load_judge_sec'] = round(time.time() - t0, 1)
 print('검사 모델 로드', meta['load_judge_sec'], 's', flush=True)
 
@@ -111,15 +127,24 @@ def parse(text):
         return None
 
 
-def ask(j, f):
-    img = Image.open(f).convert('RGB')
-    msgs = [{'role': 'user', 'content': [{'type': 'text', 'text': '#1'}, {'type': 'image', 'image': img}, {'type': 'text', 'text': j['judge_prompt']}]}]
+def gen(img, parts, max_new=300):
+    msgs = [{'role': 'user', 'content': parts}]
     text = proc.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
     inp = proc(text=[text], images=[img], return_tensors='pt').to(judge.device)
     with torch.no_grad():
-        out = judge.generate(**inp, max_new_tokens=300, do_sample=False)
-    raw = proc.batch_decode(out[:, inp.input_ids.shape[1]:], skip_special_tokens=True)[0]
-    return parse(raw), raw
+        out = judge.generate(**inp, max_new_tokens=max_new, do_sample=False)
+    return proc.batch_decode(out[:, inp.input_ids.shape[1]:], skip_special_tokens=True)[0]
+
+
+def ask(j, f):
+    """1단계 = 단어 없이 그림만 묘사 · 2단계 = 묘사 + 의도한 장면·뜻으로 판정. 최종 ok 는 모든 항목이 거짓이 아닐 때만"""
+    img = Image.open(f).convert('RGB')
+    desc = gen(img, [{'type': 'image', 'image': img}, {'type': 'text', 'text': j['desc_prompt']}], 260).strip()
+    raw = gen(img, [{'type': 'text', 'text': '#1'}, {'type': 'image', 'image': img}, {'type': 'text', 'text': j['check_prompt'].replace('{DESC}', desc)}])
+    v = parse(raw)
+    if v:
+        v['ok'] = bool(v['ok']) and all(v.get(k) is not False for k in ('key_visible', 'guessable', 'body_ok', 'text_ok'))
+    return v, raw, desc
 
 
 judge_secs = []
@@ -131,11 +156,13 @@ for j in jobs:
             c['verdict'] = {'ok': False, 'why': '빈 그림'}
             continue
         s = time.time()
-        v, raw = ask(j, c['file'])
+        v, raw, desc = ask(j, c['file'])
+        c['desc'] = desc
         c['judge_sec'] = round(time.time() - s, 2)
         judge_secs.append(c['judge_sec'])
-        c['verdict'] = v or {'ok': None, 'why': 'parse', 'raw': raw[:200]}
+        c['verdict'] = v or {'ok': None, 'why': 'parse', 'raw': raw[:300]}
         print(f'검사 {j["id"]} {c["judge_sec"]}s {c["verdict"]}', flush=True)
+        print('   묘사:', desc[:400], flush=True)
         if v and v['ok']:
             chosen = c
             break
@@ -143,7 +170,7 @@ for j in jobs:
     it['ok'] = bool(chosen)
     it['verdict'] = pick['verdict'] if pick else {'ok': False, 'why': '빈 그림'}
     it['tries'] = len(it['cands'])
-    if pick:
+    if pick and not CALIB:
         Image.open(pick['file']).convert('RGB').save(f'{OUT}/{j["id"]}.webp', quality=92)
     save()
 meta['judge_sec_avg'] = round(sum(judge_secs) / max(1, len(judge_secs)), 2)
