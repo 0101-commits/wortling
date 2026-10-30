@@ -173,7 +173,8 @@ def ask(j, f):
     v = parse(raw)
     if v:
         v['mcq'] = picks
-        v['ok'] = bool(v.get('ok')) and all(picks) and all(v.get(k) is not False for k in ('key_visible', 'guessable', 'body_ok', 'text_ok'))
+        # 모델이 적은 ok 는 무시(보정 실측: 칸이 모두 true 인데 ok=false 로 적은 경우가 있었다) — 칸과 객관식으로만 정한다
+        v['ok'] = all(picks) and all(v.get(k) is not False for k in ('key_visible', 'guessable', 'body_ok', 'text_ok'))
     return v, raw, desc
 
 
