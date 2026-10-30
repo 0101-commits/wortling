@@ -96,8 +96,11 @@ export function parseRss(xml) {
   return out;
 }
 
-/** DAFlex 첫 단계(A1…C2) → 우리 레벨. A1·A2·B1 → B1, B2 → B2, C1·C2 → C1, 모르면 null */
-export const cefr3 = (d) => (d === 'A1' || d === 'A2' || d === 'B1' ? 'B1' : d === 'B2' ? 'B2' : d === 'C1' || d === 'C2' ? 'C1' : null);
+/**
+ * DAFlex 첫 단계(A1…C2) → 우리 레벨. B1 → B1, B2 → B2, C1·C2 → C1. A1·A2 는 앱 범위(B1~C1) 밖이라 null(모르는 단어와 같은 null — 부르는 쪽이 건너뜀).
+ * C2 → C1 은 DAFlex C2 만으로는 못 믿어서(AI 가 대부분 B2 로 봄) 그대로 둔다 — 진짜 C2 는 새 단어 AI 등급 검사(acceptContent)가 거른다
+ */
+export const cefr3 = (d) => (d === 'B1' ? 'B1' : d === 'B2' ? 'B2' : d === 'C1' || d === 'C2' ? 'C1' : null);
 
 /**
  * 새 단어 후보: 덱에 없고 · 뺀 적 없고 · 위키낱말사전 표제어이고 · A1/A2 아니고 · 약어 아니고 ·
@@ -126,7 +129,7 @@ export function pickCandidates({ index, have, skips, hits, max = 30, rankMax = 2
 
 /**
  * 보강 목록(scripts/words/backlog.json, 2026-10-27 빈틈 검토): 덱에 없는 B1~C1 기능어 · 숙어 · 빈도 높은 낱말을 앞에서부터 max 개.
- * 이미 있는 단어 · 뺀 후보(word_skips)는 건너뛴다. 레벨 = 목록에 적힌 값(기능어 · 숙어) → DAFlex → C1
+ * 이미 있는 단어 · 뺀 후보(word_skips)는 건너뛴다. 레벨 = 목록에 적힌 값(기능어 · 숙어) → DAFlex(A1·A2 는 건너뜀) → C1
  */
 export function pickBacklog({ backlog, index, have, skips, max = 50 }) {
   const out = [];
@@ -136,7 +139,9 @@ export function pickBacklog({ backlog, index, have, skips, max = 50 }) {
     const pos = k.slice(at + 1);
     const key = wordKey(lemma, pos);
     if (have.has(key.toLowerCase()) || skips.has(key)) continue;
-    const level = lv ?? cefr3(own(index?.daflex, lemma.toLowerCase())) ?? 'C1';
+    const d = own(index?.daflex, lemma.toLowerCase());
+    if (!lv && (d === 'A1' || d === 'A2')) continue; // 범위 밖(B1 미만) — 목록에 등급을 적은 것만 예외
+    const level = lv ?? cefr3(d) ?? 'C1';
     out.push({ key, lemma, pos, level, rank: own(index?.leipzig, key) ?? null });
     if (out.length >= max) break;
   }
@@ -158,12 +163,16 @@ const RULES = [
 export function contentPrompt(list, source = 'a subtitle-frequency source') {
   return `You write Korean learning content for German vocabulary (personal flashcard app "Wortling"; learner = Korean speaker moving from B1 to B2 and C1). Each item has its CEFR level. The list comes from ${source}, so some entries are not useful.
 Return exactly one object per input item, same order, key copied unchanged.
-- Useful word → {"key", "keep": true, "gloss_ko", "example_de", "example_ko", "scene_en"}
+- Useful word → {"key", "keep": true, "cefr", "gloss_ko", "example_de", "example_ko", "scene_en"}
+  · cefr: your own CEFR estimate of the word for a German learner: A1|A2|B1|B2|C1|C2 (be honest — everyday basic words are A1/A2, rare literary words C2).
 ${RULES}
-- Not useful → {"key", "keep": false, "reason": "짧은 사유"}. Use false for: vulgar/sexual/slang words, proper names and nationality/ethnic labels, English loan slang typical of dubbed films (Bingo, Amigo), archaic words, very narrow jargon, words that only make sense in film dialogue (Samurai, Satan, Pirat). News/daily/work vocabulary is keep:true even if it is about crime or conflict (Mörder, Verhör, Haftbefehl). When unsure → true.
+- Not useful → {"key", "keep": false, "reason": "짧은 사유"}. Use false for: vulgar/sexual/slang words, proper names and nationality/ethnic labels, English loan slang typical of dubbed films (Bingo, Amigo), archaic words, very narrow jargon, words that only make sense in film dialogue (Samurai, Satan, Pirat). News/daily/work vocabulary is keep:true even if it is about crime or conflict (Mörder, Verhör, Haftbefehl). When unsure → true. Words you rate A1, A2 or C2 are outside this app's B1–C1 range: the code rejects them.
 Output ONLY a JSON array (no prose, no code fence) with exactly ${list.length} objects.
 Items: ${JSON.stringify(list)}`;
 }
+
+const CEFR6 = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+const OUT_OF_RANGE = new Set(['A1', 'A2', 'C2']);
 
 /** contentPrompt 답 → 통과한 것만(묶음 작업과 같은 조건). 나머지는 다음 실행 때 다시 */
 export function acceptContent(arr, list) {
@@ -173,6 +182,12 @@ export function acceptContent(arr, list) {
     if (!o || !keys.has(o.key) || typeof o.keep !== 'boolean') continue;
     if (!o.keep) {
       res.push({ key: o.key, keep: false, reason: s(o.reason).slice(0, 60) || '(사유 없음)' });
+      continue;
+    }
+    // 앱 범위(B1~C1) 밖 — AI 등급 A1·A2·C2 는 뺀다(DAFlex 가 B1+ 라 해도). 등급이 없거나 이상하면 다음 실행 때 다시
+    if (!CEFR6.includes(o.cefr)) continue;
+    if (OUT_OF_RANGE.has(o.cefr)) {
+      res.push({ key: o.key, keep: false, reason: `AI 등급 ${o.cefr}(B1~C1 밖)` });
       continue;
     }
     const c = { key: o.key, keep: true, gloss_ko: s(o.gloss_ko).slice(0, 40), example_de: s(o.example_de), example_ko: s(o.example_ko).slice(0, 80), scene_en: s(o.scene_en).slice(0, 300) };
@@ -261,7 +276,7 @@ export function reviewPrompt(items, factsOf) {
 2. example_de — natural, grammatical German, ≤70 chars, uses the headword (inflected or separated forms fine) in the meaning of gloss_ko.
 3. example_ko — faithful, natural Korean translation of example_de in ~해요체, ≤80자.
 4. gender / plural (nouns) — compare with facts.wiktionary_* (from Wiktionary).
-5. level — CEFR level for this learner (B1|B2|C1); facts.daflex_first_level = first textbook level where the word appears (A1/A2 mean "B1" here).
+5. level — CEFR level for this learner (B1|B2|C1); facts.daflex_first_level = first textbook level where the word appears (A1/A2 are below this learner's range; never propose A1/A2).
 If learner_report is present, the learner flagged this card — check that part especially carefully.
 Return exactly one object per item, same order, id copied:
 - Everything fine → {"id", "ok": true}
@@ -352,7 +367,7 @@ export function decide(w, facts, v, reverted = new Set()) {
       // Goethe B1 공식 목록 단어는 레벨을 자동으로 안 바꾼다 — 바뀌면 B1 공부 줄에서 빠진다(최종 검토 반영)
       w.level_src === 'goethe' ? 'Goethe 공식 목록 단어'
       : !LEVELS.includes(lv) ? '형식'
-      : facts.daflex !== lv ? `DAFlex: ${facts.daflex ?? '모름'}`
+      : facts.daflex !== lv ? `DAFlex: ${facts.daflexRaw ?? '모름'}`
       : null);
 
   if (!changes.length) note(`${why} · 고칠 값 없음`);

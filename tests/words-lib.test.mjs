@@ -69,7 +69,7 @@ test('parseTagesschau · parseRss: 이상한 응답은 빈 목록', () => {
 });
 
 test('cefr3', () => {
-  assert.deepEqual(['A1', 'A2', 'B1', 'B2', 'C1', 'C2', undefined].map(cefr3), ['B1', 'B1', 'B1', 'B2', 'C1', 'C1', null]);
+  assert.deepEqual(['A1', 'A2', 'B1', 'B2', 'C1', 'C2', undefined].map(cefr3), [null, null, 'B1', 'B2', 'C1', 'C1', null], 'A1·A2 = 범위 밖(null), C2 만 C1');
 });
 
 test('pickCandidates: 덱·뺀 것·사실 없음·A1/A2·약어·기준 미달 제외, 뉴스 2회 이상 먼저', () => {
@@ -84,9 +84,9 @@ test('pickCandidates: 덱·뺀 것·사실 없음·A1/A2·약어·기준 미달 
 test('acceptContent · acceptRequests: 모양이 틀린 줄은 버림', () => {
   const list = [{ key: 'A|noun' }, { key: 'B|noun' }, { key: 'C|noun' }];
   const got = acceptContent([
-    { key: 'A|noun', keep: true, gloss_ko: '가', example_de: 'Das ist A.', example_ko: '이건 A예요.', scene_en: 'Borti holds A.' },
+    { key: 'A|noun', keep: true, cefr: 'B2', gloss_ko: '가', example_de: 'Das ist A.', example_ko: '이건 A예요.', scene_en: 'Borti holds A.' },
     { key: 'B|noun', keep: false, reason: '영화 말' },
-    { key: 'C|noun', keep: true, gloss_ko: '다', example_de: 'x'.repeat(71), example_ko: '다', scene_en: 'Borti' },
+    { key: 'C|noun', keep: true, cefr: 'B2', gloss_ko: '다', example_de: 'x'.repeat(71), example_ko: '다', scene_en: 'Borti' },
     { key: 'Z|noun', keep: true },
   ], list);
   assert.deepEqual(got.map((x) => [x.key, x.keep]), [['A|noun', true], ['B|noun', false]]);
@@ -118,7 +118,7 @@ test('acceptVerdicts: 모르는·겹친 id, 틀린 타입, 모르는 칸은 버�
 
 const W = (o = {}) => ({ id: 'w1', lemma: 'Umzug', pos: 'noun', gender: 'der', plural: 'Umzüge', level: 'B1', gloss_ko: '이동', gloss_status: 'generated',
   example_de: 'Der Umzug war anstrengend.', example_ko: '이사는 힘들었어요.', checked_at: null, reverted: [], report: null, ...o });
-const F = (o = {}) => ({ genders: ['der'], plural: 'Umzüge', daflexRaw: 'A2', daflex: 'B1', hasForm: (de) => /Umz/.test(de), ...o });
+const F = (o = {}) => ({ genders: ['der'], plural: 'Umzüge', daflexRaw: 'B1', daflex: 'B1', hasForm: (de) => /Umz/.test(de), ...o });
 
 test('decide: 맞음 → 바꿀 것 없음, 신고된 카드면 확인 필요 메모', () => {
   assert.deepEqual(decide(W(), F(), { ok: true }), { patch: {}, changes: [], meaningChanged: false });
@@ -173,7 +173,7 @@ test('exampleHasWord · factsFor · reviewPrompt', () => {
   assert.equal(exampleHasWord('Sie rief gestern an.', { lemma: 'anrufen', pos: 'verb' }, INDEX), true, '분리동사');
   assert.equal(exampleHasWord('Das Wetter ist schön.', w, INDEX), false);
   const f = factsFor({ lemma: 'Umzug', pos: 'noun' }, INDEX);
-  assert.deepEqual([f.genders, f.plural, f.daflexRaw, f.daflex], [['der'], 'Umzüge', 'A2', 'B1']);
+  assert.deepEqual([f.genders, f.plural, f.daflexRaw, f.daflex], [['der'], 'Umzüge', 'A2', null], 'A2 는 범위 밖 → null');
   const none = factsFor({ lemma: 'Umzug', pos: 'noun' }, null);
   assert.deepEqual([none.genders, none.plural, none.daflex], [null, undefined, null]);
   const p = reviewPrompt([W({ report: { kind: 'meaning', note: null } })], (w2) => factsFor(w2, INDEX));
@@ -306,6 +306,21 @@ test('pickBacklog: 덱에 있는 것 · 뺀 후보 건너뜀, 레벨 = 목록 �
   const all = pickBacklog({ backlog, index, have: new Set(), skips: new Set(), max: 10 });
   assert.equal(all.find((x) => x.key === 'Begriff|noun').level, 'C1', 'DAFlex 에 없으면 C1');
   assert.equal(all.find((x) => x.key === 'Begriff|noun').rank, 812);
+});
+
+test('pickBacklog: DAFlex A1·A2 는 건너뜀(목록에 등급을 적은 것만 예외)', () => {
+  const index = { daflex: { haus: 'A1', teil: 'A2', nachhaltig: 'B1' } };
+  const out = pickBacklog({ backlog: [{ k: 'Haus|noun' }, { k: 'Teil|noun' }, { k: 'Teil|noun', lv: 'B2' }, { k: 'nachhaltig|adj' }], index, have: new Set(), skips: new Set(), max: 10 });
+  assert.deepEqual(out.map((x) => [x.key, x.level]), [['Teil|noun', 'B2'], ['nachhaltig|adj', 'B1']]);
+});
+
+test('acceptContent: AI 등급 A1·A2·C2 는 keep:false(뺀 후보), B1~C1 만 통과, 등급 없음·이상함은 다음에 다시', () => {
+  const ok = { keep: true, gloss_ko: '가', example_de: 'Das ist es.', example_ko: '이거예요.', scene_en: 'Borti holds it.' };
+  const lv = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const list = [...lv, 'none', 'bad'].map((c) => ({ key: `${c}|noun` }));
+  const got = acceptContent([...lv.map((c) => ({ key: `${c}|noun`, cefr: c, ...ok })), { key: 'none|noun', ...ok }, { key: 'bad|noun', cefr: 'D9', ...ok }], list);
+  assert.deepEqual(got.map((x) => [x.key, x.keep]), [['A1|noun', false], ['A2|noun', false], ['B1|noun', true], ['B2|noun', true], ['C1|noun', true], ['C2|noun', false]]);
+  assert.match(got[1].reason, /A2/);
 });
 
 test('보강 목록 파일: 꼴(k = 표제어|품사) · 겹침 없음 · 뺀 후보 열쇠 규칙(60자)에 맞음', () => {
