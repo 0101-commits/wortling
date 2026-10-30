@@ -5,7 +5,7 @@
 //   G2 모델 섞기 — 처음 3일 50/50, 그 뒤 「통과한 그림 / 쓴 뉴런」 비율로 나누되 모델마다 바닥 20%
 //   G3 어려운 단어(검사 두 번 탈락) 다시 그리기 몫
 //   P5 검사 AI 사용량 장부 + 손 실행이 예약 실행 몫(기본 40%)을 건드리지 않게 막기
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 
 export const KLEIN4 = '@cf/black-forest-labs/flux-2-klein-4b';
 export const SCHNELL = '@cf/black-forest-labs/flux-1-schnell';
@@ -44,7 +44,15 @@ export function ledgerConfig(env = process.env) {
   const scheduled = (env.DAILY_RUN_KIND || (env.GITHUB_EVENT_NAME === 'schedule' ? 'scheduled' : 'manual')) === 'scheduled';
   return {
     budget: num('NEURON_DAILY', 10_000) - num('NEURON_MARGIN', 1000), // 쓸 수 있는 뉴런
-    factor: num('NEURON_FACTOR', 1.3), // 대시보드 실측 ≈ 계산의 1.3배(2026-10-19, klein-4b)
+    // 보정 계수 — 1.3 은 klein-4b 만 대시보드로 실측한 값(2026-10-19). 다른 모델은 실측 전이라 같은 값을 임시로 쓴다.
+    // 실측이 나오면 모델별 환경값 NEURON_FACTOR_SCHNELL · _KLEIN4 · _KLEIN9 · _DEV 로 따로 고친다(없으면 NEURON_FACTOR)
+    factor: num('NEURON_FACTOR', 1.3),
+    factors: {
+      [KLEIN4]: num('NEURON_FACTOR_KLEIN4', num('NEURON_FACTOR', 1.3)),
+      [SCHNELL]: num('NEURON_FACTOR_SCHNELL', num('NEURON_FACTOR', 1.3)),
+      [KLEIN9]: num('NEURON_FACTOR_KLEIN9', num('NEURON_FACTOR', 1.3)),
+      [DEV]: num('NEURON_FACTOR_DEV', num('NEURON_FACTOR', 1.3)),
+    },
     phaseDays: num('MIX_PHASE_DAYS', 3),
     floor: num('MIX_FLOOR', 0.2),
     schnellSteps: num('SCHNELL_STEPS', 4),
@@ -62,27 +70,65 @@ export function ledgerConfig(env = process.env) {
 /** 모델 한 장 뉴런(보정 포함) — 장부에 적는 값 */
 export function neuronEstimate(model, cfg = ledgerConfig(), opts = {}) {
   const steps = model === SCHNELL ? cfg.schnellSteps : model === DEV ? cfg.devSteps : undefined;
-  return neuronCost(model, { steps, ...opts }) * cfg.factor;
+  return neuronCost(model, { steps, ...opts }) * (cfg.factors?.[model] ?? cfg.factor);
 }
 
 // ── 장부 ────────────────────────────────────────────────────────────────
 export const emptyLedger = () => ({ version: 1, start: null, days: {}, stats: {}, fails: {}, hard_tried: {}, drawn_by: {} });
 
+/** 읽기. 파일이 없거나 깨졌으면 빈 장부 + recovered: true — 「0 뉴런 썼다」로 믿으면 안 되니 부르는 쪽이 seedFloor 로 바닥을 깐다 */
 export function loadLedger(file) {
   try {
-    return { ...emptyLedger(), ...JSON.parse(readFileSync(file, 'utf8')) };
+    const l = { ...emptyLedger(), ...JSON.parse(readFileSync(file, 'utf8')) };
+    if (!l.days || typeof l.days !== 'object') throw new Error('bad ledger');
+    return l;
   } catch {
-    return emptyLedger(); // 없거나 깨졌으면 새로
+    return { ...emptyLedger(), recovered: true };
   }
+}
+
+/** 장부를 잃은 날(recovered)의 보수적 바닥: 그날 이미 그린 횟수(draw-day.json, 장부와 따로 저장) × 한 장 어림을 klein-4b 몫으로 적는다.
+ *  횟수 기록도 없으면 0(정말 첫 실행). 한 번만 적는다(이미 오늘 기록이 있으면 아무것도 안 함) */
+export function seedFloor(l, day, drawnToday, cfg = ledgerConfig()) {
+  if (!l.recovered) return 0;
+  delete l.recovered;
+  const d = dayRec(l, day);
+  if (sum(d.neurons) > 0 || !(drawnToday > 0)) return 0;
+  const n = drawnToday * neuronEstimate(KLEIN4, cfg);
+  d.neurons[KLEIN4] = n;
+  return n;
 }
 
 /** 저장. 날짜는 14일치만 · drawn_by 는 최근 3,000장만 남긴다 */
 export function saveLedger(file, l) {
+  const { recovered: _r, ...rest } = l; // recovered 는 이번 실행 표시일 뿐 저장하지 않는다
+  void _r;
   const keep = Object.keys(l.days).sort().slice(-14);
   for (const d of Object.keys(l.days)) if (!keep.includes(d)) delete l.days[d];
   const by = Object.entries(l.drawn_by);
   if (by.length > 3000) l.drawn_by = Object.fromEntries(by.slice(-3000));
-  writeFileSync(file, JSON.stringify(l));
+  // 임시 파일에 쓴 뒤 이름 바꾸기 — 도중에 죽어도 옛 장부가 반쪽 JSON 으로 남지 않는다
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, JSON.stringify(rest));
+  renameSync(tmp, file);
+}
+
+/** 앱에서 내린 결정(Worker review-log)을 장부에 반영: 승인 = 검사 통과(탈락 횟수 지움 · 모델 통과 점수) · 다시 그리기 = 검사 탈락 1회.
+ *  승인된 단어는 예전 그림체 목록(queue 배열들)에서 뺀다 → 올라간 그림을 다시 그려 덮어쓰지 않는다. 반영한 id 를 돌려준다 */
+export function applyManualDecisions(l, items, queues = []) {
+  const seen = [];
+  for (const { id, ok } of items) {
+    recordJudge(l, id, l.drawn_by[id], ok === true);
+    if (ok === true) {
+      delete l.hard_tried[id];
+      for (const q of queues) {
+        if (Array.isArray(q)) { const i = q.indexOf(id); if (i >= 0) q.splice(i, 1); }
+        else if (q instanceof Map || q instanceof Set) q.delete(id);
+      }
+    }
+    seen.push(id);
+  }
+  return seen;
 }
 
 export function dayRec(l, day) {
@@ -191,3 +237,7 @@ export function judgeAllowed(l, day, provider, cfg = ledgerConfig()) {
   const cap = cfg.manual ? limit * (1 - cfg.reserve) : limit;
   return used + est <= cap;
 }
+
+/** 그리기 요청이 실패했을 때 서버가 이미 그렸을 수 있나 → 뉴런을 어림으로 적을지.
+ *  api() 오류 문구는 「POST … → 상태 본문」 — 4xx(요청 오류 · 429 몫 소진)는 그리기 전에 거절됐으니 안 적고, 상태가 없는 것(네트워크 끊김 · 시간 초과)과 5xx 는 적는다 */
+export const sentButFailed = (e) => !/→ 4\d\d/.test(String(e?.message ?? e));

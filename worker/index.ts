@@ -26,7 +26,8 @@ import type { Payload } from './discord.ts';
 import { LATER_MS, WEBHOOK_KEY, WEBHOOK_RE, laterAllowed, sendTest, webhookUrl } from './notify.ts';
 import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
 import { HttpError, bad } from './http.ts';
-import { MAX_IMAGE_BYTES, approvePending, deletePending, getPending, listPending, putPending, rejectPending, reviewPending } from './pending.ts';
+import { drawSteps } from './draw-steps.ts';
+import { MAX_IMAGE_BYTES, approvePending, deletePending, getPending, listPending, putPending, rejectPending, reviewPending, listReviewLog, deleteReviewLog } from './pending.ts';
 import {
   LIST_ORDER, addReport, addRequest, exampleWords, getNews, imageWords, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
   reseq, revertChange, reviewQueue, reviewStats, settleRequest, wordKeys,
@@ -566,7 +567,7 @@ const draw: Handler = async ({ req, env }) => {
   if (b.ref !== undefined && (typeof b.ref !== 'string' || b.ref.length > 400_000)) throw bad('ref');
   const model = b.model === undefined ? DRAW_MODEL : typeof b.model === 'string' && DRAW_MODELS.has(b.model) ? b.model : null;
   if (!model) throw bad('model');
-  const steps = Math.min(50, Math.max(1, Math.round(Number(b.steps) || 0))) || undefined;
+  const steps = drawSteps(model, b.steps);
   // 16 의 배수, 256~1536
   const side = (v: unknown, d: number) => Math.min(1536, Math.max(256, Math.round((Number(v) || d) / 16) * 16));
   const schnell = model.endsWith('flux-1-schnell');
@@ -652,6 +653,8 @@ const routes: Route[] = [
   ['GET', /^\/api\/admin\/pending-review$/, reviewPending],
   ['POST', /^\/api\/admin\/pending\/([\w-]+)\/approve$/, approvePending],
   ['POST', /^\/api\/admin\/pending\/([\w-]+)\/reject$/, rejectPending],
+  ['GET', /^\/api\/admin\/review-log$/, listReviewLog],
+  ['DELETE', /^\/api\/admin\/review-log\/([\w-]+)$/, deleteReviewLog],
   ['PUT', /^\/api\/admin\/pending\/([\w-]+)$/, putPending],
   ['GET', /^\/api\/admin\/pending\/([\w-]+)$/, getPending],
   ['DELETE', /^\/api\/admin\/pending\/([\w-]+)$/, deletePending],

@@ -1,5 +1,5 @@
 // 그림 확인: AI 검사가 못 정한 그림을 한 장씩 보고 「좋아요」(공개 그림으로) · 「다시 그리기」(버림 → 매일 작업이 다시 그림)
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Skeleton } from '@montage-ui/core'
 import type { PendingReviewItem } from '../../shared/api.ts'
 import { ApiError, api, errorText, pendingImageUrl } from '../api.ts'
@@ -30,6 +30,7 @@ function Reviewer({ first }: { first: PendingReviewItem[] }) {
   const total = first.length
   const [items, setItems] = useState(first)
   const [busy, setBusy] = useState(false)
+  const lock = useRef(false) // 동기 잠금 — busy 상태는 다음 렌더에야 반영돼 연타가 두 번 결정을 보낸다
   const cur = items[0]
   const [img, setImg] = useState<{ id: string; src?: string; error?: string } | null>(null)
 
@@ -64,15 +65,19 @@ function Reviewer({ first }: { first: PendingReviewItem[] }) {
     )
 
   const decide = async (ok: boolean) => {
+    if (lock.current) return
+    lock.current = true
+    const id = cur.id // 결정한 장 — 응답 뒤엔 맨 앞 장이 달라졌을 수 있어 id 로 뺀다
     setBusy(true)
     try {
-      await (ok ? api.approvePending(cur.id) : api.rejectPending(cur.id))
+      await (ok ? api.approvePending(id) : api.rejectPending(id))
       toast(ok ? `${cur.lemma} 그림을 올렸어요` : `${cur.lemma} 그림은 다시 그릴게요`, 'positive')
-      setItems((l) => l.slice(1))
+      setItems((l) => l.filter((x) => x.id !== id))
     } catch (e) {
-      if (e instanceof ApiError && e.status === 404) setItems((l) => l.slice(1)) // 그사이 매일 작업이 처리함
+      if (e instanceof ApiError && e.status === 404) setItems((l) => l.filter((x) => x.id !== id)) // 그사이 매일 작업이 처리함
       toast(errorText(e), 'negative')
     } finally {
+      lock.current = false
       setBusy(false)
     }
   }

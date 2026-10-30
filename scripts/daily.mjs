@@ -19,7 +19,7 @@ import { STYLE_INTRO, BORTI, STYLE, STYLE_TEXT_ONLY, REF_NOTE, REF_FILE } from '
 import { checkFile } from './imgcheck.mjs';
 import { askJson } from './ai.mjs';
 import { judgeImages, setJudgeLedger } from './judge.mjs';
-import { KLEIN4, SCHNELL, DEV, SIZE, ledgerConfig, loadLedger, saveLedger, neuronEstimate, pickModel, hardCandidates, hardSlot, recordDraw, recordAuto, recordJudge, spentToday, dayRec } from './ledger.mjs';
+import { KLEIN4, SCHNELL, DEV, SIZE, ledgerConfig, loadLedger, saveLedger, neuronEstimate, pickModel, hardCandidates, hardSlot, recordDraw, recordAuto, recordJudge, spentToday, dayRec, seedFloor, applyManualDecisions, sentButFailed } from './ledger.mjs';
 import { processPending, sortByVerdict } from './pending.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -111,6 +111,12 @@ try {
       saveLedger(LEDGER_FILE, ledger);
     };
     // 검사 AI 사용량을 장부에 적고, 손 실행(workflow_dispatch · 로컬)은 예약 실행 몫을 건드리기 전에 멈춘다(judge.mjs)
+    // 장부가 없거나 깨졌으면 「0 뉴런」으로 믿지 않는다 — 오늘 이미 그린 횟수(draw-day.json)로 바닥을 깐다(ledger.mjs seedFloor)
+    try {
+      const dd = JSON.parse(readFileSync(DRAW_DAY_FILE, 'utf8'));
+      const floor = seedFloor(ledger, utcNow(), dd.day === utcNow() ? Number(dd.drawn) || 0 : 0, cfg);
+      if (floor) console.log(`장부 없음/깨짐 — 오늘 그린 ${dd.drawn}번으로 뉴런 바닥 ${Math.round(floor)} 적용`);
+    } catch { delete ledger.recovered; /* draw-day 도 없으면 정말 첫 실행 */ }
     setJudgeLedger({ ledger, cfg, day: utcNow, save: saveL });
     console.log(`장부: 오늘(UTC) 뉴런 ${Math.round(spentToday(ledger, utcNow()))}/${cfg.budget} · ${cfg.manual ? '손 실행(예약 실행 몫 ' + Math.round(cfg.reserve * 100) + '% 남김)' : '예약 실행'}`);
     let quotaOut = false; // 무료 하루 몫을 다 씀(429)
@@ -126,6 +132,23 @@ try {
     const fix = new Map();
     // 그림 검사 AI(Flash 무료 몫)를 못 씀 → 검사 없이는 올리지 않는다. 그래도 그날 몫까지는 그리고, 자동 검사를 통과한 그림은 「검사 대기」로 맡겨 다음 실행이 먼저 검사한다
     let judgeDown = false;
+    // 앱(그림 확인 화면)에서 내린 결정 반영 — 승인은 검사 통과처럼(다시 그리기 목록에서 빼 올라간 그림을 덮어쓰지 않음), 다시 그리기는 검사 탈락 1회.
+    // 반영한 기록은 Worker 에서 지운다(못 지우면 다음 실행이 또 반영 — 승인은 되풀이해도 안전, 탈락은 한 번 더 셀 수 있어 지우기 실패는 알린다)
+    try {
+      const rl = (await api('/api/admin/review-log')).items;
+      if (rl.length) {
+        const ids = applyManualDecisions(ledger, rl, [restyle, fix]);
+        if (!DRY) {
+          saveRestyle();
+          saveL();
+          for (const id of ids) await api(`/api/admin/review-log/${id}`, { method: 'DELETE' }).catch((e) => console.error(`결정 기록 지우기 실패 ${id}: ${String(e.message).slice(0, 120)}`));
+        }
+        log.manual = { approved: rl.filter((x) => x.ok).length, rejected: rl.filter((x) => !x.ok).length };
+        console.log(`앱 결정 반영: 승인 ${log.manual.approved} · 다시 그리기 ${log.manual.rejected}`);
+      }
+    } catch (e) {
+      if (!/→ 404/.test(String(e.message))) console.error(`앱 결정 읽기 실패: ${String(e.message).slice(0, 200)}`); // 404 = 옛 Worker
+    }
     if (RECHECK && !REDO.length) {
       // 질의 한 번. /api/words 를 43쪽 넘기던 때는 한 번에 D1 행 읽기 ≈130만 → 하루 무료 5M 을 넘겼다(2026-10-19)
       const have = (await api('/api/admin/images')).items;
@@ -228,12 +251,38 @@ try {
     let refWorked = false; // 오늘 참고 그림으로 한 장이라도 그려졌나(끊긴 뒤 그린 그림을 다시 그릴지 가름)
     // model = 장부가 고른 모델(ledger.mjs). 돌려주는 model 은 Worker 가 알려 준 실제 모델(x-draw-model, 옛 Worker 는 헤더가 없어 klein-4b) — 장부는 그것으로 적는다
     // schnell 은 참고 그림 입력이 없다 → 보르티 생김새를 글로 더 강하게 적고, 정사각 그림은 흰 바탕에 4:3 으로 앉힌다
+    // 요청을 보낼 때마다(재시도 포함) 그 순간의 UTC 날짜로 예산을 다시 확인하고, 보냈다면 성공·실패와 상관없이 어림 뉴런을 장부에 적는다
+    // (시간 초과·5xx 는 서버가 이미 그렸을 수 있다 · 그린 뒤 sharp 가 실패해도 뉴런은 나갔다). 4xx(요청 오류·429 몫 소진)는 그리지 않았으니 안 적는다
+    const gate = (model, withRef) => {
+      if (stopped()) throw Object.assign(new Error('stopped'), { gate: true });
+      if (neuronEstimate(model, cfg, { ref: withRef }) > cfg.budget - spentToday(ledger, utcNow())) {
+        budgetOut = true;
+        log.quota = 'budget';
+        throw Object.assign(new Error('budget'), { gate: true });
+      }
+    };
+    const charge = (day, model, withRef) => {
+      recordDraw(ledger, day, model, neuronEstimate(model, cfg, { ref: withRef }));
+      saveL();
+      checked++;
+      drawnDay[day] = (drawnDay[day] ?? 0) + 1;
+      saveDrawDay(day);
+    };
     const drawOnce = async (scene, model) => {
       const gen = async () => {
         const useRef = !!ref && model !== SCHNELL;
+        gate(model, useRef);
+        const day = utcNow();
         const [width, height] = SIZE[model];
         const steps = model === SCHNELL ? cfg.schnellSteps : model === DEV ? cfg.devSteps : undefined;
-        const r = await api('/api/admin/draw', { method: 'POST', body: { prompt: imagePrompt(scene, useRef, model === SCHNELL), width, height, model, ...(steps ? { steps } : {}), ...(useRef ? { ref } : {}) }, bin: 'meta' });
+        let r;
+        try {
+          r = await api('/api/admin/draw', { method: 'POST', body: { prompt: imagePrompt(scene, useRef, model === SCHNELL), width, height, model, ...(steps ? { steps } : {}), ...(useRef ? { ref } : {}) }, bin: 'meta' });
+        } catch (e) {
+          if (sentButFailed(e)) charge(day, model, useRef); // 보낸 뒤 시간 초과·5xx
+          throw e;
+        }
+        charge(day, r.model, useRef && r.model !== SCHNELL);
         if (useRef) refWorked = true;
         let png = r.buf;
         if (r.model === SCHNELL) png = await sharp(png).resize(1024, 768, { fit: 'contain', background: '#fff' }).jpeg({ quality: 92 }).toBuffer();
@@ -243,13 +292,13 @@ try {
         return await gen();
       } catch (e) {
         // 생성 실패면 5초 뒤 한 번 더. 무료 몫을 다 쓰면(429) 다시 요청하지 않고 그대로 던진다
-        if (/→ 429/.test(String(e.message))) throw e;
+        if (e.gate || /→ 429/.test(String(e.message))) throw e;
         console.error(`다시 요청: ${String(e.message || e).slice(0, 120)}`);
         await new Promise((r) => setTimeout(r, 5000));
         try {
           return await gen();
         } catch (e2) {
-          if (!ref || model === SCHNELL || /→ 429/.test(String(e2.message))) throw e2;
+          if (e2.gate || !ref || model === SCHNELL || /→ 429/.test(String(e2.message))) throw e2;
           log.ref_error = String(e2.message || e2).slice(0, 200);
           console.error(`참고 그림 없이 다시: ${log.ref_error}`);
           ref = null;
@@ -258,39 +307,36 @@ try {
       }
     };
     let checked = 0;
-    const utcDay = new Date().toISOString().slice(0, 10);
-    let drawnBefore = 0; // 오늘 앞선 실행이 그린 횟수
+    let drawnBefore = 0; // 이 실행이 시작할 때 오늘 앞선 실행이 그린 횟수
     try {
       const d = JSON.parse(readFileSync(DRAW_DAY_FILE, 'utf8'));
-      if (d.day === utcDay) drawnBefore = Number(d.drawn) || 0;
+      if (d.day === utcNow()) drawnBefore = Number(d.drawn) || 0;
     } catch { /* 없으면 0 */ }
+    // 날짜(UTC)별 그린 횟수 — 그릴 때마다 그 순간의 날짜로 센다(자정을 넘기면 새 날 몫 0 부터)
+    const drawnDay = { [utcNow()]: drawnBefore };
     // 한 번 그릴 때마다 적어 둔다 — 도중에 죽어도 다음 실행이 쓴 몫을 안다
-    const saveDrawDay = () => { if (!DRY) writeFileSync(DRAW_DAY_FILE, JSON.stringify({ day: utcDay, drawn: drawnBefore + checked })); };
+    const saveDrawDay = (day) => { if (!DRY) writeFileSync(DRAW_DAY_FILE, JSON.stringify({ day, drawn: drawnDay[day] })); };
     if (drawnBefore) console.log(`오늘(UTC) 앞선 실행이 ${drawnBefore}번 그림 — 남은 몫 ${Math.max(0, DRAW_MAX - drawnBefore)}번`);
     let ocrSkipped = 0;
     let budgetOut = false; // 오늘 뉴런 예산(장부)을 다 씀
     let errStreak = 0; // 단어 탓이 아닌 오류(용량 부족·서버 오류)가 잇따르면 그날은 멈춤
     // 그리기 상한에 닿으면 남은 단어·뜻 탈락 다시 그리기는 내일로(실패 표시 안 함)
-    // UTC 자정을 넘기면 멈춤 — 그 뒤 그림은 새 날 몫인데 파일엔 옛 날로 적혀 다음 실행이 또 80번 그린다
+    // UTC 자정을 넘겨도 멈추지 않는다 — 그림마다 그 순간의 날짜로 횟수·뉴런을 적고 예산도 그 날 몫으로 다시 본다
     // 검사 AI 가 막혔어도(judgeDown) 그리기는 계속한다 — 대기가 상한(PENDING_MAX)에 닿거나 대기 길이 없을 때만 멈춤
-    const stopped = () => quotaOut || budgetOut || (judgeDown && !holdOk) || pendingSentToday + inflight >= PENDING_MAX || errStreak >= 3 || drawnBefore + checked >= DRAW_MAX || new Date().toISOString().slice(0, 10) !== utcDay;
+    const stopped = () => quotaOut || budgetOut || (judgeDown && !holdOk) || pendingSentToday + inflight >= PENDING_MAX || errStreak >= 3 || (drawnDay[utcNow()] ?? 0) >= DRAW_MAX;
     // 한 단어 그리기 + 자동 검사(C5). 탈락이면 한 번만 다시. → {png, check, why} · 그리기 오류면 null(실패 표시 안 함, 내일 다시)
     const drawChecked = async (w, scene) => {
       let png = null, check = null, why = [], used = null;
       // 어려운 단어는 큰 모델(참고 그림 있음)로 한 번만 — 몫이 없으면 보통 단어처럼
-      const hardCost = w.hard ? hardSlot(ledger, utcDay, cfg) : null;
+      const hardCost = w.hard ? hardSlot(ledger, utcNow(), cfg) : null;
       try {
         for (let attempt = 1; attempt <= (hardCost ? 1 : 2) && !png; attempt++) {
-          const pick = hardCost ? { model: cfg.hardModel } : pickModel(ledger, utcDay, cfg);
+          const pick = hardCost ? { model: cfg.hardModel } : pickModel(ledger, utcNow(), cfg);
           if (!pick) { budgetOut = true; log.quota = 'budget'; return null; } // 오늘 뉴런 예산 소진 → 멈춤(내일 다시)
-          if (hardCost) ledger.hard_tried[w.id] = utcDay;
+          if (hardCost) ledger.hard_tried[w.id] = utcNow();
           const r = await drawOnce(scene, pick.model);
           const p = r.png;
           used = r.model;
-          recordDraw(ledger, utcDay, used, neuronEstimate(used, cfg, { ref: r.ref }));
-          saveL();
-          checked++;
-          saveDrawDay();
           // 실측: 가끔 새까만 그림이 온다(w0010, 편차 0)
           const { channels } = await sharp(p).stats();
           if (channels.every((c) => c.stdev < 4)) { why = ['blank_image']; continue; }
@@ -310,6 +356,7 @@ try {
           }
         }
       } catch (e) {
+        if (e.gate) return null; // 예산·상한에 막혀 보내지 않음 — 단어 탓이 아니니 내일 다시
         quotaOut = /→ 429/.test(String(e.message));
         if (quotaOut) { log.quota = 'out'; return null; }
         log.failed.push({ id: w.id, error: String(e.message || e).slice(0, 300) });
@@ -457,8 +504,8 @@ try {
     // G15: 검사 통과율(생성 1번 = 1건)
     log.checks = { drawn: checked, drawn_before: drawnBefore, draw_max: DRAW_MAX, passed: log.images.length, rate: checked ? +(log.images.length / checked).toFixed(2) : null, ocr_skipped: ocrSkipped, ref: !!ref };
     // 뉴런 어림 — 대시보드 실측 한 장 ≈ 109(계산 83.4 의 1.3배, 2026-10-19). 실패 요청은 안 셈
-    log.neurons_est = Math.round(spentToday(ledger, utcDay));
-    log.ledger = { day: utcDay, budget: cfg.budget, ...dayRec(ledger, utcDay), stats: ledger.stats, hard_pending: hardCandidates(ledger, cfg).length };
+    log.neurons_est = Math.round(spentToday(ledger, utcNow()));
+    log.ledger = { day: utcNow(), budget: cfg.budget, ...dayRec(ledger, utcNow()), stats: ledger.stats, hard_pending: hardCandidates(ledger, cfg).length };
     saveL();
 
     // 진행률 · 전부 완료 알림(그릴 단어가 하나도 안 남은 첫날 한 번)

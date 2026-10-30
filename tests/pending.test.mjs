@@ -1,7 +1,8 @@
 // 검사 대기 그림: Worker 처리기(worker/pending.ts) + 대기 처리·판정 갈래(scripts/pending.mjs). AI·Worker 는 가짜
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { putPending, listPending, getPending, deletePending, reviewPending, approvePending, rejectPending } from '../worker/pending.ts';
+import { putPending, listPending, getPending, deletePending, reviewPending, approvePending, rejectPending, listReviewLog, deleteReviewLog } from '../worker/pending.ts';
+import { drawSteps } from '../worker/draw-steps.ts';
 import { processPending, sortByVerdict } from '../scripts/pending.mjs';
 import { fakeD1, addWord } from './d1.mjs';
 
@@ -235,6 +236,34 @@ test('worker 다시 그리기: 대기 삭제 + 그림 없는 단어는 none(다�
   assert.deepEqual(await (await rejectPending(ctxOf(env, 'w2'))).json(), { ok: true, status: 'ok' });
   assert.equal(imgStatus(env, 'w1').s, 'none');
   assert.deepEqual(imgStatus(env, 'w2'), { s: 'ok', i: 'w2.webp' });
-  assert.equal(env.IMG.m.size, 0);
+  assert.deepEqual([...env.IMG.m.keys()], ['review-log/w1'], '대기는 비고 결정 기록만 남는다');
   assert.equal(await status(rejectPending(ctxOf(env, 'nope'))), 404);
+});
+
+test('worker 앱 결정 기록: 승인·다시 그리기가 review-log 에 남고, 목록·지우기', async () => {
+  const env = setup();
+  const ctx = (id) => ({ req: webp(), env, url: new URL('https://w.example'), params: [id] });
+  await putPending(ctx('w1'));
+  await putPending(ctx('w2'));
+  await approvePending(ctx('w1'));
+  await new Promise((r) => setTimeout(r, 3));
+  await rejectPending(ctx('w2'));
+  const { items } = await (await listReviewLog(ctx(''))).json();
+  assert.deepEqual(items.map((x) => [x.id, x.ok]), [['w1', true], ['w2', false]]);
+  assert.equal(env.IMG.m.has('review-log/w1'), true);
+  assert.equal(await status(approvePending(ctx('zz'))), 404, '없는 단어는 기록 안 함');
+  await deleteReviewLog(ctx('w1'));
+  assert.deepEqual((await (await listReviewLog(ctx(''))).json()).items.map((x) => x.id), ['w2']);
+});
+
+test('draw steps: 빠지면 모델 기본값(undefined) · schnell ≤ 8 · dev ≤ 20 · 이상한 값은 400', () => {
+  const S = '@cf/black-forest-labs/flux-1-schnell', D = '@cf/black-forest-labs/flux-2-dev', K = '@cf/black-forest-labs/flux-2-klein-4b';
+  assert.equal(drawSteps(S, undefined), undefined);
+  assert.equal(drawSteps(S, null), undefined);
+  assert.equal(drawSteps(S, 4), 4);
+  assert.equal(drawSteps(S, 50), 8);
+  assert.equal(drawSteps(D, 50), 20);
+  assert.equal(drawSteps(D, 12.4), 12);
+  assert.equal(drawSteps(K, 4), undefined, '다른 모델은 steps 를 안 받는다');
+  for (const bad of [0, -1, 'x', NaN, true]) assert.throws(() => drawSteps(S, bad), (e) => e.status === 400);
 });

@@ -9,6 +9,10 @@ import { HttpError, bad } from './http.ts';
 export const MAX_IMAGE_BYTES = 200 * 1024;
 const PREFIX = 'pending/';
 const key = (id: string) => `${PREFIX}${id}.webp`;
+// 앱에서 내린 결정 기록 — 매일 작업(scripts/daily.mjs)이 시작할 때 읽고 지운다(승인 = 검사 통과로 센다 · 다시 그리기 = 검사 탈락으로 센다).
+// 열쇠 `review-log/<id>` 는 공개 그림 길(`${name}.webp`)로 닿지 않는다
+const LOG = 'review-log/';
+const logPut = (env: Env, id: string, ok: boolean) => env.IMG.put(`${LOG}${id}`, ok ? 'ok' : 'no', { metadata: { ok, at: new Date().toISOString() } });
 
 interface Ctx {
   req: Request;
@@ -95,6 +99,7 @@ export async function approvePending({ env, params: [id] }: Ctx): Promise<Respon
   const imageKey = `${id}.webp`;
   await env.IMG.put(imageKey, body);
   await env.DB.prepare("UPDATE words SET image_status = 'ok', image_id = ? WHERE id = ?").bind(imageKey, id).run();
+  await logPut(env, id, true);
   await env.IMG.delete(key(id));
   return Response.json({ ok: true, status: 'ok', image_id: imageKey });
 }
@@ -105,6 +110,27 @@ export async function rejectPending({ env, params: [id] }: Ctx): Promise<Respons
   const word = await env.DB.prepare('SELECT image_status FROM words WHERE id = ?').bind(id).first<{ image_status: string }>();
   if (!word) throw new HttpError(404, 'not_found');
   if (word.image_status !== 'ok') await env.DB.prepare("UPDATE words SET image_status = 'none' WHERE id = ?").bind(id).run();
+  await logPut(env, id, false);
   await env.IMG.delete(key(id));
   return Response.json({ ok: true, status: word.image_status === 'ok' ? 'ok' : 'none' });
+}
+
+/** 앱 결정 기록 목록(오래된 것 먼저) → {items:[{id, ok, at}]} */
+export async function listReviewLog({ env }: Ctx): Promise<Response> {
+  const items: Array<{ id: string; ok: boolean; at: string | null }> = [];
+  let cursor: string | undefined;
+  for (;;) {
+    const page = await env.IMG.list<{ ok?: boolean; at?: string }>({ prefix: LOG, cursor });
+    for (const k of page.keys) items.push({ id: k.name.slice(LOG.length), ok: k.metadata?.ok === true, at: k.metadata?.at ?? null });
+    if (page.list_complete) break;
+    cursor = page.cursor;
+  }
+  items.sort((a, b) => (a.at ?? '').localeCompare(b.at ?? '') || a.id.localeCompare(b.id));
+  return Response.json({ items });
+}
+
+/** 결정 기록 지우기(매일 작업이 반영한 뒤). 없어도 성공 */
+export async function deleteReviewLog({ env, params: [id] }: Ctx): Promise<Response> {
+  await env.IMG.delete(`${LOG}${id}`);
+  return Response.json({ ok: true });
 }
