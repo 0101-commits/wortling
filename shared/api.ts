@@ -117,6 +117,8 @@ export interface WordsQuery {
   sort?: 'seq' | 'learned' | 'alpha';
   page?: number;
   size?: number;
+  /** 1 = 총수를 안 센다(꽉 찬 쪽이면 total 은 지금까지 본 수). 목록 연습처럼 total 을 안 쓰는 호출용 */
+  no_total?: 1;
 }
 
 /** GET /api/drill?scope=&n= (B4 추가 연습) · GET /api/artikel?n= (B5 관사 1분). 일정(FSRS)은 안 바꾼다 */

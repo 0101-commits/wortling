@@ -26,10 +26,12 @@ import type { Payload } from './discord.ts';
 import { LATER_MS, WEBHOOK_KEY, WEBHOOK_RE, laterAllowed, sendTest, webhookUrl } from './notify.ts';
 import { MAX_SUBS, readSubs, writeSubs } from './push.ts';
 import { HttpError, bad } from './http.ts';
+import { memo, clearMemo } from './memo.ts';
+import { meterDb, isBulkPath, overBudget, recordReads } from './budget.ts';
 import { drawSteps } from './draw-steps.ts';
 import { MAX_IMAGE_BYTES, approvePending, deletePending, getPending, listPending, putPending, rejectPending, reviewPending, listReviewLog, deleteReviewLog } from './pending.ts';
 import {
-  LIST_ORDER, addReport, addRequest, exampleWords, getNews, imageWords, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
+  LIST_ORDER, wordsExport, addReport, addRequest, exampleWords, getNews, imageWords, insertWords, listChanges, listRequests, patchWords, putNews, putSkips,
   reseq, revertChange, reviewQueue, reviewStats, settleRequest, wordKeys,
 } from './words.ts';
 
@@ -74,6 +76,7 @@ const today: Handler = async ({ env }) => {
 const todayMore: Handler = async ({ env }) => {
   const settings = await loadSettings(env.DB);
   await addExtra(env.DB, settings);
+  clearMemo(env.DB);
   const t = await buildToday(env.DB, settings, new Date());
   return json({ ...t, settings } satisfies TodayResponse);
 };
@@ -145,6 +148,7 @@ const postReviews: Handler = async ({ req, env }) => {
     );
   }
   if (stmts.length) await env.DB.batch(stmts);
+  clearMemo(env.DB);
   return json({ applied, cards: [...touched].map((id) => cards.get(id)!) } satisfies ReviewsResponse);
 };
 
@@ -183,11 +187,20 @@ const words: Handler = async ({ env, url }) => {
         ? `${ALPHA_KEY}, w.seq`
         : LIST_ORDER;
   const from = `FROM words w JOIN cards c ON c.word_id = w.id${where.length ? ' WHERE ' + where.join(' AND ') : ''}`;
-  const [cnt, rows] = await env.DB.batch([
-    env.DB.prepare(`SELECT count(*) AS n ${from}`).bind(...binds),
-    env.DB.prepare(`SELECT ${ITEM_SELECT} ${from} ORDER BY ${order} LIMIT ? OFFSET ?`).bind(...binds, size, (page - 1) * size),
-  ]);
-  return json({ total: count(cnt), page, size, items: sqlRows(rows).map(rowToItem) } satisfies WordsResponse);
+  // 쪽 질의를 먼저(정렬로 표를 한 번 훑는다). 총수는 따로 세지 않는다 —
+  //  꽉 차지 않은 쪽이면 offset + 줄 수가 곧 총수, 꽉 찼으면 120초 기억한 count(*) (옛: 쪽마다 count(*) 로 행 ≈1.7만씩 더 읽음)
+  //  no_total=1(목록 연습처럼 총수를 안 쓰는 쪽)이면 세지 않고 지금까지 본 수만 돌려준다
+  const offset = (page - 1) * size;
+  const rows = await env.DB.prepare(`SELECT ${ITEM_SELECT} ${from} ORDER BY ${order} LIMIT ? OFFSET ?`).bind(...binds, size, offset).all();
+  const got = sqlRows(rows).map(rowToItem);
+  let total: number;
+  if (got.length < size && (got.length > 0 || offset === 0)) total = offset + got.length;
+  else if (url.searchParams.get('no_total') === '1') total = offset + got.length;
+  else {
+    const key = `words-count|${from}|${JSON.stringify(binds)}`;
+    total = await memo(env.DB, key, 120_000, async () => count(await env.DB.prepare(`SELECT count(*) AS n ${from}`).bind(...binds).all()));
+  }
+  return json({ total, page, size, items: got } satisfies WordsResponse);
 };
 
 /** 가나다 정렬 열쇠: sich 빼고, 움라우트·ß 를 풀고, 소문자(lower 는 ASCII 만이라 Ä 등은 직접) */
@@ -258,11 +271,17 @@ const stats: Handler = async ({ env }) => {
   const todayDay = studyDay();
   // ponytail: 열기 지도와 연속일을 한 질의(최근 400일)로. 400일 넘는 연속은 400 으로 보인다.
   const windowStart = studyDayStartUtc(addDays(todayDay, -399));
-  const [tw, bl, bs, img, days, dt] = await env.DB.batch([
-    env.DB.prepare('SELECT count(*) AS n FROM words'),
-    env.DB.prepare('SELECT level, count(*) AS n FROM words GROUP BY level'),
-    env.DB.prepare('SELECT state, count(*) AS n FROM cards GROUP BY state'),
-    env.DB.prepare("SELECT count(*) AS n FROM words WHERE image_status = 'ok'"),
+  // 전체 수·등급별·상태별·그림 수는 천천히 변한다 → 120초 기억(채점·단어 추가 때 비움). 옛: 질의 4개 ≈ 4.4만 행/번
+  const counts0 = await memo(env.DB, 'stats-counts', 120_000, async () => {
+    const [bl, bs, notOk] = await env.DB.batch([
+      env.DB.prepare('SELECT level, count(*) AS n FROM words GROUP BY level'),
+      env.DB.prepare('SELECT state, count(*) AS n FROM cards GROUP BY state'),
+      // 그림 'ok' 가 대부분 → 부분 색인(words_image_not_ok, 0010)으로 ok 아닌 것만 세고 전체에서 뺀다
+      env.DB.prepare("SELECT count(*) AS n FROM words WHERE image_status != 'ok'"),
+    ]);
+    return { bl: bl.results as Array<{ level: Level; n: number }>, bs: bs.results as Array<{ state: number; n: number }>, notOk: count(notOk) };
+  });
+  const [days, dt] = await env.DB.batch([
     env.DB.prepare(
       // 학습일 = 한국 시각 − 4시간의 날짜 → UTC 에 (9 − 4) 시간 더한 날짜
       `SELECT strftime('%Y-%m-%d', reviewed_at, '+${9 - DAY_START_H} hours') AS day, count(*) AS n
@@ -273,11 +292,12 @@ const stats: Handler = async ({ env }) => {
       studyDayStartUtc(addDays(todayDay, 2)),
     ),
   ]);
+  const totalWords = counts0.bl.reduce((a, r) => a + r.n, 0);
   const byLevel = { B1: 0, B2: 0, C1: 0 } as Record<Level, number>;
-  for (const r of bl.results as Array<{ level: Level; n: number }>) if (r.level in byLevel) byLevel[r.level] = r.n;
+  for (const r of counts0.bl) if (r.level in byLevel) byLevel[r.level] = r.n;
   const stateName = ['new', 'learning', 'review', 'relearning'] as const;
   const byState = { new: 0, learning: 0, review: 0, relearning: 0 };
-  for (const r of bs.results as Array<{ state: number; n: number }>) {
+  for (const r of counts0.bs) {
     const k = stateName[r.state];
     if (k) byState[k] = r.n;
   }
@@ -296,10 +316,10 @@ const stats: Handler = async ({ env }) => {
     cursor = addDays(cursor, -1);
   }
   return json({
-    total_words: count(tw),
+    total_words: totalWords,
     by_level: byLevel,
     by_state: byState,
-    images: count(img),
+    images: totalWords - counts0.notOk,
     heat,
     streak_days: streak,
     due_tomorrow: count(dt),
@@ -487,11 +507,20 @@ const pushUnsubscribe: Handler = async ({ req, env }) => {
 
 const adminKeys: Handler = async ({ env }) => json(await wordKeys(env.DB));
 const adminImages: Handler = async ({ env }) => json(await imageWords(env.DB));
+/** 스크립트용 단어 전부(질의 한 번) — /api/words 를 쪽마다 넘기지 않게 */
+const adminWordsExport: Handler = async ({ env }) => json(await wordsExport(env.DB));
 const adminExamples: Handler = async ({ env }) => json(await exampleWords(env.DB));
-const adminInsert: Handler = async ({ req, env }) =>
-  json(await insertWords(env.DB, (await readJson<{ items?: Array<Record<string, unknown>> }>(req))?.items));
+const adminInsert: Handler = async ({ req, env }) => {
+  const out = await insertWords(env.DB, (await readJson<{ items?: Array<Record<string, unknown>> }>(req))?.items);
+  clearMemo(env.DB);
+  return json(out);
+};
 /** 단어 칸 고치기 + 고침 기록(scripts/words/review.mjs) · 글 채우기(daily.mjs) */
-const adminWords: Handler = async ({ req, env }) => json(await patchWords(env.DB, (await readJson<AdminWordsRequest>(req))?.items));
+const adminWords: Handler = async ({ req, env }) => {
+  const out = await patchWords(env.DB, (await readJson<AdminWordsRequest>(req))?.items);
+  clearMemo(env.DB);
+  return json(out);
+};
 const adminReviewQueue: Handler = async ({ env, url }) =>
   json({ items: await reviewQueue(env.DB, clamp(intParam(url.searchParams.get('limit'), 250), 1, 500)) });
 const adminReseq: Handler = async ({ env }) => json(await reseq(env.DB));
@@ -548,6 +577,7 @@ const putImage: Handler = async ({ req, env, url, params: [id] }) => {
   const key = `${id}.webp`;
   await env.IMG.put(key, bytes);
   await env.DB.prepare("UPDATE words SET image_status = 'ok', image_id = ? WHERE id = ?").bind(key, id).run();
+  clearMemo(env.DB);
   return json({ ok: true, status: 'ok', image_id: key });
 };
 
@@ -669,6 +699,7 @@ const routes: Route[] = [
   ['GET', /^\/api\/admin\/keys$/, adminKeys],
   ['GET', /^\/api\/admin\/images$/, adminImages],
   ['GET', /^\/api\/admin\/examples$/, adminExamples],
+  ['GET', /^\/api\/admin\/words-export$/, adminWordsExport],
   ['POST', /^\/api\/admin\/words\/insert$/, adminInsert],
 ];
 
@@ -712,7 +743,14 @@ export default {
         pathMatched = true;
         if (req.method !== method) continue;
         if (!isPublic && !ok) throw new HttpError(401, 'unauthorized');
-        return await handler({ req, env, url, params: m.slice(1) });
+        // 읽기 지킴이: 오늘 D1 읽기가 BLOCK_AT 을 넘으면 관리·일괄 길만 막는다(학습 길은 계속). 표가 없으면 안 막음
+        if (isBulkPath(url.pathname) && (await overBudget(env))) throw new HttpError(429, 'read_budget');
+        const acc = { rows: 0 };
+        try {
+          return await handler({ req, env: { ...env, DB: meterDb(env.DB, acc) }, url, params: m.slice(1) });
+        } finally {
+          ctx.waitUntil(recordReads(env, acc.rows));
+        }
       }
       throw new HttpError(pathMatched ? 405 : 404, pathMatched ? 'method_not_allowed' : 'not_found');
     } catch (e) {

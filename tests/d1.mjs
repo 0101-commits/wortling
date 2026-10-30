@@ -18,7 +18,8 @@ class Stmt {
     return new Stmt(this.db, this.sql, args.map(arg));
   }
   async all() {
-    return { results: this.db.prepare(this.sql).all(...this.args), success: true, meta: { changes: 0 } };
+    const results = this.db.prepare(this.sql).all(...this.args);
+    return { results, success: true, meta: { changes: 0, rows_read: results.length } }; // rows_read 는 줄 수로 흉내(worker/budget.ts 시험용)
   }
   async first(col) {
     const r = this.db.prepare(this.sql).get(...this.args);

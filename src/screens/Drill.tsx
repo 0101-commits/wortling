@@ -24,6 +24,7 @@ async function load(q: URLSearchParams): Promise<{ title: string; items: DeckIte
       sort: (q.get('sort') as WordsQuery['sort']) || undefined,
       page: 1,
       size: n,
+      no_total: 1,
     }
     return { title: '목록 연습', items: (await api.words(w)).items }
   }

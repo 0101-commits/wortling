@@ -148,6 +148,16 @@ export async function imageWords(db: D1Database) {
   return { items: r.results.map(plain) };
 }
 
+/** 스크립트용 단어 전부 한 질의(≈ 단어 수 × 2 행). 등급 감사 같은 일괄 읽기는 /api/words 대신 이걸 쓴다 */
+export async function wordsExport(db: D1Database) {
+  const r = await db.prepare(
+    `SELECT w.id, w.lemma, w.pos, w.gender, w.level, w.level_src, w.freq_rank, w.gloss_ko, w.image_status, w.seq,
+            c.state, c.reps, c.introduced_at
+     FROM words w LEFT JOIN cards c ON c.word_id = w.id ORDER BY w.id`,
+  ).all();
+  return { total: r.results.length, items: r.results.map(plain) };
+}
+
 /** 정기 작업용: 있는 단어 열쇠(+ 뉴스 순위) · 후보에서 뺀 기본형 */
 export async function wordKeys(db: D1Database) {
   const [w, s] = await db.batch([db.prepare('SELECT id, lemma, pos, news_rank FROM words ORDER BY id'), db.prepare('SELECT key FROM word_skips ORDER BY key')]);
