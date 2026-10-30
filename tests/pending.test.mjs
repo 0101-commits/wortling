@@ -236,7 +236,7 @@ test('worker 다시 그리기: 대기 삭제 + 그림 없는 단어는 none(다�
   assert.deepEqual(await (await rejectPending(ctxOf(env, 'w2'))).json(), { ok: true, status: 'ok' });
   assert.equal(imgStatus(env, 'w1').s, 'none');
   assert.deepEqual(imgStatus(env, 'w2'), { s: 'ok', i: 'w2.webp' });
-  assert.deepEqual([...env.IMG.m.keys()], ['review-log/w1'], '대기는 비고 결정 기록만 남는다');
+  assert.deepEqual([...env.IMG.m.keys()], ['review-log/w1', 'review-log/w2'], '대기는 비고 결정 기록만 남는다');
   assert.equal(await status(rejectPending(ctxOf(env, 'nope'))), 404);
 });
 
