@@ -1,7 +1,7 @@
 # Kaggle 무료 GPU 에서 단어 그림을 한꺼번에 그리고(FLUX.2 klein 4B) 같은 GPU 에서 열린 비전 모델로 뜻·몸 구조를 검사한다.
 # 깃허브 러너(scripts/kaggle.mjs pick)가 jobs.json(단어마다 프롬프트·검사 질문)과 borti-ref.png 를 같이 올린다.
 # 결과: /kaggle/working/out/<id>.webp + out/verdicts.json (러너가 kaggle kernels output 으로 받아 scripts/kaggle.mjs collect 가 올린다)
-import base64, gc, gzip, io, json, os, re, subprocess, sys, time
+import base64, gc, gzip, io, json, os, random, re, subprocess, sys, time
 
 PAYLOAD = ''  # @@PAYLOAD@@
 OUT = '/kaggle/working/out'
@@ -117,14 +117,24 @@ print('검사 모델 로드', meta['load_judge_sec'], 's', flush=True)
 
 
 def parse(text):
-    m = re.search(r'\[.*\]', text, re.S)
-    if not m:
-        return None
-    try:
-        a = json.loads(m.group(0))
-        return a[0] if a and isinstance(a[0], dict) and isinstance(a[0].get('ok'), bool) else None
-    except Exception:  # noqa: BLE001
-        return None
+    m = re.search(r'\{.*\}', text, re.S)
+    if m:
+        try:
+            d = json.loads(m.group(0))  # 한 개짜리 배열의 안쪽 객체
+            if isinstance(d, dict) and isinstance(d.get('ok'), bool):
+                return d
+        except Exception:  # noqa: BLE001
+            pass
+    # 잘린 답(why 가 길어 토큰이 끊김)도 불리언 칸만 건진다
+    d = {}
+    for k in ('ok', 'key_visible', 'guessable', 'body_ok', 'text_ok'):
+        mm = re.search(r'"%s"\s*:\s*(true|false)' % k, text)
+        if mm:
+            d[k] = mm.group(1) == 'true'
+    if 'ok' in d:
+        d['why'] = 'truncated'
+        return d
+    return None
 
 
 def gen(img, parts, max_new=300):
@@ -136,14 +146,34 @@ def gen(img, parts, max_new=300):
     return proc.batch_decode(out[:, inp.input_ids.shape[1]:], skip_special_tokens=True)[0]
 
 
+def mcq(img, j):
+    """눈가림 객관식 — 정답 단어 하나 + 다른 단어 5개 중 그림이 어느 것인지 단어를 모르는 채 고르게 한다.
+    순서를 바꿔 두 번 맞혀야 통과(그림이 막연하면 X). 반환: [정답 여부, 정답 여부]"""
+    opts = [(j['word'], j['meaning_ko'])] + [(o['word'], o['meaning_ko']) for o in j.get('distractors', [])][:5]
+    letters = 'ABCDEF'
+    res = []
+    for rot in (0, 1):
+        order = opts[:]
+        random.Random(f'{j["id"]}{rot}').shuffle(order)
+        lines = '\n'.join(f'{letters[i]}. {w} — {m}' for i, (w, m) in enumerate(order))
+        q = ('This doodle was drawn to illustrate exactly ONE of the following German words, like a picture dictionary.\n' + lines +
+             '\nWhich one is it? Answer with ONE letter only. If the picture is generic (for example the puppy just stands, sits or wears something) '
+             'and none of the options is clearly shown, answer X.')
+        ans = gen(img, [{'type': 'image', 'image': img}, {'type': 'text', 'text': q}], 6).strip()[:1].upper()
+        res.append(ans == letters[order.index(opts[0])])
+    return res
+
+
 def ask(j, f):
-    """1단계 = 단어 없이 그림만 묘사 · 2단계 = 묘사 + 의도한 장면·뜻으로 판정. 최종 ok 는 모든 항목이 거짓이 아닐 때만"""
+    """1단계 = 단어 없이 그림만 묘사 · 2단계 = 눈가림 객관식 · 3단계 = 묘사 + 의도한 장면·뜻으로 판정. 최종 ok 는 모두 통과할 때만"""
     img = Image.open(f).convert('RGB')
     desc = gen(img, [{'type': 'image', 'image': img}, {'type': 'text', 'text': j['desc_prompt']}], 260).strip()
-    raw = gen(img, [{'type': 'text', 'text': '#1'}, {'type': 'image', 'image': img}, {'type': 'text', 'text': j['check_prompt'].replace('{DESC}', desc)}])
+    picks = mcq(img, j)
+    raw = gen(img, [{'type': 'text', 'text': '#1'}, {'type': 'image', 'image': img}, {'type': 'text', 'text': j['check_prompt'].replace('{DESC}', desc)}], 450)
     v = parse(raw)
     if v:
-        v['ok'] = bool(v['ok']) and all(v.get(k) is not False for k in ('key_visible', 'guessable', 'body_ok', 'text_ok'))
+        v['mcq'] = picks
+        v['ok'] = bool(v.get('ok')) and all(picks) and all(v.get(k) is not False for k in ('key_visible', 'guessable', 'body_ok', 'text_ok'))
     return v, raw, desc
 
 

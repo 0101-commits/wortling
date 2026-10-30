@@ -111,7 +111,7 @@ The image prompt asked for this scene: "${scene}".
 - guessable: true only if a learner who sees only the picture (no word) could single out THIS word among several unrelated words. Generic pictures (the puppy just standing, sitting, smiling or wearing something, holding a vague object) fit many words → false.
 - body_ok: true only if no animal has wrong counts of legs/paws, ears, eyes, tails or heads and none of the body problems listed above.
 - text_ok: false if any letters or numbers are drawn (symbols ? ! heart are fine).
-FINAL OUTPUT FORMAT (replaces the format asked above): ONLY a JSON array with exactly 1 item: [{"n":1,"ok":true,"key_visible":true,"guessable":true,"body_ok":true,"text_ok":true,"why":"짧은 한국어 이유"}]. ok must be false when any of key_visible, guessable, body_ok, text_ok is false.`;
+FINAL OUTPUT FORMAT (replaces the format asked above): ONLY a JSON array with exactly 1 item, "why" FIRST (max 20 words: what is drawn for the key element and what is missing), then the flags, "ok" LAST: [{"n":1,"why":"…","key_visible":true,"guessable":true,"body_ok":true,"text_ok":true,"ok":true}]. ok must be false when any of key_visible, guessable, body_ok, text_ok is false.`;
   return { desc_prompt: desc, check_prompt: check };
 }
 
@@ -121,7 +121,20 @@ async function wordInfo(id) {
   return { word, scene: d.scene_en, label: `${word.gender ? word.gender + ' ' : ''}${word.lemma}` };
 }
 
+// 눈가림 객관식 보기용 다른 단어 5개(이번 묶음의 다른 단어 → 모자라면 흔한 단어). 순서는 id 로 고정
+const FILLER = [['das Haus', '집'], ['essen', '먹다'], ['schnell', '빠른'], ['der Baum', '나무'], ['schlafen', '자다'], ['rot', '빨간']];
+function addDistractors(jobs) {
+  const hash = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+  for (const j of jobs) {
+    const pool = jobs.filter((o) => o.id !== j.id && o.meaning_ko).map((o) => ({ word: o.word, meaning_ko: o.meaning_ko }));
+    pool.sort((x, y) => hash(j.id + x.word) - hash(j.id + y.word));
+    for (const [word, meaning_ko] of FILLER) if (pool.length < 5) pool.push({ word, meaning_ko });
+    j.distractors = pool.slice(0, 5);
+  }
+}
+
 function writeKernel(dir, jobs) {
+  addDistractors(jobs);
   mkdirSync(dir, { recursive: true });
   const meta = JSON.parse(readFileSync(path.join(ROOT, 'kaggle', 'kernel-metadata.json'), 'utf8'));
   if (process.env.KAGGLE_USERNAME) meta.id = `${process.env.KAGGLE_USERNAME}/${meta.id.split('/')[1]}`;
