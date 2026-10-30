@@ -37,6 +37,11 @@ jobs:
         with:
           node-version: 24
           check-latest: true
+      # 앱 주소부터 점검(2026-10-30: 배포가 잘못돼 /api/* 가 404 인 채 아래 단계가 줄줄이 실패 → 헷갈리는 디스코드 오류 3건).
+      # 고장이면 「앱 주소 고장」 알림 한 번만 보내고 이 작업은 여기서 멈춘다(아래 always() 단계도 health 가 성공일 때만)
+      - name: 앱 주소 점검
+        id: health
+        run: node scripts/verify-deploy.mjs --app
       - id: month
         run: echo "m=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
       # 복원과 저장을 나눈다 — actions/cache 하나로는 작업이 실패하면(검토 묶음 하나만 실패해도) 새 색인이 저장되지 않아
@@ -52,11 +57,11 @@ jobs:
         id: news
         run: node scripts/words/news.mjs $DRY
       - name: review.mjs (카드 검토)
-        if: always()
+        if: always() && steps.health.outcome == 'success'
         run: node scripts/words/review.mjs $DRY
       # 찾기 규칙으로 못 찾는 예문 속 표제어 낱말(분리동사 · 불규칙 꼴)을 AI 로 적어 둔다(기획 v8 W1)
       - name: hits.mjs (예문 속 낱말)
-        if: always()
+        if: always() && steps.health.outcome == 'success'
         run: node scripts/words/hits.mjs $DRY
       # 색인을 실제로 새로 만든 날에만(news.mjs 가 rebuilt=1). 다시 만들기가 실패해 지난 색인이 남은 날은 저장하지 않는다
       - name: 색인 캐시 저장(새로 만든 날만)
