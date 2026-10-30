@@ -23,9 +23,9 @@ test('관사가 틀리면 틀림', () => {
   assert.equal(checkWrite(hund, 'der Hunde'), false)
 })
 
-test('ä·ö·ü·ß 는 풀어 써도 맞으로(ä→a · ae, ß→ss)', () => {
+test('ä·ö·ü·ß 는 ae·oe·ue·ss 로 풀어 써도 맞음(정답 자리만)', () => {
   const b = item({ lemma: 'Bär', gender: 'der', plural: 'Bären' })
-  for (const s of ['Bär', 'Bar', 'Baer', 'der Baer', 'Bären', 'Baeren']) assert.equal(checkWrite(b, s), true, s)
+  for (const s of ['Bär', 'Baer', 'der Baer', 'Bären', 'Baeren']) assert.equal(checkWrite(b, s), true, s)
   assert.equal(checkWrite(item({ lemma: 'Straße', gender: 'die', plural: 'Straßen' }), 'die Strasse'), true)
   assert.equal(checkWrite(item({ lemma: 'schön', pos: 'adj', gender: null, plural: null }), 'schoen'), true)
 })
@@ -37,4 +37,15 @@ test('관사 없는 품사 · sich 동사 · 다른 낱말 · 빈 입력', () =>
   assert.equal(checkWrite(hund, 'Katze'), false)
   assert.equal(checkWrite(hund, ''), false)
   assert.equal(checkWrite(hund, 'der'), false)
+})
+
+test('움라우트를 빼먹거나 정답에 없는 ae·ue 로 쓰면 틀림', () => {
+  assert.equal(checkWrite(item({ lemma: 'Bär', gender: 'der', plural: 'Bären' }), 'Bar'), false)
+  assert.equal(checkWrite(item({ lemma: 'Mutter', gender: 'die', plural: 'Mütter' }), 'Mutter'), true)
+  assert.equal(checkWrite(item({ lemma: 'Mutter', gender: 'die', plural: 'Mütter' }), 'die Mutter'), true)
+  assert.equal(checkWrite(item({ lemma: 'Mutter', gender: 'die', plural: 'Mütter' }), 'Mutter '), true)
+  assert.equal(checkWrite(item({ lemma: 'schön', pos: 'adj', gender: null, plural: null }), 'schon'), false)
+  for (const [lemma, s] of [['Feuer', 'Feur'], ['Mauer', 'Maur'], ['Steuer', 'Steur'], ['Quelle', 'Qulle']])
+    assert.equal(checkWrite(item({ lemma, gender: 'das', plural: null }), s), false, s)
+  assert.equal(checkWrite(item({ lemma: 'Feuer', gender: 'das', plural: null }), 'feuer'), true)
 })

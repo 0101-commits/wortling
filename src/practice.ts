@@ -188,22 +188,29 @@ export const wordsIn = (q: Question) => (q.mode === 'match' ? q.items.length : 1
 
 const ARTICLES = ['der', 'die', 'das']
 /** 쓰기 비교용: fold 에 더해 ae·oe·ue 도 ä·ö·ü 와 같게(ä→a 로 풀어 쓴 것과 ae 로 쓴 것 모두 맞으로) */
-const foldWrite = (s: string) => fold(s.trim().replace(/\s+/g, ' ')).replace(/ae/g, 'a').replace(/oe/g, 'o').replace(/ue/g, 'u')
+const normWrite = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+const UML: Record<string, string> = { ä: '(?:ä|ae)', ö: '(?:ö|oe)', ü: '(?:ü|ue)', ß: '(?:ß|ss)' }
+/**
+ * 쓰기 비교: 정답에 ä·ö·ü·ß 가 있는 자리만 ae·oe·ue·ss 로 써도 맞음.
+ * 움라우트를 a·o·u 로 빼먹거나(Mutter ≠ Mütter) 정답에 없는 ae·ue 로 쓰면(Feur ≠ Feuer) 틀림
+ */
+const sameWrite = (target: string, input: string) =>
+  new RegExp(`^${normWrite(target).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[äöüß]/g, (c) => UML[c])}$`).test(normWrite(input))
 
 /**
  * 쓰기 정답 판정: 표제어(sich 는 빼고 봐준다) · 복수형(데이터에 있으면)을 관사 있이/없이, 대소문자·앞뒤 공백 무시,
- * ä/ae · ö/oe · ü/ue · ß/ss 모두 같게. 관사를 썼는데 단어의 관사와 다르면 틀림(복수는 die)
+ * ä/ae · ö/oe · ü/ue · ß/ss 같게(정답 자리만). 관사를 썼는데 단어의 관사와 다르면 틀림(복수는 die)
  */
 export function checkWrite(item: DeckItem, input: string): boolean {
   const w = item.word
   const words = input.trim().split(/\s+/)
   const art = ARTICLES.includes(words[0]?.toLowerCase()) && words.length > 1 ? words.shift()!.toLowerCase() : null
-  const got = foldWrite(words.join(' '))
-  if (!got) return false
+  const got = words.join(' ')
+  if (!normWrite(got)) return false
   // 표제어 자체가 관사로 시작하는 낱말은 통째로도 비교
-  if (foldWrite(bare(w.lemma)) === foldWrite(bare(input))) return true
+  if (sameWrite(bare(w.lemma), bare(input))) return true
   const genders = w.pos === 'noun' && w.gender ? w.gender.toLowerCase().split(/[/,\s]+/).filter((g) => ARTICLES.includes(g)) : []
-  if (foldWrite(bare(w.lemma)) === got && (!art || !genders.length || genders.includes(art))) return true
-  const plurals = w.plural ? w.plural.split(/[,/;]/).map((p) => foldWrite(p.replace(/^(der|die|das)\s+/i, ''))) : []
-  return plurals.includes(got) && (!art || art === 'die')
+  if (sameWrite(bare(w.lemma), got) && (!art || !genders.length || genders.includes(art))) return true
+  const plurals = w.plural ? w.plural.split(/[,/;]/).map((p) => p.replace(/^\s*(der|die|das)\s+/i, '')).filter((p) => p.trim()) : []
+  return plurals.some((p) => sameWrite(p, got)) && (!art || art === 'die')
 }

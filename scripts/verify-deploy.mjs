@@ -18,14 +18,21 @@ export const CHECKS = [
   ['/sw.js', 'javascript'],
 ];
 
+// 매일 작업 첫 점검(--app)은 그림 경로를 빼고 본다 — 그림 하나가 바뀌어도 하루 작업이 통째로 멈추지 않게
+export const APP_CHECKS = CHECKS.filter(([p]) => !p.startsWith('/img/'));
+
+// 열쇠는 앱 주소(기본 두 곳 + APP_URL)에만 보낸다
+const tokenHosts = () => new Set([...BASES, process.env.APP_URL || ''].filter(Boolean).map((u) => new URL(u).host));
+
 /** 주소 하나 점검 → [{path, want, status, type, ok}] */
-export async function verifyBase(base, token = process.env.API_TOKEN || '') {
+export async function verifyBase(base, token = process.env.API_TOKEN || '', checks = CHECKS) {
   const rows = [];
-  for (const [p, want] of CHECKS) {
+  const auth = token && tokenHosts().has(new URL(base).host) ? { authorization: `Bearer ${token}` } : {};
+  for (const [p, want] of checks) {
     let status = 0;
     let type = '';
     try {
-      const res = await fetch(base.replace(/\/$/, '') + p, { headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(15_000) });
+      const res = await fetch(base.replace(/\/$/, '') + p, { headers: auth, signal: AbortSignal.timeout(15_000) });
       status = res.status;
       type = (res.headers.get('content-type') || '').toLowerCase();
       await res.body?.cancel();
@@ -43,11 +50,11 @@ const show = (base, rows) => {
 };
 
 /** 여러 주소를 점검해 표로 찍고, 전부 맞으면 true. 주소마다 재시도 없음 — 부르는 쪽이 필요하면 다시 */
-export async function verify(bases, token) {
+export async function verify(bases, token, checks = CHECKS) {
   let all = true;
   const bad = [];
   for (const b of bases) {
-    const rows = await verifyBase(b, token);
+    const rows = await verifyBase(b, token, checks);
     show(b, rows);
     for (const r of rows) if (!r.ok) (all = false), bad.push(`${b}${r.path} → ${r.status || '-'} ${r.type.slice(0, 30)}`);
   }
@@ -64,7 +71,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(1);
   }
   if (!process.env.API_TOKEN) console.error('API_TOKEN 이 없어 /api/today · /api/admin/keys 는 실패한다(.env 또는 Actions 비밀값)');
-  const { ok, bad } = await verify(bases);
+  // --app 은 잠깐의 연결 끊김·깨어나는 지연으로 오보를 내지 않게 20초 간격 3번까지
+  let { ok, bad } = await verify(bases, undefined, app ? APP_CHECKS : CHECKS);
+  for (let i = 1; app && !ok && i < 3; i++) {
+    console.error(`\n점검 실패 — 20초 뒤 다시(${i + 1}/3)`);
+    await new Promise((r) => setTimeout(r, 20_000));
+    ({ ok, bad } = await verify(bases, undefined, APP_CHECKS));
+  }
   if (!ok) {
     console.error(`\n배포 점검 실패 ${bad.length}건`);
     if (app) await notify('error', '앱 주소 고장 — 배포 확인 필요', `${bases[0]} 점검 실패 ${bad.length}건 (첫째: ${bad[0]}). 오늘 작업은 건너뜀. 배포: npm run deploy`);
