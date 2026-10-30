@@ -1,8 +1,9 @@
 # Kaggle 무료 GPU 에서 단어 그림을 한꺼번에 그리고(FLUX.2 klein 4B) 같은 GPU 에서 열린 비전 모델로 뜻·몸 구조를 검사한다.
 # 깃허브 러너(scripts/kaggle.mjs pick)가 jobs.json(단어마다 프롬프트·검사 질문)과 borti-ref.png 를 같이 올린다.
 # 결과: /kaggle/working/out/<id>.webp + out/verdicts.json (러너가 kaggle kernels output 으로 받아 scripts/kaggle.mjs collect 가 올린다)
-import gc, glob, json, os, re, subprocess, sys, time
+import base64, gc, gzip, io, json, os, re, subprocess, sys, time
 
+PAYLOAD = ''  # @@PAYLOAD@@
 OUT = '/kaggle/working/out'
 CAND = '/tmp/cand'
 DRAW_REPO = 'black-forest-labs/FLUX.2-klein-4B'  # Apache-2.0 · 공개(gated 아님)
@@ -13,14 +14,6 @@ os.makedirs(CAND, exist_ok=True)
 
 def sh(*a):
     return subprocess.run(list(a), check=False, capture_output=True, text=True)
-
-
-def find(name):
-    for root in ['.', '/kaggle/src', '/kaggle/working', '/kaggle/input']:
-        hits = glob.glob(os.path.join(root, '**', name), recursive=True)
-        if hits:
-            return hits[0]
-    raise SystemExit(f'{name} 를 못 찾음 — cwd={os.getcwd()} ls={os.listdir(".")}')
 
 
 print(sh('nvidia-smi').stdout, flush=True)
@@ -36,8 +29,10 @@ try:
 except ImportError:
     raise SystemExit('diffusers 0.42.1 에 Flux2KleinPipeline 이 없다')
 
-jobs = json.load(open(find('jobs.json'), encoding='utf-8'))
-ref = Image.open(find('borti-ref.png')).convert('RGB')
+# 스크립트 커널은 코드 파일 하나만 올라간다 → 러너가 PAYLOAD 줄에 jobs + 참고 그림(gzip+base64)을 넣어 보낸다
+_p = json.loads(gzip.decompress(base64.b64decode(PAYLOAD)))
+jobs = _p['jobs']
+ref = Image.open(io.BytesIO(base64.b64decode(_p['ref']))).convert('RGB')
 TRIES = int(os.environ.get('WORTY_TRIES', 2))  # 한 단어에 후보 그림 수 — 검사 통과가 나오면 거기서 멈춘다(daily 의 「탈락 시 한 번 더」와 같은 몫)
 n_gpu = torch.cuda.device_count()
 cap = torch.cuda.get_device_capability(0)

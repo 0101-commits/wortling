@@ -3,7 +3,8 @@
 //   node scripts/kaggle.mjs collect <내려받은폴더>  커널 결과(out/<id>.webp · verdicts.json)를 자동 검사 → 통과분 올리기 → 장부 기록
 // 프롬프트는 daily.mjs 와 같은 style.mjs imagePrompt, 검사 질문은 judge.mjs buildPrompt 를 그대로 쓴다.
 // Worker 관리 API 로만 올린다(daily.mjs 와 같은 Bearer API_TOKEN).
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, appendFileSync, lstatSync, writeFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
+import { mkdirSync, readdirSync, readFileSync, appendFileSync, lstatSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -103,9 +104,11 @@ async function pick(n, dir) {
   const meta = JSON.parse(readFileSync(path.join(ROOT, 'kaggle', 'kernel-metadata.json'), 'utf8'));
   if (process.env.KAGGLE_USERNAME) meta.id = `${process.env.KAGGLE_USERNAME}/${meta.id.split('/')[1]}`;
   writeFileSync(path.join(dir, 'kernel-metadata.json'), JSON.stringify(meta, null, 2));
-  copyFileSync(path.join(ROOT, 'kaggle', 'draw.py'), path.join(dir, 'draw.py'));
-  copyFileSync(REF_FILE, path.join(dir, 'borti-ref.png'));
-  writeFileSync(path.join(dir, 'jobs.json'), JSON.stringify(jobs));
+  // 스크립트 커널은 코드 파일만 올라간다 → jobs·참고 그림을 draw.py 의 PAYLOAD 줄에 gzip+base64 로 넣는다
+  const payload = gzipSync(JSON.stringify({ jobs, ref: readFileSync(REF_FILE).toString('base64') })).toString('base64');
+  const code = readFileSync(path.join(ROOT, 'kaggle', 'draw.py'), 'utf8').replace("PAYLOAD = ''  # @@PAYLOAD@@", () => `PAYLOAD = '${payload}'`);
+  if (!code.includes(payload)) throw new Error('draw.py 에 PAYLOAD 줄이 없다');
+  writeFileSync(path.join(dir, 'draw.py'), code);
   setOutput('kernel', meta.id);
   const at = new Date().toISOString();
   for (const j of jobs) queue[j.id] = at;
@@ -125,12 +128,12 @@ async function collect(dir) {
   if (!APP_URL || !TOKEN) throw new Error('APP_URL · API_TOKEN 이 없다');
   const vf = findFile(dir, 'verdicts.json');
   const jf = findFile(dir, 'jobs.json');
-  if (!vf || !jf) throw new Error('커널 결과(verdicts.json · jobs.json)가 없다 — 커널이 끝까지 못 돌았다');
+  if (!vf) throw new Error('커널 결과(verdicts.json)가 없다 — 커널이 끝까지 못 돌았다');
   const { meta, items: got } = JSON.parse(readFileSync(vf, 'utf8'));
   const queue = readJson(QUEUE_FILE, {});
   // 올릴 단어 = 맡길 때 적어 둔 목록 ∩ 형식 맞는 id. 내려받은 jobs.json·verdicts 의 id 는 이 목록에 있는 것만 본다(jobs.json 은 로그용 글만 참고)
   const ids = Object.keys(queue).filter((id) => ID_RE.test(id));
-  const downJobs = Array.isArray(readJson(jf, [])) ? readJson(jf, []) : [];
+  const downJobs = jf && Array.isArray(readJson(jf, [])) ? readJson(jf, []) : [];
   const jobs = ids.map((id) => ({ id, word: String(downJobs.find((x) => x?.id === id)?.word ?? id).slice(0, 60) }));
   const items = Object.fromEntries(ids.map((id) => [id, Object.hasOwn(got ?? {}, id) && got[id] && typeof got[id] === 'object' ? got[id] : { cands: [] }]));
   const day = new Date().toISOString().slice(0, 10);
