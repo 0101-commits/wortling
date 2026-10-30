@@ -13,3 +13,4 @@ dist-mock
 backup/
 .data
 seed/words.json
+out/

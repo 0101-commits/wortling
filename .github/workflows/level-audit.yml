@@ -1,0 +1,45 @@
+# 단어 등급 감사(읽기 전용) — 단어마다 DAFlex · AI(Gemini Flash-Lite, 모자라면 Groq) 둘째 등급을 모아 지울 목록의 근거로 쓴다.
+# 서버·D1 에 쓰지 않는다. 결과는 아티팩트 level-audit(words.json · summary.json · ai-cache.jsonl). 손으로만 돌린다.
+# 비밀값: APP_URL · API_TOKEN · GEMINI_API_KEY · GROQ_API_KEY (daily.yml 과 같음)
+name: level-audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: '앞에서 N개만(0 = 전부)'
+        default: '0'
+      no_ai:
+        description: 'AI 없이 DAFlex 만'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      APP_URL: ${{ secrets.APP_URL }}
+      API_TOKEN: ${{ secrets.API_TOKEN }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      LIMIT: ${{ inputs.limit }}
+      NO_AI: ${{ inputs.no_ai && '--no-ai' || '' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          check-latest: true
+      - name: level-audit.mjs
+        run: node scripts/words/level-audit.mjs --limit "${LIMIT:-0}" $NO_AI
+      # 중간에 실패해도 쌓인 AI 답은 남긴다
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: level-audit
+          path: out/level-audit/
+          if-no-files-found: warn
