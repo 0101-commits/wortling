@@ -203,7 +203,7 @@ const words: Handler = async ({ env, url }) => {
       FROM (SELECT word_id FROM cards WHERE state IN (1, 2, 3) UNION SELECT word_id FROM cards INDEXED BY cards_introduced WHERE introduced_at IS NOT NULL) l
       CROSS JOIN cards c ON c.word_id = l.word_id CROSS JOIN words w ON w.id = l.word_id${cond([])}`;
     const freshSql = `SELECT ${ITEM_SELECT} FROM words w CROSS JOIN cards c ON c.word_id = w.id${cond(['c.state = 0 AND c.introduced_at IS NULL'])}`;
-    const onlyLearned = state !== 'all' && state !== 'new';
+    const onlyLearned = ['learning', 'review', 'done'].includes(state); // 모르는 state 는 필터 없음(옛 동작)
     const r = await env.DB.prepare(`${learnedSql} ORDER BY w.seq, w.lemma LIMIT ? OFFSET ?`).bind(...binds, size, offset).all();
     got = sqlRows(r).map(rowToItem);
     if (!onlyLearned && got.length < size) {

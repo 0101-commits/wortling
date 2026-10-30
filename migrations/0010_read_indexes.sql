@@ -5,8 +5,6 @@
 CREATE INDEX IF NOT EXISTS cards_state ON cards(state);
 -- 등급별 세기 · 목록의 level 거르기
 CREATE INDEX IF NOT EXISTS words_level ON words(level);
--- 그림 상태: 'ok' 가 대부분이라 ok 가 아닌 것만 담는다 → 그림 수 = 전체 − 이 색인의 수(worker/index.ts stats)
-CREATE INDEX IF NOT EXISTS words_image_not_ok ON words(seq) WHERE image_status != 'ok';
 -- 오늘 그릴 그림(runway need_image): 그림 없는 단어만
 CREATE INDEX IF NOT EXISTS words_image_none ON words(seq) WHERE image_status = 'none';
 -- 오늘 채울 글(runway need_text): 글이 빈 단어만(식이 질의와 글자까지 같아야 색인이 쓰인다)

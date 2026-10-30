@@ -4,6 +4,7 @@
 //   node scripts/db/remote-sql.mjs --command "UPDATE ..."
 //   --force   한도를 넘어도 보낸다 · --limit N   한도 바꾸기(기본 200000 행)
 //   --dry     어림만 하고 원격은 안 보낸다
+// 쓴 행도 같이 본다(무료 하루 10만 행): 5만 넘으면 거절.
 // 읽은 행 수: wrangler --local 은 rows_read 를 안 줘서 가상기계 단계 수(scripts/db/steps.py) ÷ 4 로 어림한다.
 //   전체 훑기는 한 행에 ≈4 단계, 색인 찾기는 더 들어서 어림값은 실제보다 크게 나온다(안전한 쪽).
 import { copyFileSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
@@ -16,10 +17,11 @@ import { openLocalDb, COPY_PATH } from './local-copy.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../..');
 export const DEFAULT_LIMIT = 200_000;
+export const WRITE_LIMIT = 50_000; // D1 무료 쓰기는 하루 10만 행 — 한 번에 절반까지만
 export const STEPS_PER_ROW = 4;
 
 /** 사본 복사본에서 sql 을 돌려 읽은 행 수 어림. 원본 사본은 건드리지 않는다 */
-export function estimateRows(sql, { copy = COPY_PATH, python = 'python' } = {}) {
+export function estimate(sql, { copy = COPY_PATH, python = 'python' } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'worty-sql-'));
   try {
     const db = join(dir, 'try.sqlite');
@@ -28,15 +30,19 @@ export function estimateRows(sql, { copy = COPY_PATH, python = 'python' } = {}) 
     writeFileSync(file, sql);
     const r = spawnSync(python, ['-I', join(HERE, 'steps.py'), db, file], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
     if (r.status !== 0) throw new Error(`로컬 시험 실행 실패: ${String(r.stderr || r.stdout).slice(0, 400)}`);
-    return Math.ceil(JSON.parse(r.stdout).steps / STEPS_PER_ROW);
+    const j = JSON.parse(r.stdout);
+    return { rows: Math.ceil(j.steps / STEPS_PER_ROW), writes: j.changes };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
-/** 한도 판단: { rows, allowed } — force 면 넘어도 allowed */
-export function judge(rows, { limit = DEFAULT_LIMIT, force = false } = {}) {
-  return { rows, limit, allowed: force || rows <= limit };
+/** 읽은 행 수만 필요할 때 */
+export const estimateRows = (sql, opts) => estimate(sql, opts).rows;
+
+/** 한도 판단: 읽기·쓰기 어느 쪽이든 넘으면 거절 — force 면 넘어도 allowed */
+export function judge(rows, { limit = DEFAULT_LIMIT, force = false, writes = 0, writeLimit = WRITE_LIMIT } = {}) {
+  return { rows, writes, limit, writeLimit, allowed: force || (rows <= limit && writes <= writeLimit) };
 }
 
 export function parseArgs(argv) {
@@ -56,19 +62,28 @@ export function parseArgs(argv) {
 
 function main() {
   const o = parseArgs(process.argv.slice(2));
-  const sql = o.command ?? readFileSync(o.file, 'utf8');
-  openLocalDb().close(); // 백업이 더 새것이면 사본을 다시 만든다
-  const j = judge(estimateRows(sql), o);
-  console.error(`로컬 시험: 읽은 행 어림 ${j.rows.toLocaleString()} (한도 ${j.limit.toLocaleString()})`);
-  if (!j.allowed) {
-    console.error('거절: 한도를 넘었다. 임시 표 상관 부질의면 색인을 먼저 만들거나 UPDATE ... FROM 으로 바꾼다. 그래도 보내려면 --force');
-    process.exit(1);
+  // 어림에 쓴 SQL 을 임시 파일에 한 번만 쓰고, 원격에도 바로 그 파일을 넘긴다(검사 뒤 원본이 바뀌는 틈 · 상대경로 혼동 방지)
+  const dir = mkdtempSync(join(tmpdir(), 'worty-remote-'));
+  try {
+    const sql = o.command ?? readFileSync(resolve(o.file), 'utf8');
+    const sent = join(dir, 'send.sql');
+    writeFileSync(sent, sql);
+    openLocalDb().close(); // 백업이 더 새것이면 사본을 다시 만든다
+    const e = estimate(sql);
+    const j = judge(e.rows, { limit: o.limit, force: o.force, writes: e.writes });
+    console.error(`로컬 시험: 읽은 행 어림 ${j.rows.toLocaleString()} (한도 ${j.limit.toLocaleString()}) · 쓴 행 ${j.writes.toLocaleString()} (한도 ${j.writeLimit.toLocaleString()})`);
+    if (!j.allowed) {
+      console.error('거절: 한도를 넘었다. 임시 표 상관 부질의면 색인을 먼저 만들거나 UPDATE ... FROM 으로 바꾼다. 그래도 보내려면 --force');
+      process.exit(1);
+    }
+    if (o.dry) return;
+    // 셸을 거치지 않고 wrangler 를 직접 불러 SQL 안의 따옴표·공백이 깨지지 않게 한다
+    const args = [join(ROOT, 'node_modules', 'wrangler', 'bin', 'wrangler.js'), 'd1', 'execute', 'wortling', '--remote', '--file', sent];
+    const r = spawnSync(process.execPath, args, { cwd: ROOT, stdio: 'inherit' });
+    process.exitCode = r.status ?? 1;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
-  if (o.dry) return;
-  // 셸을 거치지 않고 wrangler 를 직접 불러 SQL 안의 따옴표·공백이 깨지지 않게 한다
-  const args = [join(ROOT, 'node_modules', 'wrangler', 'bin', 'wrangler.js'), 'd1', 'execute', 'wortling', '--remote', ...(o.command ? ['--command', o.command] : ['--file', o.file])];
-  const r = spawnSync(process.execPath, args, { cwd: ROOT, stdio: 'inherit' });
-  process.exit(r.status ?? 1);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

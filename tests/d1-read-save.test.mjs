@@ -9,7 +9,7 @@ import { register } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import { fakeD1, addWord, lem } from './d1.mjs';
 import { newestBackup, openLocalDb } from '../scripts/db/local-copy.mjs';
-import { estimateRows, judge, parseArgs } from '../scripts/db/remote-sql.mjs';
+import { estimate, estimateRows, judge, parseArgs } from '../scripts/db/remote-sql.mjs';
 
 register('data:text/javascript,' + encodeURIComponent(`
 export async function resolve(spec, ctx, next) {
@@ -60,6 +60,11 @@ test('/api/words: 거르기(state·level)도 옛 결과와 같다', async () => 
   assert.deepEqual(await ids('state=new'), q('c.state = 0'));
   assert.deepEqual(await ids('level=B2'), q("w.level = 'B2'"));
   assert.deepEqual(await ids('state=learning'), []);
+  // 모르는 state 는 필터 없음 — 옛 코드와 같은 행·총수
+  const all = db.raw.prepare(OLD).all().map((r) => r.id);
+  const foo = await get(db, '/api/words?size=50&state=foo');
+  assert.deepEqual(foo.items.map((it) => it.word.id), all);
+  assert.equal(foo.total, all.length);
 });
 
 test('질의 계획: 목록 앞 토막은 cards 색인, 뒤 토막은 words_seq, 오늘 새 단어는 json_each 부터', () => {
@@ -74,6 +79,16 @@ test('질의 계획: 목록 앞 토막은 cards 색인, 뒤 토막은 words_seq,
     /SCAN w USING INDEX words_seq/,
   );
   assert.match(plan("SELECT w.id FROM json_each('[]') j CROSS JOIN words w ON w.id = j.value CROSS JOIN cards c ON c.word_id = w.id WHERE c.state = 0"), /^SCAN j/);
+});
+
+test('/api/today: plan.fresh 에 같은 id 가 두 번 있어도 새 단어가 겹치지 않는다', async () => {
+  const db = seed(23);
+  const { studyDay } = await import('../worker/time.ts');
+  db.raw.prepare('INSERT INTO day_plans(day, fresh, extra, created_at) VALUES (?, ?, 0, ?)').run(studyDay(), JSON.stringify(['w0001', 'w0002', 'w0001']), new Date().toISOString());
+  const t = await get(db, '/api/today');
+  const ids = t.fresh.map((it) => it.word.id);
+  assert.ok(ids.length > 0);
+  assert.equal(new Set(ids).size, ids.length);
 });
 
 // ---- 로컬 사본 · remote-sql ----
@@ -124,6 +139,13 @@ test('remote-sql: 작은 SQL 은 통과, 임시 표 상관 부질의는 한도 �
     assert.equal(judge(bad).allowed, false);
     assert.equal(judge(bad, { force: true }).allowed, true);
     assert.equal(judge(bad, { limit: 1e9 }).allowed, true);
+    // 쓰기 행: 3000 행을 다 쓰는 UPDATE 는 쓰기 한도(여기선 1000)를 넘으면 거절
+    const w = estimate("UPDATE words SET level='B2'", { copy });
+    assert.equal(w.writes, 3000);
+    assert.equal(judge(w.rows, { writes: w.writes, writeLimit: 1000 }).allowed, false);
+    assert.equal(judge(w.rows, { writes: w.writes }).allowed, true);
+    assert.equal(judge(w.rows, { writes: 60_000 }).allowed, false);
+    assert.equal(judge(w.rows, { writes: 60_000, force: true }).allowed, true);
 
     const after = new DatabaseSync(copy);
     assert.equal(after.prepare("SELECT count(*) n FROM words WHERE level='C1'").get().n, 3000, '사본은 그대로');
