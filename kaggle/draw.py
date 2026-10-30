@@ -24,7 +24,7 @@ def find(name):
 
 
 print(sh('nvidia-smi').stdout, flush=True)
-r = sh(sys.executable, '-m', 'pip', 'install', '-q', '-U', 'diffusers>=0.37', 'transformers>=4.51', 'accelerate', 'bitsandbytes', 'sentencepiece')
+r = sh(sys.executable, '-m', 'pip', 'install', '-q', '-U', 'diffusers==0.42.1', 'transformers==5.22.0', 'accelerate==1.15.0', 'bitsandbytes==0.50.2', 'sentencepiece==0.2.2')
 print('pip', r.returncode, r.stderr[-400:], flush=True)
 
 import torch  # noqa: E402  (pip 뒤에 불러야 새 버전을 쓴다)
@@ -34,9 +34,7 @@ from PIL import Image  # noqa: E402
 try:
     from diffusers import Flux2KleinPipeline
 except ImportError:
-    r = sh(sys.executable, '-m', 'pip', 'install', '-q', 'git+https://github.com/huggingface/diffusers.git')
-    print('diffusers git', r.returncode, r.stderr[-300:], flush=True)
-    from diffusers import Flux2KleinPipeline  # noqa: E402
+    raise SystemExit('diffusers 0.42.1 에 Flux2KleinPipeline 이 없다')
 
 jobs = json.load(open(find('jobs.json'), encoding='utf-8'))
 ref = Image.open(find('borti-ref.png')).convert('RGB')

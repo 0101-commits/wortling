@@ -100,10 +100,7 @@ jobs:
           kaggle kernels output "${KAGGLE_USERNAME}/worty-draw" -p kaggle/result || true
           ls -R kaggle/result | head -80
           echo "---- 커널 로그 끝 ----"
-          for f in kaggle/result/*.log; do [ -f "$f" ] && node -e "
-            const t=require('fs').readFileSync(process.argv[1],'utf8');
-            const out=[];for(const l of t.split('\n')){try{const o=JSON.parse(l.replace(/,\s*$/,'').replace(/^\[/,''));if(o.data)out.push(o.data.trimEnd())}catch{}}
-            console.log(out.join('\n').slice(-6000))" "$f"; done
+          for f in kaggle/result/*.log; do [ -f "$f" ] && tail -c 7000 "$f"; done
           [ "${{ steps.wait.outputs.state }}" = complete ] || { echo "::error::커널 실패"; exit 1; }
       - name: 검사·올리기·장부
         if: steps.out.outcome == 'success'
