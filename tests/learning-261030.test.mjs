@@ -1,7 +1,7 @@
 // 학습 로직 조정(2026-10-30): 쉬움 상한 · 연습 미루기 min · 다시 5장 뒤 · 밀린 복습이면 새 단어 줄이기 · 기억률 순
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fakeD1, addWord } from './d1.mjs';
+import { fakeD1, addWord, lem } from './d1.mjs';
 import { applyRating, retrievability, EASY_MAX_DAYS } from '../worker/fsrs.ts';
 import { buildToday, freshAllowance, loadSettings } from '../worker/deck.ts';
 import { savePractice } from '../worker/practice.ts';
@@ -72,7 +72,7 @@ test('L4: 밀린 복습 > 100 이면 새 단어 절반, > 200 이면 0', () => {
 
 function backlogDb(n, stabilityOf = () => 5) {
   const db = fakeD1();
-  for (let i = 1; i <= 6; i++) addWord(db, { id: `n${i}`, lemma: `Neu${i}`, seq: i });
+  for (let i = 1; i <= 6; i++) addWord(db, { id: `n${i}`, lemma: lem(i), seq: i });
   for (let i = 1; i <= n; i++) addWord(db, { id: `r${i}`, lemma: `Alt${i}`, seq: 100 + i, state: 2, due: '2026-10-25T23:00:00.000Z', introduced_at: '2026-10-01T00:00:00.000Z' });
   db.raw.prepare("UPDATE cards SET last_review = '2026-10-20T03:00:00.000Z', stability = 5 WHERE state = 2").run();
   return db;

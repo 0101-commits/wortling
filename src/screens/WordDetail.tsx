@@ -1,11 +1,11 @@
 // 단어 하나: 그림 · 뜻 · 예문 · 카드 상태 · 최근 채점
 import { ContentBadge, Skeleton } from '@montage-ui/core'
 import { api } from '../api.ts'
-import { RATING_LABEL } from '../deck.ts'
+import { RATING_LABEL, isWeak } from '../deck.ts'
 import { STATE_LABEL, dayDiff, fmtDate, fmtDay } from '../format.ts'
 import { useAsync } from '../hooks.ts'
 import { ReportButton } from '../Report.tsx'
-import { Example, ErrorBox, LevelBadge, Lemma, POS_LABEL, Top, WordImage } from '../ui.tsx'
+import { Example, ErrorBox, LevelBadge, Lemma, POS_LABEL, Top, WeakBadge, WordImage } from '../ui.tsx'
 
 export default function WordDetail({ id }: { id: string }) {
   const r = useAsync(() => api.word(id), [id])
@@ -34,6 +34,7 @@ export default function WordDetail({ id }: { id: string }) {
                 <div className="dk-meta">
                   <ContentBadge size="xsmall" variant="outlined" color="neutral">{POS_LABEL[d.word.pos] ?? d.word.pos}</ContentBadge>
                   <LevelBadge level={d.word.level} />
+                  {isWeak(d.card) && <WeakBadge />}
                   {d.word.plural && <span lang="de">복수 {d.word.plural}</span>}
                   {d.word.ipa && <span>{d.word.ipa}</span>}
                 </div>

@@ -2,7 +2,7 @@
 // 결과는 practice 표에 적고, 틀린 단어는 「아직 잘 모르는 단어」로 — 카드에 「다시」 채점(2026-10-27 기능 검토, D4 「FSRS 미반영」을 바꿈).
 import type { Card, PracticeMode, PracticeResponse, PracticeResultsRequest, PracticeSaveResponse, Settings } from '../shared/api.ts';
 import { ITEM_SELECT, PRACTICE_SESSION, levelsFor, rowToItem } from './deck.ts';
-import { applyRating } from './fsrs.ts';
+import { WEAK_LAPSES, applyRating } from './fsrs.ts';
 import { bad } from './http.ts';
 import { addDays, studyDay, studyDayStartUtc } from './time.ts';
 
@@ -44,7 +44,7 @@ export async function practiceItems(
       : db
           .prepare(
             `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id
-             WHERE c.state IN (1, 2, 3) AND c.suspended = 0${since ? ' AND c.last_review >= ?' : ''} ORDER BY random() LIMIT ?`,
+             WHERE c.state IN (1, 2, 3) AND c.suspended = 0${since ? ' AND c.last_review >= ?' : ''} ORDER BY (c.lapses >= ${WEAK_LAPSES}) DESC, random() LIMIT ?`,
           )
           .bind(...(since ? [since, take] : [take]));
   const [it, learned, more] = await db.batch([

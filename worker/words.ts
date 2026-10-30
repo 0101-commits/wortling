@@ -1,6 +1,7 @@
 // 카드 정기 검토 · 뉴스 단어 · 신고 · 내가 넣은 단어 — DB 함수(설계 docs/superpowers/specs/2026-10-15-word-review-news-design.md).
 // index.ts 처리기는 요청을 풀어 여기로 넘기기만 한다. 시험: tests/words-db.test.mjs(node:sqlite D1 흉내).
 import type { AdminWordsRequest, ChangeItem, ReviewQueueItem, ReviewStats, WordRequestItem } from '../shared/api.ts';
+import { WEAK_LAPSES } from '../shared/fsrs.ts';
 import { REQ_TEXT } from '../shared/request.ts';
 import { levelsFor, loadSettings } from './deck.ts';
 import { HttpError, bad } from './http.ts';
@@ -168,17 +169,21 @@ export async function putSkips(db: D1Database, items: Array<{ key?: unknown; rea
 const REVIEW_COLS = `w.id, w.lemma, w.pos, w.gender, w.plural, w.level, w.level_src, w.gloss_ko, w.gloss_status, w.example_de, w.example_ko, w.checked_at,
   (SELECT group_concat(DISTINCT x.field) FROM word_changes x WHERE x.word_id = w.id AND x.reverted_at IS NOT NULL) AS reverted`;
 
-/** 검토할 단어: 열린 신고 → 앞으로 14일 안 새 카드 → 3일 안 복습 → 안 본 것(seq) → 180일 지난 것. 최근 검토는 빠진다. */
+/** 검토할 단어: 열린 신고 → 약한 단어(잊은 4번 이상, 7일 안 검토 제외 — 예문을 먼저 고친다) → 앞으로 14일 안 새 카드 → 3일 안 복습 → 안 본 것(seq) → 180일 지난 것. 최근 검토는 빠진다. */
 export async function reviewQueue(db: D1Database, limit: number, now = new Date()): Promise<ReviewQueueItem[]> {
   const s = await loadSettings(db);
   const lv = levelsFor(s.level);
   const inLevel = `(w.level IN (${lv.map(() => '?').join(', ')}) OR w.pinned = 1)`;
   const stale = new Date(now.getTime() - 180 * DAY).toISOString();
   const soon = new Date(now.getTime() + 3 * DAY).toISOString();
+  const week = new Date(now.getTime() - 7 * DAY).toISOString();
   const notFresh = '(w.checked_at IS NULL OR w.checked_at < ?)';
   const parts = await db.batch([
     db.prepare(`SELECT ${REVIEW_COLS}, r.kind AS report_kind, r.note AS report_note
       FROM word_reports r JOIN words w ON w.id = r.word_id WHERE r.closed_at IS NULL ORDER BY r.created_at LIMIT ?`).bind(limit),
+    // 약한 단어(L6): 많이 잊은 순. 예문이 단어를 못 붙들었을 수 있어 신고 다음으로 먼저 본다
+    db.prepare(`SELECT ${REVIEW_COLS} FROM words w JOIN cards c ON c.word_id = w.id
+      WHERE c.lapses >= ? AND (w.checked_at IS NULL OR w.checked_at < ?) ORDER BY c.lapses DESC, w.seq LIMIT ?`).bind(WEAK_LAPSES, week, limit),
     db.prepare(`SELECT ${REVIEW_COLS} FROM (
         SELECT w.* FROM words w JOIN cards c ON c.word_id = w.id
         WHERE c.state = 0 AND c.suspended = 0 AND ${inLevel} ORDER BY w.pinned DESC, w.seq, w.lemma LIMIT ?

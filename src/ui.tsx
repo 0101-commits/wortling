@@ -81,6 +81,15 @@ export function LevelBadge({ level }: { level: Level }) {
   )
 }
 
+/** 약한 단어(새로 잊은 4번 이상) 표시 */
+export function WeakBadge() {
+  return (
+    <ContentBadge size="xsmall" variant="outlined" color="accent" accentColor="semantic.foreground.negative.primary">
+      약한 단어
+    </ContentBadge>
+  )
+}
+
 /** 관사(색) + 단어 */
 export function Lemma({ word, className = '' }: { word: Pick<Word, 'lemma' | 'pos' | 'gender'>; className?: string }) {
   const a = article(word)

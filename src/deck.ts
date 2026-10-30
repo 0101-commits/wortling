@@ -1,6 +1,12 @@
 // 덱 세션 리듀서(React 없음). 채점을 쌓았다가 한 번에 보낸다.
-import { createEmptyCard, fsrs, type Card as FsrsCard, type Grade, type State } from 'ts-fsrs'
+import { createEmptyCard, type Card as FsrsCard, type Grade, type State } from 'ts-fsrs'
 import type { Card, DeckItem, Rating, ReviewInput, ReviewsRequest, TodayResponse } from '../shared/api.ts'
+import { EASY_MAX_DAYS, SUSPEND_LAPSES, WEAK_LAPSES, makeScheduler } from '../shared/fsrs.ts'
+
+export { EASY_MAX_DAYS, WEAK_LAPSES }
+
+/** 약한 단어(새로 잊은 횟수 4 이상) */
+export const isWeak = (c: Pick<Card, 'lapses'>) => c.lapses >= WEAK_LAPSES
 
 /** 밀기 상수(기획 고정값) */
 export const SWIPE = {
@@ -127,7 +133,7 @@ export function deckReducer(s: DeckState, a: DeckAction): DeckState {
       let reshows = s.reshows
       const seen = s.reshows[id] ?? 0
       if (s.dayEnd) {
-        // 서버와 같은 계산(ts-fsrs · 흔들림 끔 · 같은 채점 시각)이라 다음 장의 간격 글자도 서버 결과와 같다
+        // 서버와 같은 계산(ts-fsrs · 단어·채점 횟수 씨앗 흔들림 · 같은 채점 시각)이라 다음 장의 간격 글자도 서버 결과와 같다
         const next = nextCard(item.card, a.rating, new Date(a.at))
         if (!next.suspended && Date.parse(next.due) < Date.parse(s.dayEnd) && seen < SWIPE.MAX_RESHOW_DAY) {
           queue = reinsert(s.queue, s.index, { ...item, card: next })
@@ -152,12 +158,13 @@ export function deckReducer(s: DeckState, a: DeckAction): DeckState {
 }
 
 // ── ts-fsrs 로 4단계 간격 글자 만들기 ──
-const scheduler = fsrs({ enable_fuzz: false })
+const scheduler = makeScheduler()
 
 function toFsrsCard(c: Card): FsrsCard {
   const base = createEmptyCard(new Date(c.due))
   return {
     ...base,
+    word_id: c.word_id, // 흔들림 씨앗(shared/fsrs.ts)
     due: new Date(c.due),
     stability: c.stability,
     difficulty: c.difficulty,
@@ -168,18 +175,13 @@ function toFsrsCard(c: Card): FsrsCard {
     lapses: c.lapses,
     state: c.state as State,
     last_review: c.last_review ? new Date(c.last_review) : undefined,
-  }
+  } as FsrsCard
 }
-
-/** 이만큼 잊으면 서버가 카드를 쉬게 한다(worker/fsrs.ts SUSPEND_LAPSES) */
-const SUSPEND_LAPSES = 8
-
-/** 쉬움(4)의 다음 간격 상한(일). worker/fsrs.ts 의 EASY_MAX_DAYS 와 같은 값 */
-export const EASY_MAX_DAYS = 120
 
 /** 채점 하나를 적용한 다음 카드(worker/fsrs.ts applyRating 과 같은 계산 — 첫 채점 도장 · 쉼 · 쉬움 상한 120일 포함) */
 export function nextCard(card: Card, rating: Rating, at: Date): Card {
   const { card: c } = scheduler.next(toFsrsCard(card), at, rating as Grade)
+  const suspend = c.lapses > card.lapses && c.lapses >= SUSPEND_LAPSES
   const next: Card = {
     ...card,
     state: c.state as Card['state'],
@@ -193,7 +195,8 @@ export function nextCard(card: Card, rating: Rating, at: Date): Card {
     lapses: c.lapses,
     last_review: c.last_review ? c.last_review.toISOString() : null,
     introduced_at: card.state === 0 ? at.toISOString() : card.introduced_at,
-    suspended: c.lapses >= SUSPEND_LAPSES ? 1 : card.suspended,
+    suspended: suspend ? 1 : card.suspended,
+    suspended_at: suspend ? at.toISOString() : card.suspended_at ?? null,
   }
   if (rating === 4 && Date.parse(next.due) > at.getTime() + EASY_MAX_DAYS * 86400_000) {
     next.due = new Date(at.getTime() + EASY_MAX_DAYS * 86400_000).toISOString()

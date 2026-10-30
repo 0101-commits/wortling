@@ -1,7 +1,7 @@
 // 기획 v8: 오늘 몫(F1·F3·F5) · 새 단어 더 받기(D3) · 연습 재료·결과(과제 4) — D1 흉내로
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fakeD1, addWord } from './d1.mjs';
+import { fakeD1, addWord, lem } from './d1.mjs';
 import { EXTRA_MAX, addExtra, buildToday, dropPlan, loadSettings } from '../worker/deck.ts';
 import { practiceItems, savePractice } from '../worker/practice.ts';
 
@@ -12,7 +12,7 @@ const settings = (db, patch = {}) => loadSettings(db).then((s) => ({ ...s, new_p
 const ids = (items) => items.map((i) => i.word.id);
 
 function seed(db) {
-  for (let i = 1; i <= 8; i++) addWord(db, { id: `w${i}`, lemma: `Wort${i}`, seq: i });
+  for (let i = 1; i <= 8; i++) addWord(db, { id: `w${i}`, lemma: lem(i), seq: i });
   // 복습: 아침에 마감 · 오후에 마감(오늘 몫) · 내일 마감(아님)
   addWord(db, { id: 'r1', lemma: 'Morgen', seq: 100, state: 2, due: '2026-10-25T23:00:00.000Z', introduced_at: '2026-10-20T00:00:00.000Z' });
   addWord(db, { id: 'r2', lemma: 'Abend', seq: 101, state: 2, due: '2026-10-26T12:00:00.000Z', introduced_at: '2026-10-20T00:00:00.000Z' });
@@ -78,7 +78,7 @@ test('오늘은 복습만: 새 단어 0, 끄면 같은 목록이 돌아온다', 
 
 test('D3: 새 단어 더 받기 — 5개씩, 하루 20개까지, 오늘 목록 뒤에', async () => {
   const db = fakeD1();
-  for (let i = 1; i <= 30; i++) addWord(db, { id: `w${i}`, lemma: `Wort${i}`, seq: i });
+  for (let i = 1; i <= 30; i++) addWord(db, { id: `w${i}`, lemma: lem(i), seq: i });
   const s = await settings(db);
   await buildToday(db, s, NOON);
   assert.deepEqual(await addExtra(db, s, NOON), { added: 5 });
@@ -172,7 +172,7 @@ test('연습 「다시」: 기기 시각이 마지막 채점보다 앞이면 마
 
 test('설정이 바뀌어도 더 받은 수는 그대로 — 그만큼 더 고른다(하루 상한이 풀리지 않게)', async () => {
   const db = fakeD1();
-  for (let i = 1; i <= 30; i++) addWord(db, { id: `w${i}`, lemma: `Wort${i}`, seq: i });
+  for (let i = 1; i <= 30; i++) addWord(db, { id: `w${i}`, lemma: lem(i), seq: i });
   const s = await settings(db);
   await buildToday(db, s, NOON);
   await addExtra(db, s, NOON);

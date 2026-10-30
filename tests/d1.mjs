@@ -69,3 +69,6 @@ export function addWord(db, w) {
       r.seq, r.pinned, r.news_rank, r.freq_rank, r.checked_at, r.image_status);
   db.raw.prepare('INSERT INTO cards(word_id, state, due, introduced_at) VALUES (?, ?, ?, ?)').run(r.id, r.state, r.due, r.introduced_at);
 }
+
+/** 서로 비슷하지 않은 시험용 표제어(앞 다섯 글자가 다 다름 — worker/deck.ts similarWords 에 안 걸리게). i 는 0~675 */
+export const lem = (i) => `${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(97 + Math.floor(i / 26))}wort`;

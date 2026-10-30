@@ -137,10 +137,10 @@ const postReviews: Handler = async ({ req, env }) => {
     stmts.push(
       env.DB.prepare(
         `UPDATE cards SET state = ?, due = ?, stability = ?, difficulty = ?, elapsed_days = ?, scheduled_days = ?,
-         learning_steps = ?, reps = ?, lapses = ?, last_review = ?, introduced_at = ?, suspended = ? WHERE word_id = ?`,
+         learning_steps = ?, reps = ?, lapses = ?, last_review = ?, introduced_at = ?, suspended = ?, suspended_at = ? WHERE word_id = ?`,
       ).bind(
         c.state, c.due, c.stability, c.difficulty, c.elapsed_days, c.scheduled_days,
-        c.learning_steps, c.reps, c.lapses, c.last_review, c.introduced_at, c.suspended, id,
+        c.learning_steps, c.reps, c.lapses, c.last_review, c.introduced_at, c.suspended, c.suspended_at ?? null, id,
       ),
     );
   }

@@ -3,6 +3,7 @@ import type { CardState, DeckItem, Level, Pos, Settings } from '../shared/api.ts
 import { addDays, studyDay, studyDayStartUtc } from './time.ts';
 import { bad } from './http.ts';
 import { retrievability } from './fsrs.ts';
+import { unsuspendCutoff } from '../shared/fsrs.ts';
 
 /** words w JOIN cards c 에서 DeckItem 을 만들 때 고르는 열(열 이름이 겹치지 않게 w.id / c.word_id) */
 export const ITEM_SELECT = `w.id, w.lemma, w.pos, w.gender, w.plural, w.ipa, w.level, w.gloss_en, w.gloss_ko,
@@ -112,18 +113,70 @@ const parsePlan = (r: { fresh: string; extra: number } | null): PlanRow | null =
   }
 };
 
-/** 새 단어 후보: 안 배운 카드, 레벨 안(또는 내가 넣은 단어), 학습 순서. except = 이미 고른 id(JSON 배열) */
-function freshCandidates(db: D1Database, settings: Settings, n: number, except: string[] = []) {
+/** 비슷한 단어 판정용 열쇠: 관사·sich 떼고 소문자·움라우트 풀기·글자만 */
+const simKey = (lemma: string) =>
+  lemma
+    .toLowerCase()
+    .replace(/^(?:der|die|das|ein|eine|sich)\s+/, '')
+    .replace(/ä/g, 'a')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z]/g, '');
+
+/** 같은 뿌리(한쪽이 다른 쪽의 앞부분, 3글자 이상)이거나 앞 다섯 글자가 같으면 비슷한 단어 */
+export function similarWords(a: string, b: string): boolean {
+  const x = simKey(a);
+  const y = simKey(b);
+  if (!x || !y) return false;
+  const [s, l] = x.length <= y.length ? [x, y] : [y, x];
+  return s === l || (s.length >= 3 && l.startsWith(s)) || (s.length >= 5 && s.slice(0, 5) === l.slice(0, 5));
+}
+
+/** 후보를 차례로 보며 이미 고른 단어(have)나 앞서 고른 후보와 비슷한 것은 건너뛴다(그 단어는 다른 날로). 최대 n 개 */
+export function pickDistinct<T extends { lemma: string }>(cands: T[], have: string[], n: number): T[] {
+  const taken = [...have];
+  const out: T[] = [];
+  for (const c of cands) {
+    if (out.length >= n) break;
+    if (taken.some((t) => similarWords(t, c.lemma))) continue;
+    taken.push(c.lemma);
+    out.push(c);
+  }
+  return out;
+}
+
+/** 쉬기 시작한 지 30일(UNSUSPEND_DAYS) 지난 카드를 깨운다(8번 잊어 쉬던 카드 · 마이그레이션 0009) */
+export async function wakeSuspended(db: D1Database, now: Date = new Date()): Promise<void> {
+  await db.prepare('UPDATE cards SET suspended = 0, suspended_at = NULL WHERE suspended = 1 AND suspended_at IS NOT NULL AND suspended_at < ?').bind(unsuspendCutoff(now)).run();
+}
+
+/** 새 단어 후보: 안 배운 카드, 레벨 안(또는 내가 넣은 단어), 학습 순서. except = 이미 고른 id(JSON 배열).
+ *  비슷한 단어는 같은 날 겹치지 않게(L7): have = 이미 그날 목록·오늘 배운 단어의 표제어. 건너뛴 단어는 다른 날 후보로 남는다 */
+async function freshCandidates(db: D1Database, settings: Settings, n: number, except: string[] = [], have: string[] = []) {
   const levels = levelsFor(settings.level);
-  return db
+  const { results } = await db
     .prepare(
-      `SELECT w.id FROM cards c JOIN words w ON w.id = c.word_id
+      `SELECT w.id, w.lemma FROM cards c JOIN words w ON w.id = c.word_id
        WHERE c.state = 0 AND c.suspended = 0 AND (w.level IN (${levels.map(() => '?').join(',')}) OR w.pinned = 1)
          AND w.id NOT IN (SELECT value FROM json_each(?))
        ORDER BY w.pinned DESC, w.seq, w.lemma LIMIT ?`,
     )
-    .bind(...levels, JSON.stringify(except), n)
-    .all<{ id: string }>();
+    .bind(...levels, JSON.stringify(except), n * 6 + 30)
+    .all<{ id: string; lemma: string }>();
+  return pickDistinct(results, have, n);
+}
+
+/** 표제어 모음: 단어 id 목록 + 학습일 시작 뒤에 처음 배운 단어(날짜 지정 시) */
+async function lemmasOf(db: D1Database, ids: string[], since?: string): Promise<string[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT w.lemma FROM words w WHERE w.id IN (SELECT value FROM json_each(?))
+       UNION SELECT w.lemma FROM words w JOIN cards c ON c.word_id = w.id WHERE ? IS NOT NULL AND c.introduced_at >= ?`,
+    )
+    .bind(JSON.stringify(ids), since ?? null, since ?? '')
+    .all<{ lemma: string }>();
+  return results.map((r) => r.lemma);
 }
 
 const readPlan = (db: D1Database, date: string) =>
@@ -144,7 +197,7 @@ export async function ensurePlan(db: D1Database, settings: Settings, date: strin
     .bind(studyDayStartUtc(date))
     .first<{ n: number }>();
   const n = Math.max(0, settings.new_per_day + extra - Number(introduced?.n ?? 0));
-  const ids = n ? (await freshCandidates(db, settings, n)).results.map((r) => r.id) : [];
+  const ids = n ? (await freshCandidates(db, settings, n, [], await lemmasOf(db, [], studyDayStartUtc(date)))).map((r) => r.id) : [];
   await db.batch([
     row
       ? db.prepare("UPDATE day_plans SET fresh = ? WHERE day = ? AND fresh = ''").bind(JSON.stringify(ids), date)
@@ -165,7 +218,7 @@ export async function addExtra(db: D1Database, settings: Settings, now: Date = n
     const plan = await ensurePlan(db, settings, date);
     const room = Math.min(EXTRA_STEP, EXTRA_MAX - plan.extra);
     if (room <= 0) throw bad('extra_max');
-    const ids = (await freshCandidates(db, settings, room, plan.fresh)).results.map((r) => r.id);
+    const ids = (await freshCandidates(db, settings, room, plan.fresh, await lemmasOf(db, plan.fresh, studyDayStartUtc(date)))).map((r) => r.id);
     if (!ids.length) return { added: 0 };
     const r = await db
       .prepare('UPDATE day_plans SET fresh = ?, extra = extra + ? WHERE day = ? AND extra = ? AND fresh = ?')
@@ -198,6 +251,7 @@ export interface TodayPlan {
  * 색인: cards_state_due(복습), words PK(새 단어 id), reviews_time·cards_introduced(오늘 수).
  */
 export async function buildToday(db: D1Database, settings: Settings, now: Date = new Date()): Promise<Today> {
+  await wakeSuspended(db, now);
   const date = studyDay(now);
   const dayStart = studyDayStartUtc(date);
   const dayEnd = studyDayStartUtc(addDays(date, 1));

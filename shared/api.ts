@@ -39,6 +39,8 @@ export interface Card {
   last_review: string | null;
   introduced_at: string | null;
   suspended: 0 | 1;
+  /** 쉬기 시작한 시각(8번 잊음). 30일 뒤 저절로 깨운다. 앱은 안 쓴다 */
+  suspended_at?: string | null;
 }
 
 export interface DeckItem {

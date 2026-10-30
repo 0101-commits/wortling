@@ -4,8 +4,8 @@ import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type CSSP
 import { animate, motion, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from 'motion/react'
 import { ContentBadge } from '@montage-ui/core'
 import type { DeckItem, Rating } from '../shared/api.ts'
-import { RATING_LABEL, SWIPE, decideSwipe, intervals } from './deck.ts'
-import { Emoji, Example, LevelBadge, Lemma, POS_LABEL, WordImage } from './ui.tsx'
+import { RATING_LABEL, SWIPE, decideSwipe, intervals, isWeak } from './deck.ts'
+import { Emoji, Example, LevelBadge, Lemma, POS_LABEL, WeakBadge, WordImage } from './ui.tsx'
 import { seenLabel } from './format.ts'
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
@@ -222,6 +222,7 @@ function CardFace({ item: { word, card }, back }: { item: DeckItem; back: boolea
           <div className="dk-meta">
             <ContentBadge size="xsmall" variant="outlined" color="neutral">{POS_LABEL[word.pos] ?? word.pos}</ContentBadge>
             <LevelBadge level={word.level} />
+            {isWeak(card) && <WeakBadge />}
             {word.ipa && <span>{word.ipa}</span>}
           </div>
           {word.plural && <div className="dk-pl" lang="de">복수 {word.plural}</div>}

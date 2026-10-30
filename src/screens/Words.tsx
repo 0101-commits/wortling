@@ -7,7 +7,8 @@ import { STATE_LABEL, dueText, fmtDay, num, studyDay } from '../format.ts'
 import { useDebounced } from '../hooks.ts'
 import { linkTo, navigate } from '../router.ts'
 import { AddWord } from '../AddWord.tsx'
-import { Emoji, ErrorBox, LevelBadge, Lemma, Top, WordImage } from '../ui.tsx'
+import { isWeak } from '../deck.ts'
+import { Emoji, ErrorBox, LevelBadge, Lemma, Top, WeakBadge, WordImage } from '../ui.tsx'
 
 const CHIPS: Array<{ id: string; label: string; q: WordsQuery }> = [
   { id: 'all', label: '전체', q: {} },
@@ -160,6 +161,7 @@ export default function Words({ add = '', url = '', open = false }: { add?: stri
                       <div className="wl">
                         <Lemma word={it.word} className="w" />
                         <LevelBadge level={it.word.level} />
+                        {isWeak(it.card) && <WeakBadge />}
                       </div>
                       <div className="m">{it.word.gloss_ko ?? '뜻 준비 중'}</div>
                     </div>
