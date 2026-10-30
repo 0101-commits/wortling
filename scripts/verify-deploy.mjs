@@ -14,7 +14,7 @@ export const CHECKS = [
   ['/api/health', 'application/json'],
   ['/api/today', 'application/json'],
   ['/api/admin/keys', 'application/json'],
-  ['/img/w0001.webp', 'image/webp'],
+  ['/img/w0075.webp', 'image/webp'], // w0001(los)은 10-30 레벨 정리로 지움
   ['/sw.js', 'javascript'],
 ];
 
