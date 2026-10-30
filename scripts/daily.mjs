@@ -15,10 +15,11 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
-import { STYLE_INTRO, BORTI, STYLE, REF_NOTE, REF_FILE } from './style.mjs';
+import { STYLE_INTRO, BORTI, STYLE, STYLE_TEXT_ONLY, REF_NOTE, REF_FILE } from './style.mjs';
 import { checkFile } from './imgcheck.mjs';
 import { askJson } from './ai.mjs';
-import { judgeImages } from './judge.mjs';
+import { judgeImages, setJudgeLedger } from './judge.mjs';
+import { KLEIN4, SCHNELL, DEV, SIZE, ledgerConfig, loadLedger, saveLedger, neuronEstimate, pickModel, hardCandidates, hardSlot, recordDraw, recordAuto, recordJudge, spentToday, dayRec } from './ledger.mjs';
 import { processPending, sortByVerdict } from './pending.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -32,10 +33,13 @@ const IMAGE_MAX = Number(process.env.DAILY_IMAGE_MAX || 100);
 // 하루 그리기 횟수 상한(검사·뜻 탈락 다시 그리기 포함). 계산상 한 번 ≈ 83 뉴런이었는데 대시보드 실측은 ≈ 109
 // (10-16·10-17 110번 = 12k, 어림 9,174) → 110번은 무료 10,000 을 넘겼고 10-18·10-19 는 하루 종일 4006 으로 0장.
 // 80번 ≈ 8,700(87%). 몫을 끝까지 쓰면 안 된다 — 다 쓴 다음 날도 막힌 적이 있다(10-15, 문서는 「UTC 0시 초기화」)
-const DRAW_MAX = Number(process.env.DAILY_DRAW_MAX) || 80; // 숫자가 아니면(NaN) 상한이 꺼지지 않게 기본값
+// 2026-10-30 뉴런 장부(scripts/ledger.mjs)가 하루 예산(10,000 − 여유)을 모델별로 지킨다 → 횟수 상한은 안전망으로만 120(schnell 이 싸서 80번을 넘길 수 있음)
+const DRAW_MAX = Number(process.env.DAILY_DRAW_MAX) || 120; // 숫자가 아니면(NaN) 상한이 꺼지지 않게 기본값
 // 위 상한은 실행마다가 아니라 하루(UTC = Workers AI 무료 몫 기준)마다. 예전엔 daily.yml guard 가 「오늘 성공한 실행이 있으면」
 // 예약 실행을 통째로 건너뛰어, 몫이 막혀 0장 그린 손 실행(다시 검사)만 있던 10-19 저녁에도 그리지 않았다
 const DRAW_DAY_FILE = path.join(ROOT, '.data', 'draw-day.json');
+// 하루 몫 장부 — 모델별 뉴런 · 모델별 통과 수 · 검사 AI 사용량 · 그림별 그린 모델(ledger.mjs). daily.yml 이 draw-day.json 과 같이 되올린다
+const LEDGER_FILE = path.join(ROOT, '.data', 'ledger.json');
 // 그리기·그림 검사 한 묶음. 25장이던 10-20 첫 실행은 Gemini Flash 가 5분 시간 초과 3번 → 그린 19장을 못 올리고 멈췄다.
 // 묶음이 작으면 판정이 가볍고, 검사 AI 가 막혀도 헛그림이 묶음 하나뿐. Flash 무료 몫(하루 ≈20번) 안: 80 ÷ 10 = 8번 + 다시 그린 것 판정
 const BATCH = 10;
@@ -60,11 +64,12 @@ const DONE_FILE = path.join(ROOT, '.data', 'images-done.json');
 // 검사용 원본(올리기 전)·뜻 검사 모음 그림. git 제외 폴더
 const TMP_DIR = path.join(ROOT, '.data', 'img-tmp');
 // 장면이 앞, 보르티 설명이 뒤. 장면을 뒤에 두었더니 마스코트만 크게 나오고 뜻이 안 보였다(2026-10-13 사용자 지적).
-function imagePrompt(scene, withRef) {
-  const tail = ` ${BORTI} Other animals in the same style. ${STYLE}`;
+function imagePrompt(scene, withRef, textOnly = false) {
+  // 참고 그림이 없는 모델(schnell)은 보르티·그림체를 글로 더 힘주어 적는다
+  const tail = ` ${BORTI} Other animals in the same style. ${STYLE}${textOnly ? ' ' + STYLE_TEXT_ONLY : ''}`;
   const head = `${STYLE_INTRO} ${withRef ? REF_NOTE + ' ' : ''}Scene: `;
   let sc = scene.trim();
-  const room = PROMPT_MAX - head.length - tail.length;
+  const room = (textOnly ? 1900 : PROMPT_MAX) - head.length - tail.length; // schnell 은 2048자까지
   if (sc.length > room) sc = sc.slice(0, room).replace(/[,;]?\s+\S*$/, '') + '.';
   return head + sc + tail;
 }
@@ -97,6 +102,17 @@ try {
   // 2) 그림 만들기
   if (!NO_IMAGE) {
     const budget = IMAGE_MAX;
+    const cfg = ledgerConfig();
+    const ledger = loadLedger(LEDGER_FILE);
+    const utcNow = () => new Date().toISOString().slice(0, 10);
+    const saveL = () => {
+      if (DRY) return;
+      mkdirSync(path.dirname(LEDGER_FILE), { recursive: true });
+      saveLedger(LEDGER_FILE, ledger);
+    };
+    // 검사 AI 사용량을 장부에 적고, 손 실행(workflow_dispatch · 로컬)은 예약 실행 몫을 건드리기 전에 멈춘다(judge.mjs)
+    setJudgeLedger({ ledger, cfg, day: utcNow, save: saveL });
+    console.log(`장부: 오늘(UTC) 뉴런 ${Math.round(spentToday(ledger, utcNow()))}/${cfg.budget} · ${cfg.manual ? '손 실행(예약 실행 몫 ' + Math.round(cfg.reserve * 100) + '% 남김)' : '예약 실행'}`);
     let quotaOut = false; // 무료 하루 몫을 다 씀(429)
     // 그릴 차례(기획안 v7 C4). --redo 면 그것만. 아니면
     //   ① 예전 그림체 목록 .data/restyle.json
@@ -159,6 +175,10 @@ try {
     let pendingSentToday = 0; // 오늘 이 실행이 대기에 맡긴 장수 — 어제 대기는 그리기 제한에서 뺀다(2026-10-29 데드락 수정)
     let inflight = 0; // 이번 묶음에서 그렸고 곧 대기로 갈 장수(검사 AI 가 막힌 줄 알 때만) — 상한을 묶음 중간에도 지키려고
     if (pend.judgeDown) judgeDown = true;
+    // 대기에서 판정 난 그림도 그린 모델에 붙인다(drawn_by)
+    for (const id of pend.uploaded) recordJudge(ledger, id, ledger.drawn_by[id], true);
+    for (const id of pend.rejected) recordJudge(ledger, id, ledger.drawn_by[id], false);
+    saveL();
     for (const [id, sc] of pend.fix) fix.set(id, sc);
     for (const id of pend.uploaded) if (restyle.includes(id)) restyle.splice(restyle.indexOf(id), 1);
     for (const id of pend.gaveUp) {
@@ -173,6 +193,7 @@ try {
     Object.assign(log.pending, { before: pend.total, uploaded: pend.uploaded.length, rejected: pend.rejected.length, dropped: pend.dropped.length });
     const redo = new Set(REDO.length ? REDO : restyle);
     const ids = [];
+    const hard = new Set();
     // 대기에 있는 단어는 다시 그리지 않는다(그리기 몫 이중 사용)
     const add = (list) => {
       for (const id of list) if (ids.length < budget && !ids.includes(id) && !pend.left.has(id)) ids.push(id);
@@ -181,6 +202,10 @@ try {
     else if (budget > 0) {
       add(pend.front);
       add(restyle);
+      // 검사 두 번 탈락한 어려운 단어 — 참고 그림 있는 큰 모델로 하루 hardMax 개까지(G3). 맨 앞에 둔다
+      const hardList = hardCandidates(ledger, cfg).slice(0, cfg.hardMax);
+      for (const id of hardList) hard.add(id);
+      ids.unshift(...hardList.filter((id) => !pend.left.has(id) && !ids.includes(id)));
       if (budget > ids.length) add((await api(`/api/admin/runway?text=0&image=${budget - ids.length + 5 + pend.left.size}`)).need_image.map((w) => w.id));
     }
     if (DRY) console.log(`[dry] 그릴 차례(다시 그리기 ${ids.filter((id) => redo.has(id)).length}): ${ids.join(',')}`);
@@ -193,18 +218,26 @@ try {
         if (/→ 404/.test(String(e.message))) continue; // 카드 행이 없는 단어는 건너뜀
         throw e;
       }
-      need.push({ ...d.word, scene_en: d.scene_en }); // 새 장면을 못 쓰면 이 장면으로
+      if (hard.has(id) && d.word.image) continue; // 그사이 그림이 생긴 어려운 단어
+      need.push({ ...d.word, scene_en: d.scene_en, hard: hard.has(id) }); // 새 장면을 못 쓰면 이 장면으로
     }
     console.log(`오늘 그림 ${need.length}장(상한 ${budget})`);
     mkdirSync(TMP_DIR, { recursive: true });
     // 참고 그림(보르티 생김새 고정). Worker 가 못 받으면 그날은 없이 그린다
     let ref = existsSync(REF_FILE) ? readFileSync(REF_FILE).toString('base64') : null;
     let refWorked = false; // 오늘 참고 그림으로 한 장이라도 그려졌나(끊긴 뒤 그린 그림을 다시 그릴지 가름)
-    const drawOnce = async (scene) => {
+    // model = 장부가 고른 모델(ledger.mjs). 돌려주는 model 은 Worker 가 알려 준 실제 모델(x-draw-model, 옛 Worker 는 헤더가 없어 klein-4b) — 장부는 그것으로 적는다
+    // schnell 은 참고 그림 입력이 없다 → 보르티 생김새를 글로 더 강하게 적고, 정사각 그림은 흰 바탕에 4:3 으로 앉힌다
+    const drawOnce = async (scene, model) => {
       const gen = async () => {
-        const p = await api('/api/admin/draw', { method: 'POST', body: { prompt: imagePrompt(scene, !!ref), width: 1024, height: 768, ...(ref ? { ref } : {}) }, bin: true });
-        if (ref) refWorked = true;
-        return p;
+        const useRef = !!ref && model !== SCHNELL;
+        const [width, height] = SIZE[model];
+        const steps = model === SCHNELL ? cfg.schnellSteps : model === DEV ? cfg.devSteps : undefined;
+        const r = await api('/api/admin/draw', { method: 'POST', body: { prompt: imagePrompt(scene, useRef, model === SCHNELL), width, height, model, ...(steps ? { steps } : {}), ...(useRef ? { ref } : {}) }, bin: 'meta' });
+        if (useRef) refWorked = true;
+        let png = r.buf;
+        if (r.model === SCHNELL) png = await sharp(png).resize(1024, 768, { fit: 'contain', background: '#fff' }).jpeg({ quality: 92 }).toBuffer();
+        return { png, model: r.model, ref: useRef && r.model !== SCHNELL };
       };
       try {
         return await gen();
@@ -216,7 +249,7 @@ try {
         try {
           return await gen();
         } catch (e2) {
-          if (!ref || /→ 429/.test(String(e2.message))) throw e2;
+          if (!ref || model === SCHNELL || /→ 429/.test(String(e2.message))) throw e2;
           log.ref_error = String(e2.message || e2).slice(0, 200);
           console.error(`참고 그림 없이 다시: ${log.ref_error}`);
           ref = null;
@@ -235,17 +268,27 @@ try {
     const saveDrawDay = () => { if (!DRY) writeFileSync(DRAW_DAY_FILE, JSON.stringify({ day: utcDay, drawn: drawnBefore + checked })); };
     if (drawnBefore) console.log(`오늘(UTC) 앞선 실행이 ${drawnBefore}번 그림 — 남은 몫 ${Math.max(0, DRAW_MAX - drawnBefore)}번`);
     let ocrSkipped = 0;
+    let budgetOut = false; // 오늘 뉴런 예산(장부)을 다 씀
     let errStreak = 0; // 단어 탓이 아닌 오류(용량 부족·서버 오류)가 잇따르면 그날은 멈춤
     // 그리기 상한에 닿으면 남은 단어·뜻 탈락 다시 그리기는 내일로(실패 표시 안 함)
     // UTC 자정을 넘기면 멈춤 — 그 뒤 그림은 새 날 몫인데 파일엔 옛 날로 적혀 다음 실행이 또 80번 그린다
     // 검사 AI 가 막혔어도(judgeDown) 그리기는 계속한다 — 대기가 상한(PENDING_MAX)에 닿거나 대기 길이 없을 때만 멈춤
-    const stopped = () => quotaOut || (judgeDown && !holdOk) || pendingSentToday + inflight >= PENDING_MAX || errStreak >= 3 || drawnBefore + checked >= DRAW_MAX || new Date().toISOString().slice(0, 10) !== utcDay;
+    const stopped = () => quotaOut || budgetOut || (judgeDown && !holdOk) || pendingSentToday + inflight >= PENDING_MAX || errStreak >= 3 || drawnBefore + checked >= DRAW_MAX || new Date().toISOString().slice(0, 10) !== utcDay;
     // 한 단어 그리기 + 자동 검사(C5). 탈락이면 한 번만 다시. → {png, check, why} · 그리기 오류면 null(실패 표시 안 함, 내일 다시)
     const drawChecked = async (w, scene) => {
-      let png = null, check = null, why = [];
+      let png = null, check = null, why = [], used = null;
+      // 어려운 단어는 큰 모델(참고 그림 있음)로 한 번만 — 몫이 없으면 보통 단어처럼
+      const hardCost = w.hard ? hardSlot(ledger, utcDay, cfg) : null;
       try {
-        for (let attempt = 1; attempt <= 2 && !png; attempt++) {
-          const p = await drawOnce(scene);
+        for (let attempt = 1; attempt <= (hardCost ? 1 : 2) && !png; attempt++) {
+          const pick = hardCost ? { model: cfg.hardModel } : pickModel(ledger, utcDay, cfg);
+          if (!pick) { budgetOut = true; log.quota = 'budget'; return null; } // 오늘 뉴런 예산 소진 → 멈춤(내일 다시)
+          if (hardCost) ledger.hard_tried[w.id] = utcDay;
+          const r = await drawOnce(scene, pick.model);
+          const p = r.png;
+          used = r.model;
+          recordDraw(ledger, utcDay, used, neuronEstimate(used, cfg, { ref: r.ref }));
+          saveL();
           checked++;
           saveDrawDay();
           // 실측: 가끔 새까만 그림이 온다(w0010, 편차 0)
@@ -256,8 +299,11 @@ try {
           check = await checkFile(tmp, p);
           try { unlinkSync(tmp); } catch { /* 지우기 실패는 무시 */ }
           if (check.chars === null) ocrSkipped++;
-          if (check.ok) png = p;
-          else {
+          if (check.ok) {
+            png = p;
+            recordAuto(ledger, used, true);
+            ledger.drawn_by[w.id] = used;
+          } else {
             why = check.why;
             console.log(`그림 ${w.id} ${w.lemma} 검사 탈락(${why.join(', ')})${attempt === 1 ? ' → 한 번 더' : ''}`);
             await saveRejected(w.id, 'check', why.join('+'), p);
@@ -271,7 +317,7 @@ try {
         return null;
       }
       errStreak = 0;
-      return { png, check, why };
+      return { png, check, why, model: used };
     };
     const toJudge = (d) => ({ id: d.w.id, word: `${d.w.gender ? d.w.gender + ' ' : ''}${d.w.lemma}`, meaning_ko: d.w.gloss_ko, png: d.png });
     log.meaning = { judged: 0, retried: 0, failed: 0 };
@@ -319,6 +365,7 @@ try {
           if (s1.down) judgeDown = true;
           hold(s1.hold);
           log.meaning.judged += v1?.size ?? 0;
+          for (const d of first) if (v1?.get(d.w.id)) recordJudge(ledger, d.w.id, d.model, v1.get(d.w.id).ok !== false);
           again = s1.reject;
           for (const d of again) {
             const v = v1.get(d.w.id);
@@ -332,7 +379,7 @@ try {
             log.meaning.retried++;
             const r = await drawChecked(d.w, v.scene);
             if (!r) d.defer = true;
-            else if (r.png) Object.assign(d, { png: r.png, check: r.check, scene: v.scene, rescene: true, pending: true });
+            else if (r.png) Object.assign(d, { png: r.png, check: r.check, scene: v.scene, rescene: true, pending: true, model: r.model });
           }
         }
         const redrawn = again.filter((d) => d.pending);
@@ -342,6 +389,8 @@ try {
           const s2 = sortByVerdict(redrawn, v2);
           if (s2.down) judgeDown = true;
           hold(s2.hold);
+          for (const d of redrawn) if (v2?.get(d.w.id)) recordJudge(ledger, d.w.id, d.model, v2.get(d.w.id).ok !== false);
+          saveL();
           for (const d of s2.reject) {
             const v = v2.get(d.w.id);
             await saveRejected(d.w.id, 'meaning', v.why, d.png);
@@ -408,7 +457,9 @@ try {
     // G15: 검사 통과율(생성 1번 = 1건)
     log.checks = { drawn: checked, drawn_before: drawnBefore, draw_max: DRAW_MAX, passed: log.images.length, rate: checked ? +(log.images.length / checked).toFixed(2) : null, ocr_skipped: ocrSkipped, ref: !!ref };
     // 뉴런 어림 — 대시보드 실측 한 장 ≈ 109(계산 83.4 의 1.3배, 2026-10-19). 실패 요청은 안 셈
-    log.neurons_est = Math.round(checked * 109);
+    log.neurons_est = Math.round(spentToday(ledger, utcDay));
+    log.ledger = { day: utcDay, budget: cfg.budget, ...dayRec(ledger, utcDay), stats: ledger.stats, hard_pending: hardCandidates(ledger, cfg).length };
+    saveL();
 
     // 진행률 · 전부 완료 알림(그릴 단어가 하나도 안 남은 첫날 한 번)
     // 남은 것 = 그림 없는 단어 + 글(장면)이 아직 빈 단어 + 예전 그림체 목록. 이 블록이 실패해도 백업은 한다
@@ -580,7 +631,10 @@ async function api(p, { method = 'GET', body, raw, headers = {}, bin = false } =
     await new Promise((r) => setTimeout(r, 2000));
     res = await fetch(APP_URL + p, init);
   }
-  if (bin && res.ok) return Buffer.from(await res.arrayBuffer());
+  if (bin && res.ok) {
+    const buf = Buffer.from(await res.arrayBuffer());
+    return bin === 'meta' ? { buf, model: res.headers.get('x-draw-model') || KLEIN4 } : buf;
+  }
   const text = await res.text();
   if (!res.ok) throw new Error(`${method} ${p} → ${res.status} ${text.slice(0, 300)}`);
   return text ? JSON.parse(text) : null;

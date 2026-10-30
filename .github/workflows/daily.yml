@@ -16,7 +16,7 @@ on:
 concurrency: daily
 
 permissions:
-  contents: write # .data/restyle.json · images-done.json · draw-day.json 을 되올린다
+  contents: write # .data/restyle.json · images-done.json · draw-day.json · ledger.json(뉴런·검사 AI 사용량 장부) 을 되올린다
 
 jobs:
   # 하루 그리기 몫(무료 Workers AI)은 daily.mjs 가 .data/draw-day.json 으로 날짜(UTC)마다 센다 — 여러 번 돌아도 넘지 않는다.
@@ -87,7 +87,7 @@ jobs:
               node scripts/merge-restyle.mjs .data/.rs-base.json .data/.rs-main.json .data/restyle.json
             fi
             git reset -q "$main"
-            for f in .data/restyle.json .data/images-done.json .data/draw-day.json; do
+            for f in .data/restyle.json .data/images-done.json .data/draw-day.json .data/ledger.json; do
               if [ -f "$f" ]; then git add -f "$f"; else git rm -q --cached --ignore-unmatch "$f"; fi
             done
             git diff --cached --quiet && exit 0

@@ -30,7 +30,7 @@ export function parseJsonArray(text) {
   return Array.isArray(v) ? v : null;
 }
 
-async function once(model, body, key) {
+async function once(model, body, key, onUsage) {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
@@ -47,6 +47,7 @@ async function once(model, body, key) {
   const u = j.usageMetadata || {};
   const n = { input: u.promptTokenCount || 0, output: u.candidatesTokenCount || 0, thinking: u.thoughtsTokenCount || 0 };
   total.calls++;
+  onUsage?.({ tokens: n.input + n.output + n.thinking });
   for (const k of Object.keys(n)) total[k] += n[k];
   // 별칭(-latest)이 실제로 어느 판인지 남긴다
   console.error(`AI 사용량(${model}${j.modelVersion && j.modelVersion !== model ? ` = ${j.modelVersion}` : ''}): 입력 ${n.input} · 출력 ${n.output} · 생각 ${n.thinking}`);
@@ -62,10 +63,10 @@ async function once(model, body, key) {
   throw Object.assign(new Error(`결과가 JSON 배열이 아님(${c?.finishReason || j.promptFeedback?.blockReason || '?'}): ${text.slice(0, 200)}`), { final: blocked });
 }
 
-/** prompt → JSON 배열. images = [{label, png}](judge.mjs) — 글 뒤에 「label」 글 조각 + PNG 버퍼를 차례로 붙인다.
+/** prompt → JSON 배열. onUsage({tokens}) = 성공한 호출마다 쓴 토큰을 알림. images = [{label, png}](judge.mjs) — 글 뒤에 「label」 글 조각 + PNG 버퍼를 차례로 붙인다.
  *  models 차례로, 모델마다 세 번까지: 429·503(혼잡) 은 1분, 그 밖 5xx·끊김·깨진 JSON 은 15초 뒤 다시.
  *  404·그 밖 4xx·하루 몫 소진·막힘은 곧장 다음 모델. 다 실패면 던진다 */
-export async function askJson(prompt, { images = [], models = TEXT_MODELS } = {}) {
+export async function askJson(prompt, { images = [], models = TEXT_MODELS, onUsage } = {}) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('GEMINI_API_KEY 가 없다(.env 또는 Actions 비밀값)');
   const parts = [{ text: prompt }];
@@ -78,7 +79,7 @@ export async function askJson(prompt, { images = [], models = TEXT_MODELS } = {}
   for (const model of models) {
     for (let attempt = 1; ; attempt++) {
       try {
-        return await once(model, body, key);
+        return await once(model, body, key, onUsage);
       } catch (e) {
         err = e;
         console.error(`AI 실패(${model} ${attempt}회): ${String(e.message).slice(0, 200)}`);
@@ -97,7 +98,7 @@ export async function askJson(prompt, { images = [], models = TEXT_MODELS } = {}
 const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
 const GROQ_WAIT_MS = process.env.AI_RETRY_MS ? Number(process.env.AI_RETRY_MS) : 15_000;
 /** prompt → JSON 배열. images = [{label, png}]. 모델마다 세 번까지: 429 는 1분, 그 밖 5xx·끊김·깨진 JSON 은 15초 뒤 다시. */
-export async function askGroqJson(prompt, { images = [], model = GROQ_MODEL } = {}) {
+export async function askGroqJson(prompt, { images = [], model = GROQ_MODEL, onUsage } = {}) {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('GROQ_API_KEY 가 없다(.env 또는 Actions 비밀값)');
   const content = [{ type: 'text', text: prompt }];
@@ -117,6 +118,7 @@ export async function askGroqJson(prompt, { images = [], model = GROQ_MODEL } = 
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw Object.assign(new Error(`${res.status} ${String(j.error?.message || '').slice(0, 200)}`), { status: res.status });
+      onUsage?.({ tokens: Number(j.usage?.total_tokens) || 0 }); // 하루 토큰 한도(TPD)를 장부에 적는다(ledger.mjs)
       const text = String(j.choices?.[0]?.message?.content || '').trim();
       const v = parseJsonArray(text);
       if (v) return v;

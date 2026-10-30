@@ -23,3 +23,9 @@ export const STYLE =
   'Pure white background with a white margin, no room or landscape, one short ground line. ' +
   'Borti about half the frame height; the key object or action large and clear. ' +
   'No text, letters or numbers; simple symbols like ? ! hearts or sweat drops are fine.';
+// 참고 그림을 못 받는 글자 전용 모델(FLUX.1 schnell, 2026-10-30)용 덧붙임 — 보르티 생김새와 그림체를 글로 한 번 더 못 박는다
+export const STYLE_TEXT_ONLY =
+  'Flat vector sticker illustration, clean white background. Borti must look like the same mascot in every picture: ' +
+  'white fluffy puppy with a round pear-shaped body, two floppy tan ears, two black dot eyes, a small black nose, pink cheeks, a short curled tail. ' +
+  'Hand-drawn black pen outline, wobbly and slightly thick, filled with flat pastel colors, korean emoticon sticker look. ' +
+  'Wide landscape composition with the subject centered and generous white margins.';

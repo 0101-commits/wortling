@@ -556,15 +556,22 @@ const putImage: Handler = async ({ req, env, url, params: [id] }) => {
  * 2026-10-14 같은 장면으로 비교: Leonardo Phoenix 는 글자·회색 바탕, Lucid Origin 은 장당 ≈ 2,000 뉴런, FLUX.1 schnell 은 정사각만.
  */
 const DRAW_MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
+// 2026-10-30 모델 섞기: body.model 로 고른다(scripts/ledger.mjs). schnell 은 글자만(JSON {prompt, steps}, 크기·참고 그림 입력 없음),
+// 나머지 FLUX.2 는 multipart(input_image_0 · width · height, dev 만 steps). 어느 모델이 그렸는지 x-draw-model 로 돌려준다
+const DRAW_MODELS = new Set([DRAW_MODEL, '@cf/black-forest-labs/flux-1-schnell', '@cf/black-forest-labs/flux-2-klein-9b', '@cf/black-forest-labs/flux-2-dev']);
 const draw: Handler = async ({ req, env }) => {
-  const b = await readJson<{ prompt?: unknown; width?: unknown; height?: unknown; ref?: unknown }>(req);
+  const b = await readJson<{ prompt?: unknown; width?: unknown; height?: unknown; ref?: unknown; model?: unknown; steps?: unknown }>(req);
   if (!b || typeof b.prompt !== 'string' || !b.prompt.trim() || b.prompt.length > 2000) throw bad('prompt');
   // ref = 참고 그림(png base64, 512² 이하) → input_image_0. 보르티 생김새·그림체를 장마다 같게 묶는다
   if (b.ref !== undefined && (typeof b.ref !== 'string' || b.ref.length > 400_000)) throw bad('ref');
+  const model = b.model === undefined ? DRAW_MODEL : typeof b.model === 'string' && DRAW_MODELS.has(b.model) ? b.model : null;
+  if (!model) throw bad('model');
+  const steps = Math.min(50, Math.max(1, Math.round(Number(b.steps) || 0))) || undefined;
   // 16 의 배수, 256~1536
   const side = (v: unknown, d: number) => Math.min(1536, Math.max(256, Math.round((Number(v) || d) / 16) * 16));
+  const schnell = model.endsWith('flux-1-schnell');
   const form = new FormData();
-  if (typeof b.ref === 'string') {
+  if (!schnell && typeof b.ref === 'string') {
     const s = atob(b.ref);
     const ref = new Uint8Array(s.length);
     for (let i = 0; i < s.length; i++) ref[i] = s.charCodeAt(i);
@@ -573,10 +580,11 @@ const draw: Handler = async ({ req, env }) => {
   form.append('prompt', b.prompt);
   form.append('width', String(side(b.width, 1024)));
   form.append('height', String(side(b.height, 768)));
+  if (model.endsWith('flux-2-dev') && steps) form.append('steps', String(steps));
   const body = new Response(form);
   let out: { image?: string } | null;
   try {
-    out = (await env.AI.run(DRAW_MODEL, { multipart: { body: body.body, contentType: body.headers.get('content-type') } })) as { image?: string } | null;
+    out = (await env.AI.run(model, schnell ? { prompt: b.prompt, ...(steps ? { steps } : {}) } : { multipart: { body: body.body, contentType: body.headers.get('content-type') } })) as { image?: string } | null;
   } catch (e) {
     const msg = String((e as Error)?.message ?? e);
     // 무료 하루 몫을 다 쓰면 4006(daily free allocation) → 429 로 돌려 매일 작업이 멈추게
@@ -588,7 +596,7 @@ const draw: Handler = async ({ req, env }) => {
   const s = atob(out.image);
   const bytes = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
-  return new Response(bytes, { headers: { 'content-type': 'image/jpeg' } });
+  return new Response(bytes, { headers: { 'content-type': 'image/jpeg', 'x-draw-model': model } });
 };
 
 /** 공개: KV 그림. _default.webp 도 같은 길. */
