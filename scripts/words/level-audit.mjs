@@ -1,16 +1,17 @@
 // 단어 등급 감사(읽기 전용) — 앱은 B1~C1 만 두기로 했는데, 등급표가 A1·A2·B1 → B1, C1·C2 → C1 로 뭉개져(lib.mjs cefr3) 진짜 등급이 가려졌다.
 // 단어마다 둘째 의견을 모아 사용자가 지울 목록을 고르게 한다. 서버·D1 에는 아무것도 쓰지 않는다.
-//   1) 단어 읽기: 관리 API /api/admin/words-export 질의 한 번(freq_rank·level_src 포함)
+//   1) 단어 읽기: 가장 최근 백업의 로컬 사본(scripts/db/local-copy.mjs, 원격 D1 읽기 0). --remote 면 관리 API /api/admin/words-export 질의 한 번
 //   2) DAFlex: daflex_rob = nb_doc@등급 ≥ 2 인 첫 등급 · daflex_any = level_freq@등급 > 0 인 첫 등급
 //   3) AI: Gemini Flash-Lite 50개씩(분당 12번 이하) → 모자라면 Groq. Flash(비 Lite)는 그림 검사 몫이라 쓰지 않는다.
 // 결과: out/level-audit/words.json · summary.json (AI 답은 ai-cache.jsonl 에 쌓아 다시 돌려도 이어 한다)
-// 사용: node scripts/words/level-audit.mjs [--limit N] [--no-ai]   시험: tests/level-audit.test.mjs
+// 사용: node scripts/words/level-audit.mjs [--limit N] [--no-ai] [--remote]   시험: tests/level-audit.test.mjs
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, api, requireEnv } from '../admin.mjs';
 import { askGroqJson } from '../ai.mjs';
 import { DAFLEX_URL } from './sources.mjs';
+import { openLocalDb } from '../db/local-copy.mjs';
 
 export const OUT = path.join(ROOT, 'out', 'level-audit');
 const CACHE = path.join(OUT, 'ai-cache.jsonl');
@@ -27,14 +28,27 @@ const key = (w) => `${w.lemma}|${w.pos}`;
 
 // ---------- 1) 단어 읽기 ----------
 
-/** 관리 API 질의 한 번(/api/admin/words-export). 옛: wrangler d1 --remote 또는 /api/words 를 200개씩 넘김 → 쪽마다 표 전체를 읽어 D1 하루 한도를 먹었다 */
-async function loadWords() {
-  const r = await api('/api/admin/words-export');
-  return r.items.map((x) => ({
-    id: x.id, lemma: x.lemma, pos: x.pos, level: x.level, level_src: x.level_src ?? null, freq_rank: x.freq_rank ?? null,
-    learned: Boolean(x.introduced_at) || x.state > 0 || x.reps > 0, reps: x.reps ?? 0, has_image: x.image_status === 'ok',
-  }));
+/** 백업 사본에서 읽는다 — 원격 D1 은 건드리지 않는다(옛: 관리 API 를 불러 한 번에 2.5만 행씩 읽음) */
+export function loadWordsLocal(db = openLocalDb()) {
+  const rows = db
+    .prepare(
+      `SELECT w.id, w.lemma, w.pos, w.level, w.level_src, w.freq_rank, w.image_status, c.state, c.reps, c.introduced_at
+       FROM words w LEFT JOIN cards c ON c.word_id = w.id ORDER BY w.id`,
+    )
+    .all();
+  return rows.map(toWord);
 }
+
+/** 관리 API 질의 한 번(/api/admin/words-export). 백업보다 새 값이 꼭 필요할 때만(--remote) */
+async function loadWordsRemote() {
+  const r = await api('/api/admin/words-export');
+  return r.items.map(toWord);
+}
+
+const toWord = (x) => ({
+  id: x.id, lemma: x.lemma, pos: x.pos, level: x.level, level_src: x.level_src ?? null, freq_rank: x.freq_rank ?? null,
+  learned: Boolean(x.introduced_at) || x.state > 0 || x.reps > 0, reps: x.reps ?? 0, has_image: x.image_status === 'ok',
+});
 
 // ---------- 2) DAFlex ----------
 
@@ -220,9 +234,10 @@ async function main() {
   const limit = li >= 0 ? Number(args[li + 1]) : 0;
   mkdirSync(OUT, { recursive: true });
 
-  requireEnv();
-  let words = await loadWords();
-  console.error(`단어 ${words.length}개 읽음(관리 API words-export)`);
+  const remote = args.includes('--remote');
+  if (remote) requireEnv();
+  let words = remote ? await loadWordsRemote() : loadWordsLocal();
+  console.error(`단어 ${words.length}개 읽음(${remote ? '관리 API words-export' : '백업 로컬 사본'})`);
   if (limit > 0) words = words.slice(0, limit);
 
   const daflex = await loadDaflex();

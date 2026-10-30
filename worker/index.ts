@@ -186,13 +186,40 @@ const words: Handler = async ({ env, url }) => {
       : sort === 'alpha'
         ? `${ALPHA_KEY}, w.seq`
         : LIST_ORDER;
-  const from = `FROM words w JOIN cards c ON c.word_id = w.id${where.length ? ' WHERE ' + where.join(' AND ') : ''}`;
-  // 쪽 질의를 먼저(정렬로 표를 한 번 훑는다). 총수는 따로 세지 않는다 —
+  const cond = (extra: string[]) => (where.length || extra.length ? ' WHERE ' + [...where, ...extra].join(' AND ') : '');
+  const from = `FROM words w JOIN cards c ON c.word_id = w.id${cond([])}`;
+  // 쪽 질의를 먼저. 총수는 따로 세지 않는다 —
   //  꽉 차지 않은 쪽이면 offset + 줄 수가 곧 총수, 꽉 찼으면 120초 기억한 count(*) (옛: 쪽마다 count(*) 로 행 ≈1.7만씩 더 읽음)
   //  no_total=1(목록 연습처럼 총수를 안 쓰는 쪽)이면 세지 않고 지금까지 본 수만 돌려준다
   const offset = (page - 1) * size;
-  const rows = await env.DB.prepare(`SELECT ${ITEM_SELECT} ${from} ORDER BY ${order} LIMIT ? OFFSET ?`).bind(...binds, size, offset).all();
-  const got = sqlRows(rows).map(rowToItem);
+  let got: ReturnType<typeof rowToItem>[];
+  if (order === LIST_ORDER) {
+    // 학습 순서는 「배운 카드 → 안 배운 카드」 두 토막. 한 질의로 하면 조인 전체를 정렬해 쪽마다 2.4만 행을 읽었다(2026-10-30).
+    //  배운 토막: cards_introduced · cards_state 색인으로 배운 카드만 모아 정렬(수백 장)
+    //  안 배운 토막: words_seq 색인을 앞에서부터 걸어 쪽만큼만 읽는다(LIMIT 에서 멈춤)
+    //  state=배움·복습·끝 거르기는 안 배운 카드(state 0)가 못 맞으니 앞 토막만 본다
+    // CROSS JOIN 은 조인 순서를 못 박는 말 — 0010 의 cards_state 색인이 생기면 계획기가 cards 부터(8천 장 전부) 걷는 쪽을 골랐다
+    const learnedSql = `SELECT ${ITEM_SELECT}
+      FROM (SELECT word_id FROM cards WHERE state IN (1, 2, 3) UNION SELECT word_id FROM cards INDEXED BY cards_introduced WHERE introduced_at IS NOT NULL) l
+      CROSS JOIN cards c ON c.word_id = l.word_id CROSS JOIN words w ON w.id = l.word_id${cond([])}`;
+    const freshSql = `SELECT ${ITEM_SELECT} FROM words w CROSS JOIN cards c ON c.word_id = w.id${cond(['c.state = 0 AND c.introduced_at IS NULL'])}`;
+    const onlyLearned = state !== 'all' && state !== 'new';
+    const r = await env.DB.prepare(`${learnedSql} ORDER BY w.seq, w.lemma LIMIT ? OFFSET ?`).bind(...binds, size, offset).all();
+    got = sqlRows(r).map(rowToItem);
+    if (!onlyLearned && got.length < size) {
+      // 앞 토막이 바닥났다: 쪽이 앞 토막 끝에서 시작했으면 offset + 줄 수가 앞 토막 크기, 아예 넘어왔으면(줄 0) 따로 센다
+      const nLearned = got.length > 0 || offset === 0
+        ? offset + got.length
+        : count(await env.DB.prepare(`SELECT count(*) AS n FROM (${learnedSql})`).bind(...binds).all());
+      const f = await env.DB.prepare(`${freshSql} ORDER BY w.seq, w.lemma LIMIT ? OFFSET ?`)
+        .bind(...binds, size - got.length, Math.max(0, offset - nLearned))
+        .all();
+      got.push(...sqlRows(f).map(rowToItem));
+    }
+  } else {
+    const rows = await env.DB.prepare(`SELECT ${ITEM_SELECT} ${from} ORDER BY ${order} LIMIT ? OFFSET ?`).bind(...binds, size, offset).all();
+    got = sqlRows(rows).map(rowToItem);
+  }
   let total: number;
   if (got.length < size && (got.length > 0 || offset === 0)) total = offset + got.length;
   else if (url.searchParams.get('no_total') === '1') total = offset + got.length;
@@ -273,13 +300,13 @@ const stats: Handler = async ({ env }) => {
   const windowStart = studyDayStartUtc(addDays(todayDay, -399));
   // 전체 수·등급별·상태별·그림 수는 천천히 변한다 → 120초 기억(채점·단어 추가 때 비움). 옛: 질의 4개 ≈ 4.4만 행/번
   const counts0 = await memo(env.DB, 'stats-counts', 120_000, async () => {
-    const [bl, bs, notOk] = await env.DB.batch([
+    const [bl, bs, imgOk] = await env.DB.batch([
       env.DB.prepare('SELECT level, count(*) AS n FROM words GROUP BY level'),
       env.DB.prepare('SELECT state, count(*) AS n FROM cards GROUP BY state'),
-      // 그림 'ok' 가 대부분 → 부분 색인(words_image_not_ok, 0010)으로 ok 아닌 것만 세고 전체에서 뺀다
-      env.DB.prepare("SELECT count(*) AS n FROM words WHERE image_status != 'ok'"),
+      // 그림 ok 만 담은 부분 색인(words_image_ok, 0011)을 훑어 센다(ok 가 늘수록 비용도 늘지만 120초 기억)
+      env.DB.prepare("SELECT count(*) AS n FROM words WHERE image_status = 'ok'"),
     ]);
-    return { bl: bl.results as Array<{ level: Level; n: number }>, bs: bs.results as Array<{ state: number; n: number }>, notOk: count(notOk) };
+    return { bl: bl.results as Array<{ level: Level; n: number }>, bs: bs.results as Array<{ state: number; n: number }>, imgOk: count(imgOk) };
   });
   const [days, dt] = await env.DB.batch([
     env.DB.prepare(
@@ -319,7 +346,7 @@ const stats: Handler = async ({ env }) => {
     total_words: totalWords,
     by_level: byLevel,
     by_state: byState,
-    images: totalWords - counts0.notOk,
+    images: counts0.imgOk,
     heat,
     streak_days: streak,
     due_tomorrow: count(dt),

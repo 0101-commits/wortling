@@ -276,8 +276,9 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
       .bind(dayEnd, DUE_MAX),
     db
       .prepare(
-        `SELECT ${ITEM_SELECT} FROM cards c JOIN words w ON w.id = c.word_id
-         WHERE w.id IN (SELECT value FROM json_each(?)) AND c.state = 0 AND c.suspended = 0`,
+        // json_each 를 맨 앞에 못 박아(CROSS JOIN) words·cards 를 기본키로 한 줄씩 찾는다(IN 부질의였을 땐 cards 를 통째로 훑어 한 번에 1.7만 행)
+        `SELECT ${ITEM_SELECT} FROM json_each(?) j CROSS JOIN words w ON w.id = j.value CROSS JOIN cards c ON c.word_id = w.id
+         WHERE c.state = 0 AND c.suspended = 0`,
       )
       .bind(ids),
     // 끝낸 카드 = 오늘 채점했고 지금은 오늘 안에 다시 볼 일이 없는 카드

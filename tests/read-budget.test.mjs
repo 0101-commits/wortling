@@ -117,7 +117,7 @@ test('/api/words: 꽉 차지 않은 쪽은 count 없이 총수, 꽉 찬 쪽은 c
   r = await (await call(db, '/api/words?size=3&page=2')).json();
   assert.equal(r.total, 7);
   const u2 = used(db);
-  assert.ok(u2 - u1 < u1 - u0, 'count 를 기억해 둘째 쪽이 더 적게 읽는다');
+  assert.ok(u2 - u1 <= u1 - u0, 'count 를 기억해 둘째 쪽이 더 읽지 않는다(앞 토막 크기 세기 1행이 대신 든다)');
   r = await (await call(db, '/api/words?size=3&page=3')).json();
   assert.equal(r.total, 7);
   assert.equal(r.items.length, 1);
@@ -170,7 +170,7 @@ test('0010 미적용 DB 에서도 요청이 돈다', async () => {
 test('0010 색인: 그림·글 거리 질의와 상태·등급 세기가 색인을 탄다(EXPLAIN QUERY PLAN)', () => {
   const db = fakeD1();
   const plan = (sql) => db.raw.prepare('EXPLAIN QUERY PLAN ' + sql).all().map((r) => r.detail).join(' | ');
-  assert.match(plan("SELECT count(*) FROM words WHERE image_status != 'ok'"), /words_image_not_ok/);
+  assert.match(plan("SELECT count(*) FROM words WHERE image_status = 'ok'"), /words_image_ok/);
   assert.match(plan("SELECT w.id FROM words w LEFT JOIN cards c ON c.word_id = w.id WHERE w.image_status = 'none' AND w.scene_en IS NOT NULL ORDER BY coalesce(c.state, 0) != 0 DESC, w.seq LIMIT 13"), /words_image_none/);
   assert.match(plan('SELECT w.id FROM words w LEFT JOIN cards c ON c.word_id = w.id WHERE w.gloss_ko IS NULL OR w.example_de IS NULL OR w.scene_en IS NULL ORDER BY coalesce(c.state, 0) != 0 DESC, w.seq LIMIT 60'), /words_text_gap/);
   assert.match(plan('SELECT state, count(*) FROM cards GROUP BY state'), /cards_state/);
