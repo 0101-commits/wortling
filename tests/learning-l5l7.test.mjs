@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeD1, addWord } from './d1.mjs';
 import { applyRating, EASY_MAX_DAYS } from '../worker/fsrs.ts';
-import { addExtra, ensurePlan, loadSettings, similarWords, wakeSuspended } from '../worker/deck.ts';
+import { addExtra, ensurePlan, loadSettings, pickDistinct, similarWords, wakeSuspended } from '../worker/deck.ts';
 import { reviewQueue } from '../worker/words.ts';
 import { practiceItems } from '../worker/practice.ts';
 import { studyDay } from '../worker/time.ts';
@@ -80,7 +80,7 @@ test('L6: 약한 단어는 예문 검토 큐에서 먼저 · 연습 재료에서
 
   const s = await loadSettings(db);
   const p = await practiceItems(db, s, 'all', 1, NOON);
-  assert.deepEqual(p.items.slice(0, 2).map((i) => i.word.id).sort(), ['k2', 'k3']);
+  assert.ok(['k2', 'k3'].includes(p.items[0].word.id), '약한 단어가 먼저(n=1 → 하나)');
 
   const item = (id, lapses) => ({ word: { id, lemma: id, gloss_ko: '뜻', pos: 'noun', gender: null, plural: null }, card: row({ word_id: id, lapses }) });
   for (let t = 0; t < 20; t++) {
@@ -93,15 +93,45 @@ test('L7: 비슷한 단어 판정 — 관사·sich 무시 · 움라우트 무시
   assert.equal(similarWords('arbeiten', 'die Arbeit'), true);
   assert.equal(similarWords('sich ärgern', 'Ärger'), true);
   assert.equal(similarWords('Mütter', 'mutter'), true);
-  assert.equal(similarWords('Tag', 'Tagebuch'), true);
+  assert.equal(similarWords('Tag', 'Tagebuch'), false);
+  assert.equal(similarWords('Tag', 'Tage'), false);
+  assert.equal(similarWords('Bau', 'Baum'), false);
+  assert.equal(similarWords('Tag', 'Tagung'), false);
+  assert.equal(similarWords('Küche', 'Kuchen'), true);
+  assert.equal(similarWords('Arbeit', 'Arbeiter'), true);
   assert.equal(similarWords('Verkehr', 'Verkauf'), false);
   assert.equal(similarWords('Haus', 'Hand'), false);
   assert.equal(similarWords('über', 'Uhr'), false);
 });
 
+test('L7: 비슷한 후보만 남아도 그날 몫 n 개는 채운다(건너뛴 후보로 차례대로 보충)', () => {
+  const c = ['Arbeit', 'arbeiten', 'Arbeiter', 'Freude'].map((lemma) => ({ lemma }));
+  assert.deepEqual(pickDistinct(c, [], 3).map((x) => x.lemma), ['Arbeit', 'Freude', 'arbeiten']);
+  assert.deepEqual(pickDistinct(c, [], 2).map((x) => x.lemma), ['Arbeit', 'Freude']);
+  assert.equal(pickDistinct(c, ['Arbeit'], 4).length, 4);
+});
+
+test('L6: 약한 단어는 앞에 서되 절반까지 · 검토 큐도 절반까지', async () => {
+  const item = (id, lapses) => ({ word: { id, lemma: id, gloss_ko: '뜻', pos: 'noun', gender: null, plural: null }, card: row({ word_id: id, lapses }) });
+  const items = [item('w1', 5), item('w2', 5), item('w3', 5), item('w4', 5), item('a', 0), item('b', 0), item('c', 0), item('d', 0)];
+  for (let t = 0; t < 10; t++) {
+    const ids = makeQuestions('write', items, [], 4).map((q) => q.item.word.id);
+    assert.equal(ids.filter((x) => x.startsWith('w')).length, 2, ids.join());
+  }
+  const db = fakeD1();
+  const old = { state: 2, due: '2026-10-20T00:00:00.000Z', introduced_at: '2026-10-01T00:00:00.000Z' };
+  ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta'].forEach((l, i) => addWord(db, { id: `x${i}`, lemma: l, seq: i + 1, ...old }));
+  for (let i = 0; i < 4; i++) db.raw.prepare("UPDATE cards SET lapses = 5, last_review = '2026-10-19T00:00:00.000Z' WHERE word_id = ?").run(`x${i}`);
+  const q = await reviewQueue(db, 4, NOON);
+  assert.deepEqual(q.slice(0, 2).map((w) => w.id).sort(), ['x0', 'x1']);
+  const s = await loadSettings(db);
+  const p = await practiceItems(db, s, 'all', 2, NOON);
+  assert.equal(p.items.filter((i) => Number(i.card.lapses) >= 4).length, 2);
+});
+
 test('L7: 오늘 새 단어 목록에서 비슷한 단어는 건너뛰고 다른 날 후보로 남는다 · 더 받기도 같은 규칙', async () => {
   const db = fakeD1();
-  const lemmas = ['Arbeit', 'arbeiten', 'Freude', 'Küche', 'Kuchen', 'Zeitung', 'Brot', 'Dach', 'Eisen', 'Gabel'];
+  const lemmas = ['Arbeit', 'arbeiten', 'Freude', 'Küche', 'Kuchen', 'Zeitung', 'Brot', 'Dach', 'Eisen', 'Gabel', 'Himmel', 'Insel', 'Jacke', 'Kamel', 'Lampe'];
   lemmas.forEach((l, i) => addWord(db, { id: `n${i}`, lemma: l, seq: i + 1 }));
   const s = { ...(await loadSettings(db)), new_per_day: 4 };
   const plan = await ensurePlan(db, s, studyDay(NOON));

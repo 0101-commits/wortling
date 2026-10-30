@@ -124,26 +124,31 @@ const simKey = (lemma: string) =>
     .replace(/ß/g, 'ss')
     .replace(/[^a-z]/g, '');
 
-/** 같은 뿌리(한쪽이 다른 쪽의 앞부분, 3글자 이상)이거나 앞 다섯 글자가 같으면 비슷한 단어 */
+/** 비슷한 단어: 열쇠가 같거나, 둘 다 6글자 이상이고 앞 다섯 글자가 같거나, 짧은 쪽(5글자 이상)이 긴 쪽의 앞부분 */
 export function similarWords(a: string, b: string): boolean {
   const x = simKey(a);
   const y = simKey(b);
   if (!x || !y) return false;
   const [s, l] = x.length <= y.length ? [x, y] : [y, x];
-  return s === l || (s.length >= 3 && l.startsWith(s)) || (s.length >= 5 && s.slice(0, 5) === l.slice(0, 5));
+  return s === l || (s.length >= 5 && l.startsWith(s)) || (s.length >= 6 && s.slice(0, 5) === l.slice(0, 5));
 }
 
-/** 후보를 차례로 보며 이미 고른 단어(have)나 앞서 고른 후보와 비슷한 것은 건너뛴다(그 단어는 다른 날로). 최대 n 개 */
+/** 후보를 차례로 보며 이미 고른 단어(have)나 앞서 고른 후보와 비슷한 것은 건너뛴다(그 단어는 다른 날로). 최대 n 개.
+ *  건너뛴 것만 남아 n 개가 안 차면 건너뛴 후보로 차례대로 채운다 — 비슷함은 선호일 뿐 그날 몫을 줄이지 않는다 */
 export function pickDistinct<T extends { lemma: string }>(cands: T[], have: string[], n: number): T[] {
   const taken = [...have];
   const out: T[] = [];
+  const skipped: T[] = [];
   for (const c of cands) {
     if (out.length >= n) break;
-    if (taken.some((t) => similarWords(t, c.lemma))) continue;
+    if (taken.some((t) => similarWords(t, c.lemma))) {
+      skipped.push(c);
+      continue;
+    }
     taken.push(c.lemma);
     out.push(c);
   }
-  return out;
+  return out.length < n ? [...out, ...skipped.slice(0, n - out.length)] : out;
 }
 
 /** 쉬기 시작한 지 30일(UNSUSPEND_DAYS) 지난 카드를 깨운다(8번 잊어 쉬던 카드 · 마이그레이션 0009) */

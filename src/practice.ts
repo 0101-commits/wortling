@@ -138,7 +138,7 @@ const clash = (a: DeckItem['word'], b: DeckItem['word']) =>
  * 겹쳐서 못 넣은 판이 MATCH_MIN 보다 적으면 버린다.
  */
 export function makeMatches(items: DeckItem[], n: number, rand: () => number = Math.random): MatchQ[] {
-  const cands = shuffleWeakFirst(items.filter((it) => it.word.gloss_ko), rand)
+  const cands = shuffleWeakFirst(items.filter((it) => it.word.gloss_ko), n, rand)
   const take = Math.min(n, cands.length)
   if (take < MATCH_MIN) return []
   const k = Math.ceil(take / MATCH_SIZE)
@@ -162,16 +162,20 @@ export function makeMatches(items: DeckItem[], n: number, rand: () => number = M
     })
 }
 
-/** 섞은 뒤 약한 단어(잊은 4번 이상)를 앞으로(순서는 안 바뀌는 정렬) — 문제 수가 재료보다 적으면 약한 단어가 먼저 뽑힌다 */
-const shuffleWeakFirst = (items: DeckItem[], rand: () => number) =>
-  shuffle(items, rand).sort((a, b) => Number(isWeak(b.card)) - Number(isWeak(a.card)))
+/** 섞은 뒤 약한 단어(잊은 4번 이상)를 앞으로 — 단, 앞에 서는 약한 단어는 문제 수 n 의 절반(올림)까지. 나머지 약한 단어는 일반 단어 뒤로 */
+const shuffleWeakFirst = (items: DeckItem[], n: number, rand: () => number) => {
+  const all = shuffle(items, rand)
+  const weak = all.filter((it) => isWeak(it.card))
+  const cap = Math.ceil(n / 2)
+  return [...weak.slice(0, cap), ...all.filter((it) => !isWeak(it.card)), ...weak.slice(cap)]
+}
 
 /** 재료에서 문제 n 개(만들 수 있는 것만, 순서는 섞어서, 약한 단어 먼저). 짝 맞추기는 n = 단어 수 */
 export function makeQuestions(mode: PracticeMode, items: DeckItem[], pool: PoolWord[], n: number, rand: () => number = Math.random): Question[] {
   if (mode === 'match') return makeMatches(items, n, rand)
   if (mode === 'write') {
     const out: WriteQ[] = []
-    for (const it of shuffleWeakFirst(items, rand)) {
+    for (const it of shuffleWeakFirst(items, n, rand)) {
       if (!it.word.gloss_ko) continue
       out.push({ mode, item: it })
       if (out.length >= n) break
@@ -179,7 +183,7 @@ export function makeQuestions(mode: PracticeMode, items: DeckItem[], pool: PoolW
     return out
   }
   const out: ChoiceQ[] = []
-  for (const it of shuffleWeakFirst(items, rand)) {
+  for (const it of shuffleWeakFirst(items, n, rand)) {
     const q = makeQuestion(mode as ChoiceQ['mode'], it, pool, rand)
     if (q) out.push(q)
     if (out.length >= n) break

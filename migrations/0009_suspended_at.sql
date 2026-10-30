@@ -2,4 +2,6 @@
 -- 8번 잊어 쉬는 카드는 suspended_at 에 시각을 적고, worker/deck.ts wakeSuspended 가 30일 지난 카드를 깨운다.
 -- 이미 쉬는 카드는 마지막 채점 시각(없으면 오늘)을 쉬기 시작한 때로 본다. 이 파일은 wrangler 가 한 번만 적용한다.
 ALTER TABLE cards ADD COLUMN suspended_at TEXT;
+-- wakeSuspended 가 매번 부르는 UPDATE 가 cards 전체를 훑지 않게: 쉬는 카드만 담는 부분 인덱스
+CREATE INDEX IF NOT EXISTS cards_suspended_at ON cards(suspended_at) WHERE suspended = 1;
 UPDATE cards SET suspended_at = coalesce(last_review, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) WHERE suspended = 1 AND suspended_at IS NULL;

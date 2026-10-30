@@ -44,9 +44,11 @@ export async function practiceItems(
       : db
           .prepare(
             `SELECT ${ITEM_SELECT} FROM words w JOIN cards c ON c.word_id = w.id
-             WHERE c.state IN (1, 2, 3) AND c.suspended = 0${since ? ' AND c.last_review >= ?' : ''} ORDER BY (c.lapses >= ${WEAK_LAPSES}) DESC, random() LIMIT ?`,
+             WHERE c.state IN (1, 2, 3) AND c.suspended = 0${since ? ' AND c.last_review >= ?' : ''}
+             ORDER BY CASE WHEN c.lapses < ${WEAK_LAPSES} THEN 1 WHEN (SELECT count(*) FROM cards c2 WHERE c2.state IN (1, 2, 3) AND c2.suspended = 0 AND c2.lapses >= ${WEAK_LAPSES}${since ? ' AND c2.last_review >= ?' : ''}
+               AND (c2.lapses > c.lapses OR (c2.lapses = c.lapses AND c2.word_id < c.word_id))) < ? THEN 2 ELSE 0 END DESC, random() LIMIT ?`,
           )
-          .bind(...(since ? [since, take] : [take]));
+          .bind(...(since ? [since, since, Math.ceil(take / 2), take] : [Math.ceil(take / 2), take]));
   const [it, learned, more] = await db.batch([
     items,
     db

@@ -195,12 +195,16 @@ export async function reviewQueue(db: D1Database, limit: number, now = new Date(
   ]);
   const out: ReviewQueueItem[] = [];
   const seen = new Set<string>();
-  for (const part of parts) {
+  const weakCap = Math.ceil(limit / 2); // 약한 단어가 큐를 다 채우지 않게(L6)
+  let weak = 0;
+  for (const [i, part] of parts.entries()) {
     for (const r of part.results as Array<Record<string, unknown>>) {
       if (out.length >= limit) return out;
+      if (i === 1 && weak >= weakCap) break;
       const id = String(r.id);
       if (seen.has(id)) continue;
       seen.add(id);
+      if (i === 1) weak++;
       const t = (k: string) => (r[k] == null ? null : String(r[k]));
       out.push({
         id,
