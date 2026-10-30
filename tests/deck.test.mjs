@@ -19,15 +19,15 @@ test('G4: 17번 채점(다시 1번 포함) + 되돌리기 1번 → 보낼 채점
     s = deckReducer(s, { type: 'grade', rating, at: at() })
     expected.push(rating)
   }
-  grade(1) // 첫 카드 「다시」 → 맨 뒤에 다시 나온다
+  grade(1) // 첫 카드 「다시」 → 5장 뒤에 다시 나온다
   assert.equal(s.queue.length, 17)
+  assert.equal(s.queue[6].word.id, 'w1')
   for (let i = 0; i < 14; i++) grade([2, 3, 4][i % 3])
   // 실수로 쉬움 → 되돌리기 → 좋음
   s = deckReducer(s, { type: 'grade', rating: 4, at: at() })
   s = deckReducer(s, { type: 'undo' })
   assert.equal(s.index, 15)
   grade(3)
-  assert.equal(s.queue[s.index].word.id, 'w1', '다시 나온 카드는 첫 카드')
   grade(3)
   assert.equal(s.finished, true)
   assert.equal(s.pending.length, 17)

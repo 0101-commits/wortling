@@ -145,8 +145,8 @@ test('연습에서 틀린 배운 단어 → 「다시」 채점(아직 잘 모�
   const c = db.raw.prepare("SELECT state, due, lapses, scheduled_days FROM cards WHERE word_id = 'r3'").get();
   assert.equal(c.state, 3, 'Relearning');
   assert.equal(c.lapses, 0, '연습 틀림은 잊은 수로 안 센다(8번에 쉬게 되지 않게)');
-  assert.equal(c.due, '2026-10-27T19:00:00.000Z', '첫 틀림은 모레 학습일 시작에');
-  assert.equal(c.scheduled_days, 2);
+  assert.equal(c.due, '2026-10-26T20:00:00.000Z', '첫 틀림 = min(원래 마감, 모레) — 원래 마감(내일 몫)이 더 이르니 그대로');
+  assert.equal(c.scheduled_days, 1);
   const rev = db.raw.prepare("SELECT rating, reviewed_at, session_id FROM reviews WHERE word_id = 'r3'").all();
   assert.deepEqual(rev.map((x) => ({ ...x })), [{ rating: 1, reviewed_at: '2026-10-26T02:59:00.000Z', session_id: 'practice' }], '첫 틀림 시각으로 한 줄');
   assert.equal(db.raw.prepare("SELECT state FROM cards WHERE word_id = 'r2'").get().state, 2, '이미 오늘 몫이면 그대로');

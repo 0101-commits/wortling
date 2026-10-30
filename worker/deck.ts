@@ -2,6 +2,7 @@
 import type { CardState, DeckItem, Level, Pos, Settings } from '../shared/api.ts';
 import { addDays, studyDay, studyDayStartUtc } from './time.ts';
 import { bad } from './http.ts';
+import { retrievability } from './fsrs.ts';
 
 /** words w JOIN cards c 에서 DeckItem 을 만들 때 고르는 열(열 이름이 겹치지 않게 w.id / c.word_id) */
 export const ITEM_SELECT = `w.id, w.lemma, w.pos, w.gender, w.plural, w.ipa, w.level, w.gloss_en, w.gloss_ko,
@@ -87,6 +88,10 @@ export interface Today {
 export const PRACTICE_SESSION = 'practice';
 /** 오늘 몫에서 한 번에 보내는 복습 상한(안전장치). 덱은 오늘 몫을 끊지 않고 한 판에(2026-10-27) */
 const DUE_MAX = 300;
+/** 복습이 밀렸을 때 새 단어 줄이기: 밀린 복습 > 100 이면 절반(내림), > 200 이면 0 */
+export function freshAllowance(newPerDay: number, backlog: number): number {
+  return backlog > 200 ? 0 : backlog > 100 ? Math.floor(newPerDay / 2) : newPerDay;
+}
 /** 「새 단어 더 받기」 한 번 · 하루 최대(D3) */
 export const EXTRA_STEP = 5;
 export const EXTRA_MAX = 20;
@@ -235,12 +240,21 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
   // 오늘은 복습만(B6)이면 새 카드 0 — 목록은 남겨 둬 「새 단어 오늘 받기」로 되돌릴 수 있다
   const reviewOnly = settings.review_only_day === date;
   const order = new Map(plan.fresh.map((id, i) => [id, i]));
+  // 밀린 복습 = 지금 남은 복습 + 오늘 이미 끝낸 복습(하루 중 값이 흔들리지 않게). 더 받은 새 단어(extra)는 줄이지 않는다
+  const backlog = due.results.length + Math.max(0, (done.results[0] as { n: number }).n - new_done_today);
+  const freshRoom = Math.max(0, freshAllowance(settings.new_per_day, backlog) + plan.extra - new_done_today);
   const freshItems = reviewOnly
     ? []
     : fresh.results
         .map((r) => rowToItem(r as Record<string, unknown>))
-        .sort((a, b) => (order.get(a.word.id) ?? 0) - (order.get(b.word.id) ?? 0));
-  const dueItems = due.results.map((r) => rowToItem(r as Record<string, unknown>));
+        .sort((a, b) => (order.get(a.word.id) ?? 0) - (order.get(b.word.id) ?? 0))
+        .slice(0, freshRoom);
+  // 기억률 낮은 순(가장 잊어 가는 카드 먼저). 같으면 마감이 이른 순(SQL 순서 유지)
+  const dueItems = due.results
+    .map((r) => rowToItem(r as Record<string, unknown>))
+    .map((it, i) => ({ it, i, r: retrievability(it.card, now) }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .map((x) => x.it);
   const doneN = (done.results[0] as { n: number }).n;
   const r = rated.results[0] as { good: number; again: number };
   return {
@@ -253,7 +267,7 @@ export async function buildToday(db: D1Database, settings: Settings, now: Date =
     plan: {
       total: doneN + dueItems.length + freshItems.length,
       done: doneN,
-      fresh_total: reviewOnly ? 0 : plan.fresh.length,
+      fresh_total: reviewOnly ? 0 : Math.min(plan.fresh.length, freshRoom + new_done_today),
       extra: plan.extra,
       extra_max: EXTRA_MAX,
     },

@@ -19,6 +19,7 @@ export const SWIPE = {
   BACK_SCALE: 0.94,
   VISIBLE: 3,
   MAX_RESHOW: 2, // 「다시」 카드가 한 세션에 다시 나오는 최대 횟수
+  RESHOW_GAP: 5, // 「다시」 카드가 다시 나오기 전에 보는 카드 수(남은 카드가 이보다 적으면 맨 뒤)
   MAX_RESHOW_DAY: 3, // 오늘 덱: 오늘 안에 다시 볼 카드(학습 단계 · 다시)를 같은 판 뒤로 보내는 최대 횟수
 } as const
 
@@ -108,6 +109,12 @@ export function current(s: DeckState): DeckItem | undefined {
   return s.finished ? undefined : s.queue[s.index]
 }
 
+/** 방금 본 카드(index)를 RESHOW_GAP 장 뒤에 다시 끼운다. 남은 카드가 그보다 적으면 맨 뒤 */
+function reinsert(queue: DeckItem[], index: number, item: DeckItem): DeckItem[] {
+  const at = Math.min(queue.length, index + 1 + SWIPE.RESHOW_GAP)
+  return [...queue.slice(0, at), item, ...queue.slice(at)]
+}
+
 export function deckReducer(s: DeckState, a: DeckAction): DeckState {
   switch (a.type) {
     case 'grade': {
@@ -123,11 +130,11 @@ export function deckReducer(s: DeckState, a: DeckAction): DeckState {
         // 서버와 같은 계산(ts-fsrs · 흔들림 끔 · 같은 채점 시각)이라 다음 장의 간격 글자도 서버 결과와 같다
         const next = nextCard(item.card, a.rating, new Date(a.at))
         if (!next.suspended && Date.parse(next.due) < Date.parse(s.dayEnd) && seen < SWIPE.MAX_RESHOW_DAY) {
-          queue = [...s.queue, { ...item, card: next }]
+          queue = reinsert(s.queue, s.index, { ...item, card: next })
           reshows = { ...s.reshows, [id]: seen + 1 }
         }
       } else if (a.rating <= s.requeueUpTo && seen < SWIPE.MAX_RESHOW) {
-        queue = [...s.queue, item]
+        queue = reinsert(s.queue, s.index, item)
         reshows = { ...s.reshows, [id]: seen + 1 }
       }
       const index = s.index + 1
@@ -167,7 +174,10 @@ function toFsrsCard(c: Card): FsrsCard {
 /** 이만큼 잊으면 서버가 카드를 쉬게 한다(worker/fsrs.ts SUSPEND_LAPSES) */
 const SUSPEND_LAPSES = 8
 
-/** 채점 하나를 적용한 다음 카드(worker/fsrs.ts applyRating 과 같은 계산 — 첫 채점 도장 · 쉼 · 쉬움 120일 포함) */
+/** 쉬움(4)의 다음 간격 상한(일). worker/fsrs.ts 의 EASY_MAX_DAYS 와 같은 값 */
+export const EASY_MAX_DAYS = 120
+
+/** 채점 하나를 적용한 다음 카드(worker/fsrs.ts applyRating 과 같은 계산 — 첫 채점 도장 · 쉼 · 쉬움 상한 120일 포함) */
 export function nextCard(card: Card, rating: Rating, at: Date): Card {
   const { card: c } = scheduler.next(toFsrsCard(card), at, rating as Grade)
   const next: Card = {
@@ -185,9 +195,9 @@ export function nextCard(card: Card, rating: Rating, at: Date): Card {
     introduced_at: card.state === 0 ? at.toISOString() : card.introduced_at,
     suspended: c.lapses >= SUSPEND_LAPSES ? 1 : card.suspended,
   }
-  if (rating === 4) {
-    next.due = new Date(at.getTime() + 120 * 86400_000).toISOString()
-    next.scheduled_days = 120
+  if (rating === 4 && Date.parse(next.due) > at.getTime() + EASY_MAX_DAYS * 86400_000) {
+    next.due = new Date(at.getTime() + EASY_MAX_DAYS * 86400_000).toISOString()
+    next.scheduled_days = EASY_MAX_DAYS
   }
   return next
 }
@@ -203,6 +213,6 @@ export function intervalLabel(ms: number): string {
 
 export function intervals(card: Card, now = new Date()): Record<Rating, string> {
   const r = scheduler.repeat(toFsrsCard(card), now)
-  const label = (g: Grade) => intervalLabel(r[g].card.due.getTime() - now.getTime())
-  return { 1: label(1), 2: label(2), 3: label(3), 4: '120일' }
+  const label = (g: Grade) => intervalLabel(Math.min(r[g].card.due.getTime() - now.getTime(), g === 4 ? EASY_MAX_DAYS * 86400_000 : Infinity))
+  return { 1: label(1), 2: label(2), 3: label(3), 4: label(4) }
 }

@@ -97,7 +97,7 @@ export async function savePractice(db: D1Database, b: PracticeResultsRequest | n
 
 /** 틀린 단어마다 첫 틀림 시각으로 「다시」 채점(덱 채점과 같은 계산 — worker/fsrs.ts applyRating).
  * 2026-10-29 가중형 미루기: 채점 1 패널티는 그대로 주되 나오는 시점을 미룬다.
- * 처음 틀리면 모레(+2일), 이전에도 틀린 적 있으면 내일(+1일) — 자주 틀릴수록 빨리.
+ * 처음 틀리면 모레(+2일), 이전에도 틀린 적 있으면 내일(+1일) — 자주 틀릴수록 빨리. 원래 마감이 더 이르면 그 마감 그대로.
  * 이전 틀림은 이번 묶음보다 이른 practice 기록으로 본다. */
 async function relearnStatements(db: D1Database, results: PracticeResultsRequest['results'], now: Date) {
   const firstWrong = new Map<string, string>();
@@ -135,8 +135,11 @@ async function relearnStatements(db: D1Database, results: PracticeResultsRequest
       const { nextRow: c, log } = applyRating(prev, 1, at);
       // 가중형 미루기: 처음 틀리면 모레, 또 틀리면 내일(학습일 기준)
       const deferDays = prevWrong.has(prev.word_id) ? 1 : 2;
-      c.due = studyDayStartUtc(addDays(studyDay(now), deferDays));
-      c.scheduled_days = deferDays;
+      // 원래 마감이 미루는 날보다 이르면 그대로(내일 마감 카드가 모레로 밀리지 않게): 새 마감 = min(원래, 미룬 날)
+      const defer = studyDayStartUtc(addDays(studyDay(now), deferDays));
+      const keep = prev.due < defer;
+      c.due = keep ? prev.due : defer;
+      c.scheduled_days = keep ? Math.max(1, Math.round((Date.parse(prev.due) - at.getTime()) / 86400_000)) : deferDays;
       // 읽은 뒤 덱 채점이 먼저 바꿨으면(due 다름) 둘 다 건너뛴다 — 적기가 먼저(바꾼 뒤엔 due 가 달라 못 찾음)
       stmts.push(
         db
