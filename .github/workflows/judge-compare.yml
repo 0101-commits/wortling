@@ -1,0 +1,42 @@
+# 그림 검사 AI 비교(손 실행 전용) — 올라간 그림 n장 + 검사 대기 n장을 Groq · OpenRouter · Gemini 로 판정해 일치율 표를 낸다.
+# 앱 데이터는 읽기만 하고 .data/ledger.json 도 건드리지 않는다. 결과는 artifact(judge-compare-<run>).
+name: judge-compare
+
+on:
+  workflow_dispatch:
+    inputs:
+      n:
+        description: '묶음마다 그림 수(올라간 n + 대기 n)'
+        default: '20'
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          check-latest: true
+          cache: npm
+      - run: npm ci
+      - name: judge-compare.mjs
+        run: node scripts/judge-compare.mjs "${{ inputs.n }}" compare-out
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      - name: 결과 올리기
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: judge-compare-${{ github.run_id }}
+          path: compare-out
+          if-no-files-found: ignore
+          retention-days: 14
