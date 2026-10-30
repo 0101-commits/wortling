@@ -68,8 +68,8 @@ export function ledgerConfig(env = process.env) {
     hardFails: num('HARD_FAILS', 2),
     manual: !scheduled,
     reserve: num('JUDGE_RESERVE', 0.4), // 손 실행이 건드리지 않는 예약 실행 몫
-    limits: { groq: num('GROQ_TPD', 200_000), gemini: num('GEMINI_RPD', 20) }, // groq = 하루 토큰 · gemini = 하루 요청
-    estimate: { groq: num('GROQ_EST_TOKENS', 7000), gemini: 1 }, // 한 번 부를 때 어림(오늘 실측 평균이 있으면 그것)
+    limits: { groq: num('GROQ_TPD', 200_000), gemini: num('GEMINI_RPD', 20), openrouter: num('OPENROUTER_RPD', 40) }, // groq = 하루 토큰 · gemini · openrouter = 하루 요청(OpenRouter 무료는 하루 50번 → 여유 10)
+    estimate: { groq: num('GROQ_EST_TOKENS', 7000), gemini: 1, openrouter: 1 }, // 한 번 부를 때 어림(오늘 실측 평균이 있으면 그것)
   };
 }
 

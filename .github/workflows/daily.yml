@@ -54,6 +54,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           # 10-30 schnell 은 자동 검사 46/48 탈락 → 프롬프트 고쳐 시험 통과할 때까지 끔(다시 켜기: klein4b,schnell)
           MIX_MODELS: klein4b
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       # 검사에서 떨어진 그림(근거, 장당 수십 KB — scripts/daily.mjs 의 .data/rejected). 폴더가 비면 건너뜀(실패 아님)
       # .data 는 점 폴더라 include-hidden-files 가 있어야 올라간다. 공개 저장소라 git 에는 안 넣는다(.gitignore 의 .data)
