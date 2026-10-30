@@ -19,7 +19,7 @@ import { judgeAllowed, recordJudgeUsage } from './ledger.mjs';
 const GROQ_CHUNK = 3;
 
 // 2026-10-16 사용자 「단어 자체를 그려야」 → 예문 없이 단어·뜻만 보고 판정한다.
-function buildPrompt(cards) {
+export function buildPrompt(cards) {
   return `You check doodle pictures for German vocabulary flashcards (learner: Korean speaker). Each picture must illustrate the WORD ITSELF (its core meaning, like a picture dictionary), not a sentence or story. Each attached picture follows its label #n.
 Cards: ${JSON.stringify(cards)}
 For EACH n decide "ok". ok=true only if a learner who sees the picture next to the word and its Korean meaning immediately connects them:

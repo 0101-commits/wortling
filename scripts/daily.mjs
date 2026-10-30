@@ -15,7 +15,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
-import { STYLE_INTRO, BORTI, STYLE, STYLE_TEXT_ONLY, REF_NOTE, REF_FILE } from './style.mjs';
+import { REF_FILE, imagePrompt } from './style.mjs';
 import { checkFile } from './imgcheck.mjs';
 import { askJson } from './ai.mjs';
 import { judgeImages, setJudgeLedger } from './judge.mjs';
@@ -55,25 +55,12 @@ const NO_JUDGE = process.argv.includes('--no-judge');
 const RECHECK = process.argv.includes('--recheck');
 
 const REDO = (process.argv.find((a) => a.startsWith('--redo=')) || '').slice(7).split(',').filter(Boolean);
-// Worker 는 2,000자까지 받음. 고정 문장(그림체·보르티·참고 그림) ≈ 900자 + 장면 ≈ 250자
-const PROMPT_MAX = 1300;
 // 그림체를 바꾼 뒤 예전 그림 id 목록(PC 에만, git 제외). 그림 없는 새 단어보다 먼저 다시 그리고, 다 그리면 빈다
 const RESTYLE_FILE = path.join(ROOT, '.data', 'restyle.json');
 // 그릴 단어가 다 떨어져 「전부 완료」 알림을 보낸 표시(새 단어가 생기면 지움 → 다시 끝나면 또 알림)
 const DONE_FILE = path.join(ROOT, '.data', 'images-done.json');
 // 검사용 원본(올리기 전)·뜻 검사 모음 그림. git 제외 폴더
 const TMP_DIR = path.join(ROOT, '.data', 'img-tmp');
-// 장면이 앞, 보르티 설명이 뒤. 장면을 뒤에 두었더니 마스코트만 크게 나오고 뜻이 안 보였다(2026-10-13 사용자 지적).
-function imagePrompt(scene, withRef, textOnly = false) {
-  // 참고 그림이 없는 모델(schnell)은 보르티·그림체를 글로 더 힘주어 적는다
-  const tail = ` ${BORTI} Other animals in the same style. ${STYLE}${textOnly ? ' ' + STYLE_TEXT_ONLY : ''}`;
-  const head = `${STYLE_INTRO} ${withRef ? REF_NOTE + ' ' : ''}Scene: `;
-  let sc = scene.trim();
-  const room = (textOnly ? 1900 : PROMPT_MAX) - head.length - tail.length; // schnell 은 2048자까지
-  if (sc.length > room) sc = sc.slice(0, room).replace(/[,;]?\s+\S*$/, '') + '.';
-  return head + sc + tail;
-}
-
 const log = { day: kstDay(), started: new Date().toISOString(), text: 0, images: [], failed: [], quota: null, pending: { before: 0, sent: 0, uploaded: 0, rejected: 0, dropped: 0, left: 0 }, rejected_saved: 0 };
 
 try {
