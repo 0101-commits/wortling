@@ -1604,3 +1604,68 @@ mark.hit {
   white-space: nowrap;
   border: 0;
 }
+
+/* ── 그림 확인(screens/ImageReview.tsx) ── */
+.rv-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+  color: var(--ink2);
+}
+.rv-prog {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line2);
+  overflow: hidden;
+}
+.rv-prog i {
+  display: block;
+  height: 100%;
+  background: var(--semantic-surface-brand-primary);
+  transition: width 0.2s;
+}
+.rv-pic {
+  aspect-ratio: 4 / 3;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--bg2);
+  display: grid;
+  place-items: center;
+}
+.rv-pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.rv-word {
+  font-size: 22px;
+  text-align: center;
+}
+.rv-word small {
+  display: block;
+  font-size: 15px;
+  color: var(--ink2);
+}
+.rv-chk {
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--ink2);
+}
+.rv-chk b {
+  color: var(--ink);
+}
+.rv-chk .muted {
+  color: var(--ink3);
+}
+.rv-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.rv-btns > * {
+  width: 100%;
+}

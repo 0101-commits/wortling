@@ -4,6 +4,7 @@ import type {
   DeckListResponse,
   DrillScope,
   InboxResponse,
+  PendingReviewResponse,
   PracticeResponse,
   PracticeResultsRequest,
   PracticeSaveResponse,
@@ -196,6 +197,18 @@ export const api = {
   /** 100개씩, before(번호)를 주면 그보다 앞의 것 */
   changes: (before?: number) => request<ChangesResponse>('GET', '/api/changes' + (before ? `?before=${before}` : '')),
   revertChange: (id: number) => request<{ ok: boolean }>('POST', `/api/changes/${id}/revert`),
+  /** 그림 확인: AI 검사가 못 정한 그림(오래된 것 먼저) · 좋아요(공개 그림으로) · 다시 그리기(버림) */
+  pendingReview: () => request<PendingReviewResponse>('GET', '/api/admin/pending-review'),
+  approvePending: (id: string) => request<{ ok: boolean }>('POST', `/api/admin/pending/${encodeURIComponent(id)}/approve`),
+  rejectPending: (id: string) => request<{ ok: boolean }>('POST', `/api/admin/pending/${encodeURIComponent(id)}/reject`),
+}
+
+/** 대기 그림 한 장 → <img src>. 토큰이 필요한 길이라 <img> 가 직접 못 받는다 → 받아서 blob 주소로(다 쓰면 URL.revokeObjectURL) */
+export async function pendingImageUrl(id: string): Promise<string> {
+  if (MOCK) return `/mascot/${MOCK_IMG[id] ?? '_default'}.webp`
+  const res = await fetch(`/api/admin/pending/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${getToken()}` } })
+  if (!res.ok) throw new ApiError(res.status, res.status === 404 ? '그림이 이미 없어요' : serverErrorText(res.status))
+  return URL.createObjectURL(await res.blob())
 }
 
 // ── 채점 전송: 먼저 기기에 적어 두고 보낸 뒤 지운다. 탭이 닫혀도 다음에 열 때 다시 보낸다(서버는 같은 채점을 건너뜀). ──

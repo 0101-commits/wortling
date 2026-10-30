@@ -1,10 +1,11 @@
 // 설정: 고치면 바로 저장(PUT /api/settings)
 import { useEffect, useState } from 'react'
-import { Button, SegmentedControl, SegmentedControlItem, Switch } from '@montage-ui/core'
+import { Button, ContentBadge, SegmentedControl, SegmentedControlItem, Switch } from '@montage-ui/core'
 import { IconChevronRight, IconSend } from '@montage-ui/icon'
 import type { Settings } from '../../shared/api.ts'
 import { MOCK, api, errorText, getToken, setToken, type TestNotificationResponse } from '../api.ts'
 import { fmtDay, studyDay } from '../format.ts'
+import { useAsync } from '../hooks.ts'
 import { disablePush, enablePush, pushSupported, pushSync } from '../push.ts'
 import { linkTo } from '../router.ts'
 import { LEVELS, LEVEL_HINT, Stepper, Top, useToaster } from '../ui.tsx'
@@ -45,6 +46,9 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
   const today = studyDay()
   const away = settings.vacation_until !== '' && settings.vacation_until >= today
   const token = getToken()
+  // 그림 확인 대기 수(못 읽어도 설정 화면은 그대로 — 없는 것처럼)
+  const pending = useAsync(() => api.pendingReview().then((r) => r.items.length, () => 0), [])
+  const waiting = pending.data ?? 0
   const plusDays = (n: number) => studyDay(new Date(Date.now() + n * 86_400_000))
 
   return (
@@ -65,6 +69,18 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
           </span>
           <IconChevronRight aria-hidden />
         </a>
+        {waiting > 0 && (
+          <a className="box wh linkrow" {...linkTo('/image-review')}>
+            <span>
+              그림 확인
+              <small className="sub">AI 검사가 막혀 기다리는 그림을 직접 골라요</small>
+            </span>
+            <span className="row-g">
+              <ContentBadge size="small" variant="solid" color="accent" accentColor="semantic.foreground.brand.primary">{waiting}</ContentBadge>
+              <IconChevronRight aria-hidden />
+            </span>
+          </a>
+        )}
         <h3 className="sec-t">공부</h3>
         <div className="box wh">
           <div className="kv">

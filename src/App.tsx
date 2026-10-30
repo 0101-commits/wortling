@@ -15,6 +15,7 @@ import SettingsScreen from './screens/Settings.tsx'
 import Setup from './screens/Setup.tsx'
 import Stats from './screens/Stats.tsx'
 import Changes from './screens/Changes.tsx'
+import ImageReview from './screens/ImageReview.tsx'
 import Today from './screens/Today.tsx'
 import WordDetail from './screens/WordDetail.tsx'
 import Words from './screens/Words.tsx'
@@ -138,6 +139,9 @@ export default function App() {
     case 'changes':
       screen = <Changes />
       break
+    case 'image-review':
+      screen = <ImageReview />
+      break
     case 'word':
       screen = <WordDetail id={route.parts[1] ?? ''} />
       break
@@ -168,7 +172,7 @@ export default function App() {
     default:
       screen = <Today onSettings={save} />
   }
-  const tab = page === 'word' ? 'words' : TABS.some((t) => t.value === page) ? page : ['onboarding', 'inbox', 'settings', 'setup', 'changes'].includes(page) ? '' : 'today'
+  const tab = page === 'word' ? 'words' : TABS.some((t) => t.value === page) ? page : ['onboarding', 'inbox', 'settings', 'setup', 'changes', 'image-review'].includes(page) ? '' : 'today'
 
   return (
     <div className="app">

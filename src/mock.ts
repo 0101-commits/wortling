@@ -4,6 +4,7 @@ import type {
   ChangeItem,
   DeckItem,
   InboxItem,
+  PendingReviewItem,
   Rating,
   ReviewsRequest,
   Settings,
@@ -229,6 +230,13 @@ const requests: WordRequestItem[] = [
   { id: 2, text: 'ermittelte', url: 'https://www.dw.com/de/x', created_at: ago(0), status: 'queued', word_id: null, lemma: null, note: null, learned: false },
   { id: 1, text: 'Umzug', url: null, created_at: ago(1), status: 'exists', word_id: 'w002', lemma: 'Umzug', note: null, learned: true },
 ]
+// 그림 확인 목록(오래된 것 먼저). 그림은 public/mascot 에 있는 4장(api.ts MOCK_IMG)
+const pendingReview: PendingReviewItem[] = [
+  ['w004', 'Entscheidung', 'die', '결정', 5],
+  ['w002', 'Umzug', 'der', '이사', 3],
+  ['w003', 'Verspätung', 'die', '연착, 지각', 1],
+  ['w005', 'Vertrag', 'der', '계약(서)', 0],
+].map(([id, lemma, gender, gloss_ko, days]) => ({ id: String(id), at: ago(Number(days)), days: Number(days), lemma: String(lemma), gender: String(gender), gloss_ko: String(gloss_ko) }))
 const changes: ChangeItem[] = [
   { id: 2, word_id: 'w004', lemma: 'Entscheidung', field: 'level', old: 'B1', new: 'B2', why: '검토 판정 · 안 바꿈: DAFlex: B1', source: 'review', applied: 0, reverted_at: null, at: ago(0) },
   { id: 1, word_id: 'w002', lemma: 'Umzug', field: 'gloss_ko', old: '이동', new: '이사', why: '주된 뜻은 이사', source: 'report', applied: 1, reverted_at: null, at: ago(0) },
@@ -278,6 +286,12 @@ export async function mockHandle(method: string, path: string, body?: unknown): 
     const b = body as { text: string; url?: string }
     requests.unshift({ id: requests.length + 1, text: b.text, url: b.url ?? null, created_at: iso(now()), status: 'queued', word_id: null, lemma: null, note: null, learned: false })
     return { ok: true, id: requests.length, duplicate: false }
+  }
+  if (p === '/api/admin/pending-review') return { items: pendingReview }
+  if (/^\/api\/admin\/pending\/[\w-]+\/(approve|reject)$/.test(p) && method === 'POST') {
+    const i = pendingReview.findIndex((x) => x.id === p.split('/')[4])
+    if (i >= 0) pendingReview.splice(i, 1)
+    return { ok: true }
   }
   if (p === '/api/changes') return { items: changes }
   if (/^\/api\/changes\/\d+\/revert$/.test(p) && method === 'POST') {

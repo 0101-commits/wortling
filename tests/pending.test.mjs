@@ -1,7 +1,7 @@
 // 검사 대기 그림: Worker 처리기(worker/pending.ts) + 대기 처리·판정 갈래(scripts/pending.mjs). AI·Worker 는 가짜
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { putPending, listPending, getPending, deletePending } from '../worker/pending.ts';
+import { putPending, listPending, getPending, deletePending, reviewPending, approvePending, rejectPending } from '../worker/pending.ts';
 import { processPending, sortByVerdict } from '../scripts/pending.mjs';
 import { fakeD1, addWord } from './d1.mjs';
 
@@ -195,4 +195,46 @@ test('processPending: 판정에서 7일 넘게 계속 빠지는 대기 그림은
   assert.deepEqual(r.dropped, ['old']);
   assert.deepEqual([...pending.keys()], ['new']);
   assert.equal(r.judgeDown, false);
+});
+
+// ---------- 그림 확인(앱) ----------
+const ctxOf = (env, id) => ({ req: webp(), env, url: new URL('https://w.example'), params: [id] });
+const imgStatus = (env, id) => ({ ...env.DB.raw.prepare('SELECT image_status s, image_id i FROM words WHERE id = ?').get(id) });
+
+test('worker 그림 확인 목록: 오래된 것 먼저 + 단어 정보 + 대기 일수 · 단어 없는 대기분은 뺀다', async () => {
+  const env = setup();
+  const day = 86_400_000;
+  for (const [id, ago] of [['w2', 1], ['w1', 5], ['ghost', 9]]) env.IMG.m.set(`pending/${id}.webp`, { v: new Uint8Array(3), meta: { at: new Date(Date.now() - ago * day).toISOString(), bytes: 3 } });
+  const { items } = await (await reviewPending(ctxOf(env))).json();
+  assert.deepEqual(items.map((i) => i.id), ['w1', 'w2']);
+  assert.equal(items[0].lemma, 'Hund');
+  assert.equal(items[0].days, 5);
+  assert.equal(items[1].days, 1);
+});
+
+test('worker 좋아요: 대기 그림이 공개 그림이 되고 image_status=ok · 대기는 지워짐 · 없으면 404', async () => {
+  const env = setup();
+  await putPending(ctxOf(env, 'w1'));
+  const r = await approvePending(ctxOf(env, 'w1'));
+  assert.equal(r.status, 200);
+  assert.ok(env.IMG.m.has('w1.webp'));
+  assert.equal(env.IMG.m.has('pending/w1.webp'), false);
+  assert.deepEqual(imgStatus(env, 'w1'), { s: 'ok', i: 'w1.webp' });
+  assert.equal(await status(approvePending(ctxOf(env, 'w1'))), 404, '두 번 눌러도 안전(이미 없음)');
+  env.IMG.m.set('pending/nope.webp', { v: new Uint8Array(3) });
+  assert.equal(await status(approvePending(ctxOf(env, 'nope'))), 404);
+  assert.equal(env.IMG.m.has('nope.webp'), false, '단어 없는 대기분은 공개 그림으로 올리지 않는다');
+});
+
+test('worker 다시 그리기: 대기 삭제 + 그림 없는 단어는 none(다시 그릴 목록) · 올라간 그림은 그대로', async () => {
+  const env = setup();
+  env.DB.raw.prepare("UPDATE words SET image_status = 'failed' WHERE id = 'w1'").run();
+  env.DB.raw.prepare("UPDATE words SET image_status = 'ok', image_id = 'w2.webp' WHERE id = 'w2'").run();
+  for (const id of ['w1', 'w2']) await putPending(ctxOf(env, id));
+  assert.deepEqual(await (await rejectPending(ctxOf(env, 'w1'))).json(), { ok: true, status: 'none' });
+  assert.deepEqual(await (await rejectPending(ctxOf(env, 'w2'))).json(), { ok: true, status: 'ok' });
+  assert.equal(imgStatus(env, 'w1').s, 'none');
+  assert.deepEqual(imgStatus(env, 'w2'), { s: 'ok', i: 'w2.webp' });
+  assert.equal(env.IMG.m.size, 0);
+  assert.equal(await status(rejectPending(ctxOf(env, 'nope'))), 404);
 });

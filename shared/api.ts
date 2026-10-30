@@ -292,3 +292,17 @@ export interface ReviewStats {
   checked: number;
   week: { applied: number; flagged: number; news: number; mine: number; requests: number };
 }
+
+/** GET /api/admin/pending-review — 그림 확인 화면(AI 검사가 못 정한 그림, 오래된 것 먼저) */
+export interface PendingReviewItem {
+  id: string;
+  at: string | null;
+  /** 대기에 든 지 며칠 */
+  days: number;
+  lemma: string;
+  gender: string | null;
+  gloss_ko: string | null;
+}
+export interface PendingReviewResponse {
+  items: PendingReviewItem[];
+}

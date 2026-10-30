@@ -62,3 +62,49 @@ export async function deletePending({ env, params: [id] }: Ctx): Promise<Respons
   await env.IMG.delete(key(id));
   return Response.json({ ok: true });
 }
+
+/** 그림 확인 화면용 목록: 대기 그림 + 단어 정보(오래된 것 먼저 — 판정을 오래 못 받은 것이 맨 앞). 단어 행이 없는 대기분은 뺀다 */
+export async function reviewPending(ctx: Ctx): Promise<Response> {
+  const { items } = (await (await listPending(ctx)).json()) as { items: Array<{ id: string; at: string | null }> };
+  const info = new Map<string, { lemma: string; gender: string | null; gloss_ko: string | null }>();
+  // D1 은 한 질의에 묶음 값 100개까지 → 50개씩
+  for (let i = 0; i < items.length; i += 50) {
+    const ids = items.slice(i, i + 50).map((it) => it.id);
+    const { results } = await ctx.env.DB.prepare(
+      `SELECT id, lemma, gender, gloss_ko FROM words WHERE id IN (${ids.map(() => '?').join(',')})`,
+    )
+      .bind(...ids)
+      .all<{ id: string; lemma: string; gender: string | null; gloss_ko: string | null }>();
+    for (const r of results) info.set(r.id, r);
+  }
+  const now = Date.now();
+  const out = items.flatMap((it) => {
+    const w = info.get(it.id);
+    if (!w) return [];
+    const days = it.at ? Math.max(0, Math.floor((now - Date.parse(it.at)) / 86_400_000)) : 0;
+    return [{ id: it.id, at: it.at, days, lemma: w.lemma, gender: w.gender, gloss_ko: w.gloss_ko }];
+  });
+  return Response.json({ items: out });
+}
+
+/** 좋아요: 대기 그림을 그 단어의 공개 그림으로(매일 작업이 검사를 통과한 그림을 올릴 때와 같다 — PUT /api/admin/image) 올리고 대기에서 지운다 */
+export async function approvePending({ env, params: [id] }: Ctx): Promise<Response> {
+  const word = await env.DB.prepare('SELECT id FROM words WHERE id = ?').bind(id).first();
+  const body = word && (await env.IMG.get(key(id), { type: 'arrayBuffer' }));
+  if (!body) throw new HttpError(404, 'not_found'); // 단어가 없으면 대기분은 그대로 둔다(매일 작업이 치운다)
+  const imageKey = `${id}.webp`;
+  await env.IMG.put(imageKey, body);
+  await env.DB.prepare("UPDATE words SET image_status = 'ok', image_id = ? WHERE id = ?").bind(imageKey, id).run();
+  await env.IMG.delete(key(id));
+  return Response.json({ ok: true, status: 'ok', image_id: imageKey });
+}
+
+/** 다시 그리기: 대기 그림을 버린다. 올라간 그림이 없는 단어는 'none' 으로 되돌려 매일 작업의 「그림 없는 단어」 목록에 다시 든다
+ *  (검사 탈락 때 쓰는 'failed' 는 다시 그리지 않는 표시라 쓰지 않음). 이미 올라간 그림이 있으면(예전 그림체 다시 그리기) 그대로 둔다 */
+export async function rejectPending({ env, params: [id] }: Ctx): Promise<Response> {
+  const word = await env.DB.prepare('SELECT image_status FROM words WHERE id = ?').bind(id).first<{ image_status: string }>();
+  if (!word) throw new HttpError(404, 'not_found');
+  if (word.image_status !== 'ok') await env.DB.prepare("UPDATE words SET image_status = 'none' WHERE id = ?").bind(id).run();
+  await env.IMG.delete(key(id));
+  return Response.json({ ok: true, status: word.image_status === 'ok' ? 'ok' : 'none' });
+}
