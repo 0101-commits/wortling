@@ -29,3 +29,17 @@ export const STYLE_TEXT_ONLY =
   'white fluffy puppy with a round pear-shaped body, two floppy tan ears, two black dot eyes, a small black nose, pink cheeks, a short curled tail. ' +
   'Hand-drawn black pen outline, wobbly and slightly thick, filled with flat pastel colors, korean emoticon sticker look. ' +
   'Wide landscape composition with the subject centered and generous white margins.';
+
+// Worker 는 2,000자까지 받음. 고정 문장(그림체·보르티·참고 그림) ≈ 900자 + 장면 ≈ 250자
+const PROMPT_MAX = 1300;
+// 장면이 앞, 보르티 설명이 뒤. 장면을 뒤에 두었더니 마스코트만 크게 나오고 뜻이 안 보였다(2026-10-13 사용자 지적).
+// daily.mjs 와 kaggle-jobs.mjs 가 같이 쓴다(그림 프롬프트를 한 곳에서)
+export function imagePrompt(scene, withRef, textOnly = false) {
+  // 참고 그림이 없는 모델(schnell)은 보르티·그림체를 글로 더 힘주어 적는다
+  const tail = ` ${BORTI} Other animals in the same style. ${STYLE}${textOnly ? ' ' + STYLE_TEXT_ONLY : ''}`;
+  const head = `${STYLE_INTRO} ${withRef ? REF_NOTE + ' ' : ''}Scene: `;
+  let sc = scene.trim();
+  const room = (textOnly ? 1900 : PROMPT_MAX) - head.length - tail.length; // schnell 은 2048자까지
+  if (sc.length > room) sc = sc.slice(0, room).replace(/[,;]?\s+\S*$/, '') + '.';
+  return head + sc + tail;
+}
