@@ -132,3 +132,46 @@ export async function askGroqJson(prompt, { images = [], model = GROQ_MODEL, onU
   }
   throw err;
 }
+
+// OpenRouter 무료 비전 모델(2026-10-30) — 그림 뜻 검사(judge.mjs) 세 번째 길. OpenAI 호환 엔드포인트.
+// 모델은 OPENROUTER_MODEL 환경값(쉼표로 여러 개 = 차례로 폴백). 무료(:free)는 카드 없이 하루 약 50번 · 분당 20번이라 장부(ledger.mjs)에 따로 한도를 둔다.
+// 무료 모델은 생각(reasoning)만 길게 하고 content 를 비워 보내기도 한다 → 빈 답은 실패(다음 모델·다음 길).
+export const OPENROUTER_MODELS = String(process.env.OPENROUTER_MODEL || 'google/gemma-4-31b-it:free,nvidia/nemotron-3.5-super-vl:free').split(',').map((s) => s.trim()).filter(Boolean);
+/** prompt → JSON 배열. images = [{label, png}]. 모델마다 두 번까지: 429·5xx·끊김·빈 답·깨진 JSON 은 다시(429 는 분당 한도라 20초), 그 밖 4xx 는 곧장 다음 모델. */
+export async function askOpenRouterJson(prompt, { images = [], models = OPENROUTER_MODELS, onUsage } = {}) {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) throw new Error('OPENROUTER_API_KEY 가 없다(.env 또는 Actions 비밀값)');
+  const content = [{ type: 'text', text: prompt }];
+  for (const im of images) {
+    if (im.label) content.push({ type: 'text', text: im.label });
+    content.push({ type: 'image_url', image_url: { url: `data:image/png;base64,${im.png.toString('base64')}` } });
+  }
+  let err;
+  for (const model of models) {
+    const body = { model, messages: [{ role: 'user', content }], temperature: 0.1, max_tokens: 4096 };
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(3 * 60 * 1000),
+        });
+        const j = await res.json().catch(() => ({}));
+        // 200 인데 본문에 error 가 담겨 오기도 한다(공급자 쪽 실패)
+        if (!res.ok || j.error) throw Object.assign(new Error(`${res.status} ${String(j.error?.message || '').slice(0, 200)}`), { status: res.ok ? Number(j.error?.code) || 502 : res.status });
+        onUsage?.({ tokens: Number(j.usage?.total_tokens) || 0 });
+        const text = String(j.choices?.[0]?.message?.content || '').trim();
+        const v = text ? parseJsonArray(text) : null;
+        if (v) return v;
+        throw new Error(`결과가 JSON 배열이 아님(${text ? text.slice(0, 200) : '빈 답'})`);
+      } catch (e) {
+        err = e;
+        console.error(`OpenRouter 실패(${model} ${attempt}회): ${String(e.message).slice(0, 200)}`);
+        if (attempt >= 2 || (e.status >= 400 && e.status < 500 && e.status !== 429)) break;
+        await new Promise((r) => setTimeout(r, e.status === 429 && GROQ_WAIT_MS ? 20_000 : GROQ_WAIT_MS));
+      }
+    }
+  }
+  throw err;
+}

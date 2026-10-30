@@ -12,11 +12,13 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { VISION_MODELS, askJson, askGroqJson } from './ai.mjs';
+import { VISION_MODELS, askJson, askGroqJson, askOpenRouterJson } from './ai.mjs';
 import { judgeAllowed, recordJudgeUsage } from './ledger.mjs';
 
 // Groq 는 한 번에 이미지 3장까지(Groq 공식 문서)
 const GROQ_CHUNK = 3;
+// OpenRouter 는 하루 요청 수가 한도라 한 번에 3장씩(OPENROUTER_CHUNK 로 바꿈)
+const OR_CHUNK = Number(process.env.OPENROUTER_CHUNK) || 3;
 
 // 2026-10-16 사용자 「단어 자체를 그려야」 → 예문 없이 단어·뜻만 보고 판정한다.
 function buildPrompt(cards) {
@@ -97,10 +99,33 @@ const PROVIDERS = {
     const arr = await askJson(buildPrompt(cards), { images: await prepImages(todo), models: VISION_MODELS, onUsage: noteUsage('gemini') });
     return applyResults(out, todo, arr);
   },
+  async openrouter(todo, out) {
+    if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY 없음');
+    let ok = 0;
+    for (let s = 0; s < todo.length; s += OR_CHUNK) {
+      const chunk = todo.slice(s, s + OR_CHUNK);
+      if (!allowed('openrouter')) {
+        console.error('OpenRouter 하루 몫 한도·예약분 — 여기서 멈춤(나머지는 다음에)');
+        break;
+      }
+      try {
+        const cc = chunk.map((it, i) => ({ n: i + 1, word: it.word, meaning_ko: it.meaning_ko }));
+        const arr = await askOpenRouterJson(buildPrompt(cc), { images: await prepImages(chunk), onUsage: noteUsage('openrouter') });
+        ok += applyResults(out, chunk, arr);
+      } catch (e) {
+        console.error(`OpenRouter 청크 실패(나머지는 다음에): ${String(e.message || e).slice(0, 150)}`);
+        break;
+      }
+    }
+    return ok;
+  },
 };
 
-/** 부르는 차례(JUDGE_ORDER 환경값, 쉼표 구분). 기본 groq → gemini */
-const order = () => String(process.env.JUDGE_ORDER || 'groq,gemini').split(',').map((s) => s.trim()).filter((p) => PROVIDERS[p]);
+/** 부르는 차례(JUDGE_ORDER 환경값, 쉼표 구분). 기본 groq → gemini → openrouter */
+const order = () => String(process.env.JUDGE_ORDER || 'groq,gemini,openrouter').split(',').map((s) => s.trim()).filter((p) => PROVIDERS[p]);
+
+// 비교 스크립트(judge-compare.mjs)가 같은 프롬프트·길을 쓴다
+export { PROVIDERS, buildPrompt, prepImages, applyResults };
 
 /** items: [{id, word, meaning_ko, png}] → Map(id → {ok, why, scene}) · AI 실패면 null. png 는 PNG·JPEG·WebP 버퍼 무엇이든
  *  2026-10-30 Groq 먼저(Gemini Flash 는 하루 ≈20번에 503 도 잦다) → 판정을 못 받은 그림만 다음 AI 로. 오류 없이 빈 답이 와도(0장 적용) 실패로 보고 넘어간다 */
