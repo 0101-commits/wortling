@@ -11,8 +11,14 @@ export const KLEIN4 = '@cf/black-forest-labs/flux-2-klein-4b';
 export const SCHNELL = '@cf/black-forest-labs/flux-1-schnell';
 export const KLEIN9 = '@cf/black-forest-labs/flux-2-klein-9b';
 export const DEV = '@cf/black-forest-labs/flux-2-dev';
-/** 매일 섞어 그리는 모델(참고 그림 있는 쪽 · 글자만 쪽) */
-export const MIX_MODELS = [KLEIN4, SCHNELL];
+/** 매일 섞어 그리는 모델(참고 그림 있는 쪽 · 글자만 쪽). 환경값 MIX_MODELS=klein4b,schnell 로 고름
+ *  (10-30: schnell 48장 중 46장이 자동 검사 탈락 — 선이 얇고 귀 색이 달라 고칠 때까지 daily.yml 에서 klein4b 만) */
+const MIX_NAMES = { klein4b: KLEIN4, schnell: SCHNELL };
+export const MIX_MODELS = (process.env.MIX_MODELS || 'klein4b,schnell')
+  .split(',')
+  .map((s) => MIX_NAMES[s.trim()])
+  .filter(Boolean);
+if (!MIX_MODELS.length) MIX_MODELS.push(KLEIN4);
 
 // 그릴 크기 · 걸음 수 — 값은 공식 문서(models/…) 기준. schnell 은 width/height 입력이 없어 정사각(1024²)으로 어림
 export const SIZE = { [KLEIN4]: [1024, 768], [SCHNELL]: [1024, 1024], [KLEIN9]: [1024, 768], [DEV]: [1024, 768] };
